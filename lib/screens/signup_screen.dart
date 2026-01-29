@@ -1,9 +1,9 @@
-// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures
+// ignore_for_file: deprecated_member_use, curly_braces_in_flow_control_structures, unused_local_variable
 
 import 'package:country_picker/country_picker.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
-import 'package:fun_fit/screens/login_screen.dart';
+import 'package:fun_fit/authentication/login_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -64,7 +64,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
         // Responsive values
         double paddingH = width * 0.06;
-        double paddingV = height * 0.03;
         double fontSizeTitle = width * 0.07;
         double fontSizeField = width * 0.045;
         double buttonHeight = height * 0.065;
@@ -72,17 +71,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         double spacing = height * 0.02;
 
         if (width >= 1200) {
-          // Desktop
           paddingH = width * 0.2;
-          paddingV = height * 0.05;
           fontSizeTitle = width * 0.04;
           fontSizeField = width * 0.025;
           buttonHeight = height * 0.06;
           socialRadius = 26;
         } else if (width >= 800) {
-          // Tablet
           paddingH = width * 0.12;
-          paddingV = height * 0.04;
           fontSizeTitle = width * 0.055;
           fontSizeField = width * 0.035;
           buttonHeight = height * 0.06;
@@ -99,7 +94,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           body: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
               horizontal: paddingH,
-              vertical: paddingV,
+              vertical: spacing,
             ),
             child: Form(
               key: _formKey,
@@ -116,28 +111,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                   SizedBox(height: spacing),
 
-                  _inputField(
+                  // Full Name
+                  _textFormField(
                     controller: fullNameController,
                     hint: 'Full Name',
                     icon: Icons.person,
                     fontSize: fontSizeField,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty)
-                        return 'Full Name is required';
-                      return null;
-                    },
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'Full Name is required'
+                        : null,
                   ),
-                  _inputField(
+
+                  // Phone
+                  _textFormField(
                     controller: phoneController,
                     hint: 'Phone Number',
                     icon: Icons.phone,
                     fontSize: fontSizeField,
                     keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty)
-                        return 'Phone Number is required';
-                      return null;
-                    },
+                    validator: (value) =>
+                        (value == null || value.trim().isEmpty)
+                        ? 'Phone Number is required'
+                        : null,
                   ),
 
                   // Country Picker
@@ -145,11 +141,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     padding: EdgeInsets.only(bottom: spacing),
                     child: TextFormField(
                       readOnly: true,
-                      validator: (value) {
-                        if (selectedCountry == null)
-                          return 'Country is required';
-                        return null;
-                      },
+                      validator: (value) => selectedCountry == null
+                          ? 'Country is required'
+                          : null,
                       onTap: () {
                         showCountryPicker(
                           context: context,
@@ -173,9 +167,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               )
                             : const Icon(Icons.flag),
                         hintText: selectedCountry?.name ?? 'Select Country',
-                        contentPadding: EdgeInsets.symmetric(
-                          vertical: 16,
-                          horizontal: 16,
+                        hintStyle: TextStyle(
+                          color: Colors.grey.withOpacity(0.6),
+                          fontSize: fontSizeField,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 12,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -184,7 +182,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
 
-                  _inputField(
+                  // Email
+                  _textFormField(
                     controller: emailController,
                     hint: 'Email',
                     icon: Icons.email,
@@ -200,7 +199,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       return null;
                     },
                   ),
-                  _inputField(
+
+                  // Password
+                  _textFormField(
                     controller: passwordController,
                     hint: 'Password',
                     icon: Icons.lock,
@@ -208,9 +209,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     isPassword: true,
                     obscureText: _obscurePassword,
                     toggleVisibility: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
+                      setState(() => _obscurePassword = !_obscurePassword);
                     },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty)
@@ -221,7 +220,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     },
                   ),
 
-                  _inputField(
+                  // Confirm Password
+                  _textFormField(
                     controller: confirmPasswordController,
                     hint: 'Confirm Password',
                     icon: Icons.lock_outline,
@@ -229,9 +229,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     isPassword: true,
                     obscureText: _obscureConfirmPassword,
                     toggleVisibility: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
+                      setState(
+                        () =>
+                            _obscureConfirmPassword = !_obscureConfirmPassword,
+                      );
                     },
                     validator: (value) {
                       if (value == null || value.trim().isEmpty)
@@ -249,7 +250,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Checkbox(
                         value: agreeTerms,
-                        onChanged: (bool? value) =>
+                        onChanged: (value) =>
                             setState(() => agreeTerms = value ?? false),
                         activeColor: Colors.blue.shade900,
                       ),
@@ -258,8 +259,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: GestureDetector(
                           onTap: () => setState(() => agreeTerms = !agreeTerms),
                           child: Text(
-                            'I agree to the (Terms & Conditions!)',
-                            style: TextStyle(fontSize: fontSizeField),
+                            'I agree to the Terms & Conditions',
+                            style: TextStyle(fontSize: 20),
                           ),
                         ),
                       ),
@@ -271,7 +272,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   // Sign Up Button
                   SizedBox(
                     width: double.infinity,
-                    height: buttonHeight,
+                    height: 50,
                     child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.blue.shade900,
@@ -295,16 +296,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   // OR Divider
                   Row(
-                    children: [
-                      const Expanded(child: Divider()),
+                    children: const [
+                      Expanded(child: Divider()),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          'OR',
-                          style: TextStyle(fontSize: fontSizeField),
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('OR'),
                       ),
-                      const Expanded(child: Divider()),
+                      Expanded(child: Divider()),
                     ],
                   ),
 
@@ -316,7 +314,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       _socialIcon(
                         Icons.telegram,
-                        Colors.red,
+                        Colors.blue,
                         radius: socialRadius,
                       ),
                       _socialIcon(
@@ -326,7 +324,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                       _socialIcon(
                         Icons.apple,
-                        Colors.purple,
+                        Colors.black,
                         radius: socialRadius,
                       ),
                     ],
@@ -340,7 +338,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Text(
                         'Already have an account? ',
-                        style: TextStyle(fontSize: fontSizeField),
+                        style: TextStyle(fontSize: 20),
                       ),
                       GestureDetector(
                         onTap: () {
@@ -354,7 +352,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            fontSize: fontSizeField,
+                            fontSize: 20,
                             color: Colors.blue.shade900,
                             fontWeight: FontWeight.bold,
                           ),
@@ -371,7 +369,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _inputField({
+  Widget _textFormField({
     required TextEditingController controller,
     required String hint,
     required IconData icon,
@@ -383,7 +381,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     String? Function(String?)? validator,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         controller: controller,
         obscureText: obscureText,
@@ -392,18 +390,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
         decoration: InputDecoration(
           prefixIcon: Icon(icon),
           hintText: hint,
-          hintStyle: TextStyle(fontSize: fontSize),
+          hintStyle: TextStyle(
+            fontSize: fontSize,
+            color: Colors.grey.withOpacity(0.6),
+          ),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
                     obscureText ? Icons.visibility_off : Icons.visibility,
+                    size: 20,
                   ),
                   onPressed: toggleVisibility,
                 )
               : null,
           contentPadding: const EdgeInsets.symmetric(
-            vertical: 16,
-            horizontal: 16,
+            vertical: 12,
+            horizontal: 12,
           ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),

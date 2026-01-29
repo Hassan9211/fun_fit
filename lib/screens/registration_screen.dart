@@ -1,6 +1,5 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import '../authentication/login_screen.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
@@ -22,7 +21,7 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 2),
     );
 
     _scaleAnimation = Tween<double>(
@@ -36,14 +35,6 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
     ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeIn));
 
     _controller.forward();
-
-    // Auto navigate to LoginScreen after 3 seconds
-    Timer(const Duration(seconds: 3), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    });
   }
 
   @override
@@ -59,8 +50,9 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
         final width = constraints.maxWidth;
         final height = constraints.maxHeight;
 
-        double avatarSize = width * 0.2; // responsive
+        double avatarSize = width * 0.2;
         double textSize = width * 0.05;
+        double buttonHeight = height * 0.065;
 
         if (width >= 1200) {
           avatarSize = width * 0.1;
@@ -72,7 +64,8 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
 
         return Scaffold(
           backgroundColor: Colors.white,
-          body: Center(
+          body: Padding(
+            padding: EdgeInsets.symmetric(horizontal: width * 0.1),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -100,6 +93,51 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                     color: Colors.black87,
                   ),
                   textAlign: TextAlign.center,
+                ),
+                SizedBox(height: height * 0.015),
+
+                Text(
+                  'Your account is awaiting admin approval.\n'
+                  'You will receive a notification once your profile is activated.',
+                  style: TextStyle(
+                    fontSize: textSize * 0.5,
+                    color: Colors.grey.shade700,
+                    height: 1.4,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+
+                // ✅ Continue Button
+                Padding(
+                  padding: const EdgeInsets.all(40.0),
+                  child: SizedBox(
+                    width: double.infinity,
+                    height: buttonHeight,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue.shade900,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      onPressed: () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Continue to Login',
+                        style: TextStyle(
+                          fontSize: textSize * 0.6,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
