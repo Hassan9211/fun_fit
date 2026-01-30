@@ -1,114 +1,128 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'package:fun_fit/authentication/login_success.dart';
+import 'package:fun_fit/authentication/otp_purpos.dart';
+import 'package:fun_fit/screens/registration_screen.dart';
 
-class OtpVerificationScreen extends StatefulWidget {
-  final String emailOrPhone; // optional, to show where OTP was sent
-  const OtpVerificationScreen({super.key, this.emailOrPhone = ''});
+class OtpScreen extends StatefulWidget {
+  final OtpPurpose purpose;
+
+  const OtpScreen({super.key, required this.purpose});
 
   @override
-  State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
+  State<OtpScreen> createState() => _OtpScreenState();
 }
 
-class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
-  final List<TextEditingController> _otpControllers = List.generate(
+class _OtpScreenState extends State<OtpScreen> {
+  final List<TextEditingController> _controllers = List.generate(
     4,
     (_) => TextEditingController(),
   );
-  final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
 
   @override
   void dispose() {
-    for (var ctrl in _otpControllers) ctrl.dispose();
-    for (var node in _focusNodes) node.dispose();
+    for (var c in _controllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
+  String get title {
+    switch (widget.purpose) {
+      case OtpPurpose.signup:
+        return 'Verify Your Account';
+      case OtpPurpose.forgotPassword:
+        return 'Verify OTP';
+      case OtpPurpose.signin:
+        return 'Verify Your Account';
+    }
+  }
+
+  String get subtitle {
+    switch (widget.purpose) {
+      case OtpPurpose.signup:
+        return 'Enter the OTP sent for first time signup';
+      case OtpPurpose.forgotPassword:
+        return 'Enter the OTP sent to reset your password';
+      case OtpPurpose.signin:
+        return 'Enter the OTP sent to verify your account';
+    }
+  }
+
   void _verifyOtp() {
-    String otp = _otpControllers.map((e) => e.text).join();
-    if (otp.length < 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter complete 4-digit OTP')),
-      );
+    final otp = _controllers.map((e) => e.text).join();
+
+    if (otp.length != 4) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Enter complete OTP')));
       return;
     }
-    // For now just navigate to LoginScreen after verification
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+
+    /// 🔁 NAVIGATION BASED ON PURPOSE
+    switch (widget.purpose) {
+      case OtpPurpose.signup:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RegistrationSuccessScreen()),
+        );
+        break;
+
+      case OtpPurpose.forgotPassword:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PasswordResetSuccessScreen()),
+        );
+        break;
+
+      case OtpPurpose.signin:
+        Navigator.pushReplacementNamed(context, '/home');
+        break;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final height = MediaQuery.of(context).size.height;
-    double spacing = height * 0.03;
-    double fontTitle = width * 0.06;
-    double fontField = width * 0.045;
-    double buttonHeight = 50;
-
-    if (width >= 1200) {
-      fontTitle = width * 0.04;
-      fontField = width * 0.025;
-      buttonHeight = 60;
-    } else if (width >= 800) {
-      fontTitle = width * 0.05;
-      fontField = width * 0.035;
-      buttonHeight = 55;
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text(
-          'OTP Verification',
-          style: TextStyle(color: Colors.white),
-        ),
-        centerTitle: true,
+        title: const Text('OTP Verification'),
         backgroundColor: Colors.blue.shade900,
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: width * 0.08,
-          vertical: spacing,
-        ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            SizedBox(height: spacing),
             Text(
-              'Enter OTP',
-              style: TextStyle(
-                fontSize: fontTitle,
-                fontWeight: FontWeight.bold,
-              ),
+              title,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: spacing * 0.5),
+            const SizedBox(height: 8),
             Text(
-              'Enter the 4-digit code sent to ${widget.emailOrPhone}',
+              subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: fontField,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(color: Colors.grey.shade600),
             ),
-            SizedBox(height: spacing),
 
-            /// OTP Fields
+            const SizedBox(height: 32),
+
+            /// OTP INPUTS
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: List.generate(4, (index) {
                 return SizedBox(
-                  width: 60,
-                  child: TextFormField(
-                    controller: _otpControllers[index],
-                    focusNode: _focusNodes[index],
+                  width: 55,
+                  child: TextField(
+                    controller: _controllers[index],
                     keyboardType: TextInputType.number,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     maxLength: 1,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                    ),
                     decoration: InputDecoration(
                       counterText: '',
                       border: OutlineInputBorder(
@@ -116,10 +130,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                       ),
                     ),
                     onChanged: (value) {
-                      if (value.length == 1 && index < 3) {
-                        _focusNodes[index + 1].requestFocus();
-                      } else if (value.isEmpty && index > 0) {
-                        _focusNodes[index - 1].requestFocus();
+                      if (value.isNotEmpty && index < 3) {
+                        FocusScope.of(context).nextFocus();
                       }
                     },
                   ),
@@ -127,41 +139,26 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               }),
             ),
 
-            SizedBox(height: spacing),
+            const SizedBox(height: 40),
 
-            /// Resend OTP
-            TextButton(
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('OTP resent successfully')),
-                );
-              },
-              child: const Text(
-                'Resend OTP',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            SizedBox(height: spacing),
-
-            /// Verify Button
+            /// VERIFY BUTTON
             SizedBox(
               width: double.infinity,
-              height: buttonHeight,
+              height: 52,
               child: ElevatedButton(
-                onPressed: _verifyOtp,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade900,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: Text(
-                  'Verify',
+                onPressed: _verifyOtp,
+                child: const Text(
+                  'Verify OTP',
                   style: TextStyle(
-                    fontSize: fontField,
-                    color: Colors.white,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
               ),

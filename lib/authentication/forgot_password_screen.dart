@@ -1,7 +1,8 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/authentication/otp_verification.dart';
+import 'package:fun_fit/authentication/otp_purpos.dart';
+import 'package:fun_fit/authentication/otp_verification.dart'; // ✅ enum
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -22,12 +23,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      // Navigate to OTP verification screen
+      /// 👉 Navigate to reusable OTP screen
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) =>
-              OtpVerificationScreen(emailOrPhone: emailController.text),
+          builder: (_) => const OtpScreen(purpose: OtpPurpose.forgotPassword),
         ),
       );
     }
@@ -55,7 +55,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           fieldSize = width * 0.035;
         }
 
-        // Controlled avatar size
         double avatarRadius = (width * 0.08).clamp(35.0, 60.0);
         double iconSize = avatarRadius * 1.1;
 
@@ -77,53 +76,40 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 children: [
                   SizedBox(height: height * 0.08),
 
-                  // 🔐 Icon Avatar
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.shade100,
-                          blurRadius: 15,
-                          spreadRadius: 3,
-                        ),
-                      ],
-                    ),
-                    child: CircleAvatar(
-                      radius: avatarRadius,
-                      backgroundColor: Colors.blue.shade50,
-                      child: Icon(
-                        Icons.lock_reset,
-                        size: iconSize,
-                        color: Colors.blue.shade900,
-                      ),
+                  /// Icon
+                  CircleAvatar(
+                    radius: avatarRadius,
+                    backgroundColor: Colors.blue.shade50,
+                    child: Icon(
+                      Icons.lock_reset,
+                      size: iconSize,
+                      color: Colors.blue.shade900,
                     ),
                   ),
 
                   SizedBox(height: height * 0.04),
 
-                  // Title
+                  /// Title
                   Text(
                     'Reset Your Password',
                     style: TextStyle(
                       fontSize: titleSize,
                       fontWeight: FontWeight.bold,
                     ),
-                    textAlign: TextAlign.center,
                   ),
 
                   SizedBox(height: height * 0.015),
 
-                  // Description
+                  /// Description
                   Text(
                     'Enter your email address and we will send you a 4-digit OTP to reset your password.',
-                    style: TextStyle(fontSize: 20, color: Colors.grey.shade700),
                     textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
                   ),
 
                   SizedBox(height: height * 0.04),
 
-                  // Email Field
+                  /// Email
                   TextFormField(
                     controller: emailController,
                     validator: (value) {
@@ -150,7 +136,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   SizedBox(height: height * 0.04),
 
-                  // Reset Button
+                  /// Button
                   SizedBox(
                     width: double.infinity,
                     height: buttonHeight,
@@ -163,7 +149,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       onPressed: _submit,
                       child: Text(
-                        'Send Reset Link',
+                        'Send OTP',
                         style: TextStyle(
                           fontSize: fieldSize,
                           fontWeight: FontWeight.bold,
@@ -175,22 +161,18 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   SizedBox(height: height * 0.04),
 
-                  // Back to Login
+                  /// Back
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pop(context);
-                    },
+                    onTap: () => Navigator.pop(context),
                     child: Text(
                       'Back to Login',
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: 18,
                         color: Colors.blue.shade900,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-
-                  SizedBox(height: height * 0.05),
                 ],
               ),
             ),

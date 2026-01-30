@@ -2,7 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/forgot_password_screen.dart';
-import 'package:fun_fit/authentication/login_success.dart';
+import 'package:fun_fit/authentication/otp_purpos.dart';
+import 'package:fun_fit/authentication/otp_verification.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -29,10 +30,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _login() {
     if (_formKey.currentState!.validate()) {
-      // If form is valid, navigate to success screen
+      /// 👉 SAME OTP SCREEN (LOGIN PURPOSE)
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const PasswordResetSuccessScreen()),
+        MaterialPageRoute(
+          builder: (_) => const OtpScreen(purpose: OtpPurpose.signin),
+        ),
       );
     }
   }
@@ -76,7 +79,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   SizedBox(height: height * 0.05),
 
-                  /// Welcome Text
+                  /// Welcome
                   Center(
                     child: Text(
                       'Welcome Back',
@@ -89,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   SizedBox(height: height * 0.04),
 
-                  /// Email Field
+                  /// Email
                   TextFormField(
                     controller: emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -111,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  /// Password Field
+                  /// Password
                   Padding(
                     padding: const EdgeInsets.only(top: 16, bottom: 16),
                     child: TextFormField(
@@ -146,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  /// Remember & Forgot
+                  /// Remember / Forgot
                   Row(
                     children: [
                       Checkbox(
@@ -165,8 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen(),
+                              builder: (_) => const ForgotPasswordScreen(),
                             ),
                           );
                         },
@@ -183,7 +185,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   SizedBox(height: height * 0.03),
 
-                  /// Continue Button
+                  /// Continue
                   SizedBox(
                     width: double.infinity,
                     height: buttonHeight,
@@ -208,7 +210,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   SizedBox(height: height * 0.04),
 
-                  /// OR Divider
+                  /// OR
                   Row(
                     children: const [
                       Expanded(child: Divider()),
@@ -222,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   SizedBox(height: height * 0.03),
 
-                  /// Social Login
+                  /// Social
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -256,7 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const SignUpScreen(),
+                              builder: (_) => const SignUpScreen(),
                             ),
                           );
                         },

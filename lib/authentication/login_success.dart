@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fun_fit/onboarding/ready_screen.dart';
 import 'login_screen.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
@@ -87,7 +88,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
+                            builder: (_) => const AreYouReadyScreen(),
                           ),
                         );
                       },

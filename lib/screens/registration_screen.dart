@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../authentication/login_screen.dart';
+import 'package:fun_fit/onboarding/ready_screen.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
@@ -124,12 +124,12 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
+                            builder: (_) => const AreYouReadyScreen(),
                           ),
                         );
                       },
                       child: Text(
-                        'Continue to Login',
+                        'Continue',
                         style: TextStyle(
                           fontSize: textSize * 0.6,
                           fontWeight: FontWeight.bold,
