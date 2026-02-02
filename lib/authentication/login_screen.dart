@@ -1,4 +1,4 @@
-// ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use, unused_local_variable
 
 import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/forgot_password_screen.dart';
@@ -213,35 +213,37 @@ class _LoginScreenState extends State<LoginScreen> {
                   /// OR
                   Row(
                     children: const [
-                      Expanded(child: Divider()),
+                      Expanded(child: Divider(thickness: 1)),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Text('OR'),
                       ),
-                      Expanded(child: Divider()),
+                      Expanded(child: Divider(thickness: 1)),
                     ],
                   ),
+                  const SizedBox(height: 20),
 
-                  SizedBox(height: height * 0.03),
-
-                  /// Social
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      _socialIcon(
-                        Icons.telegram,
-                        Colors.blue,
-                        radius: socialRadius,
+                      _socialButton(
+                        icon: Icons.telegram,
+                        color: Colors.blue,
+                        onTap: () {},
                       ),
-                      _socialIcon(
-                        Icons.facebook,
-                        Colors.blue,
-                        radius: socialRadius,
+                      const SizedBox(width: 20),
+
+                      _socialButton(
+                        icon: Icons.facebook,
+                        color: Colors.blue.shade900,
+                        onTap: () {},
                       ),
-                      _socialIcon(
-                        Icons.apple,
-                        Colors.purple,
-                        radius: socialRadius,
+                      const SizedBox(width: 20),
+
+                      _socialButton(
+                        icon: Icons.apple,
+                        color: Colors.black,
+                        onTap: () {},
                       ),
                     ],
                   ),
@@ -283,13 +285,18 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _socialIcon(IconData icon, Color color, {double radius = 22}) {
-    return CircleAvatar(
-      radius: radius,
-      backgroundColor: color.withOpacity(0.1),
-      child: IconButton(
-        icon: Icon(icon, color: color, size: radius),
-        onPressed: () {},
+  Widget _socialButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: CircleAvatar(
+        radius: 26,
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color, size: 28),
       ),
     );
   }

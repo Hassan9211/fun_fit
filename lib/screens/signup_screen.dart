@@ -244,6 +244,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
 
                   const SizedBox(height: 25),
+                  Row(
+                    children: const [
+                      Expanded(child: Divider(thickness: 1)),
+                      Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 10),
+                        child: Text('OR'),
+                      ),
+                      Expanded(child: Divider(thickness: 1)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _socialButton(
+                        icon: Icons.telegram,
+                        color: Colors.blue,
+                        onTap: () {},
+                      ),
+                      const SizedBox(width: 20),
+
+                      _socialButton(
+                        icon: Icons.facebook,
+                        color: Colors.blue.shade900,
+                        onTap: () {},
+                      ),
+                      const SizedBox(width: 20),
+
+                      _socialButton(
+                        icon: Icons.apple,
+                        color: Colors.black,
+                        onTap: () {},
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: spacing * 1.5),
 
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -272,6 +309,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _socialButton({
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(30),
+      child: CircleAvatar(
+        radius: 26,
+        backgroundColor: color.withOpacity(0.1),
+        child: Icon(icon, color: color, size: 28),
+      ),
     );
   }
 

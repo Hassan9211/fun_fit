@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
-import 'package:fun_fit/authentication/otp_verification.dart'; // ✅ enum
+import 'package:fun_fit/authentication/otp_verification.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -23,7 +23,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
-      /// 👉 Navigate to reusable OTP screen
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -42,17 +41,33 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
         double paddingH = width * 0.06;
         double titleSize = width * 0.06;
-        double fieldSize = width * 0.045;
+        double fieldFontSize = width * 0.045;
         double buttonHeight = 50;
+
+        /// 🔥 Desktop specific padding fix
+        EdgeInsets fieldPadding = const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 14,
+        );
 
         if (width >= 1200) {
           paddingH = width * 0.25;
           titleSize = width * 0.035;
-          fieldSize = width * 0.025;
+          fieldFontSize = width * 0.022;
+
+          fieldPadding = const EdgeInsets.symmetric(
+            vertical: 12, // 👈 height control
+            horizontal: 14,
+          );
         } else if (width >= 800) {
           paddingH = width * 0.15;
           titleSize = width * 0.045;
-          fieldSize = width * 0.035;
+          fieldFontSize = width * 0.03;
+
+          fieldPadding = const EdgeInsets.symmetric(
+            vertical: 14,
+            horizontal: 14,
+          );
         }
 
         double avatarRadius = (width * 0.08).clamp(35.0, 60.0);
@@ -109,27 +124,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   SizedBox(height: height * 0.04),
 
-                  /// Email
-                  TextFormField(
-                    controller: emailController,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty)
-                        return 'Email is required';
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
-                      ).hasMatch(value))
-                        return 'Enter a valid email';
-                      return null;
-                    },
-                    decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.email),
-                      hintText: 'Email',
-                      hintStyle: TextStyle(
-                        color: Colors.grey.withOpacity(0.6),
-                        fontSize: fieldSize,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  /// Email Field (Width + Height FIXED)
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: TextFormField(
+                        controller: emailController,
+                        style: TextStyle(fontSize: fieldFontSize),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty)
+                            return 'Email is required';
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
+                          ).hasMatch(value))
+                            return 'Enter a valid email';
+                          return null;
+                        },
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.email),
+                          hintText: 'Email',
+                          contentPadding: fieldPadding, // 👈 KEY FIX
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -137,23 +155,28 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   SizedBox(height: height * 0.04),
 
                   /// Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: buttonHeight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _submit,
-                      child: Text(
-                        'Send OTP',
-                        style: TextStyle(
-                          fontSize: fieldSize,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 500),
+                      child: SizedBox(
+                        width: double.infinity,
+                        height: buttonHeight,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue.shade900,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: _submit,
+                          child: Text(
+                            'Send OTP',
+                            style: TextStyle(
+                              fontSize: fieldFontSize,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                         ),
                       ),
                     ),
