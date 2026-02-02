@@ -1,10 +1,8 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use, unused_local_variable
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/authentication/forgot_password_screen.dart';
-import 'package:fun_fit/authentication/otp_purpos.dart';
-import 'package:fun_fit/authentication/otp_verification.dart';
-import 'package:fun_fit/screens/signup_screen.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,12 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() {
     if (_formKey.currentState!.validate()) {
       /// 👉 SAME OTP SCREEN (LOGIN PURPOSE)
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const OtpScreen(purpose: OtpPurpose.signin),
-        ),
-      );
+      Get.toNamed(Routes.otpSignin);
     }
   }
 
@@ -164,14 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const Text('Remember me'),
                       const Spacer(),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const ForgotPasswordScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => Get.toNamed(Routes.forgotPassword),
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
@@ -256,14 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       const Text('Don’t have an account? '),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SignUpScreen(),
-                            ),
-                          );
-                        },
+                        onTap: () => Get.toNamed(Routes.signup),
                         child: Text(
                           'Sign Up',
                           style: TextStyle(

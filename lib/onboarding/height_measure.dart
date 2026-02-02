@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/waight_measure.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class HeightSelectionScreen extends StatefulWidget {
   const HeightSelectionScreen({super.key});
@@ -133,14 +134,7 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const WeightSelectionScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: () => Get.toNamed(Routes.weight),
                     child: Text(
                       'Next',
                       style: TextStyle(

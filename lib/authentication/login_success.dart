@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/ready_screen.dart';
-import 'login_screen.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
   const PasswordResetSuccessScreen({super.key});
@@ -84,14 +84,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AreYouReadyScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => Get.offAllNamed(Routes.home),
                       child: const Text(
                         'Continue',
                         style: TextStyle(
@@ -106,12 +99,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
 
                   // Back to Login
                   GestureDetector(
-                    onTap: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
+                    onTap: () => Get.offAllNamed(Routes.login),
                     child: Text(
                       'Back to Login',
                       style: TextStyle(

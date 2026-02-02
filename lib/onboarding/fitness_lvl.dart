@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/age_selection_screen.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class FitnessLevelScreen extends StatefulWidget {
   const FitnessLevelScreen({super.key});
@@ -115,14 +116,7 @@ class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
                     ),
                     onPressed: selectedLevel == null
                         ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const AgeSelectionScreen(),
-                              ),
-                            );
-                          },
+                        : () => Get.toNamed(Routes.age),
                     child: Text(
                       'Next',
                       style: TextStyle(

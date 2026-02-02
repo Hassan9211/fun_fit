@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/goal_screen.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
   const GenderSelectionScreen({super.key});
@@ -103,14 +104,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                     ),
                     onPressed: selectedGender == null
                         ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const GoalSelectionScreen(),
-                              ),
-                            );
-                          },
+                        : () => Get.toNamed(Routes.goal),
                     child: Text(
                       'Next',
                       style: TextStyle(

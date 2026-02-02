@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/ready_screen.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
@@ -120,14 +121,7 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AreYouReadyScreen(),
-                          ),
-                        );
-                      },
+                      onPressed: () => Get.offAllNamed(Routes.ready),
                       child: Text(
                         'Continue',
                         style: TextStyle(

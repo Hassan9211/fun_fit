@@ -3,9 +3,8 @@
 import 'package:country_picker/country_picker.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
-import 'package:fun_fit/authentication/login_screen.dart';
-import 'package:fun_fit/authentication/otp_purpos.dart';
-import 'package:fun_fit/authentication/otp_verification.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -50,12 +49,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     /// ✅ ALL VALID → OTP SCREEN
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const OtpScreen(purpose: OtpPurpose.signup),
-      ),
-    );
+    Get.toNamed(Routes.otpSignup);
   }
 
   @override
@@ -287,12 +281,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       const Text('Already have an account? '),
                       GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const LoginScreen(),
-                          ),
-                        ),
+                      onTap: () => Get.toNamed(Routes.login),
                         child: Text(
                           'Login',
                           style: TextStyle(

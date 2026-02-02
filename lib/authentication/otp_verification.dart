@@ -1,8 +1,8 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
-import 'package:fun_fit/authentication/login_success.dart';
+import 'package:get/get.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
-import 'package:fun_fit/screens/registration_screen.dart';
+import 'package:fun_fit/main.dart';
 
 class OtpScreen extends StatefulWidget {
   final OtpPurpose purpose;
@@ -62,21 +62,15 @@ class _OtpScreenState extends State<OtpScreen> {
     /// 🔁 NAVIGATION BASED ON PURPOSE
     switch (widget.purpose) {
       case OtpPurpose.signup:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const RegistrationSuccessScreen()),
-        );
+        Get.offNamed(Routes.registrationSuccess);
         break;
 
       case OtpPurpose.forgotPassword:
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const PasswordResetSuccessScreen()),
-        );
+        Get.offNamed(Routes.passwordResetSuccess);
         break;
 
       case OtpPurpose.signin:
-        Navigator.pushReplacementNamed(context, '/home');
+        Get.offNamed(Routes.home);
         break;
     }
   }

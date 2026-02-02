@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/height_measure.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class AgeSelectionScreen extends StatefulWidget {
   const AgeSelectionScreen({super.key});
@@ -116,14 +117,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const HeightSelectionScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: () => Get.toNamed(Routes.height),
                     child: Text(
                       'Next',
                       style: TextStyle(

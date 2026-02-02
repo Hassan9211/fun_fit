@@ -1,7 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/fitness_lvl.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class GoalSelectionScreen extends StatefulWidget {
   const GoalSelectionScreen({super.key});
@@ -112,14 +113,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                     ),
                     onPressed: selectedGoal == null
                         ? null
-                        : () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const FitnessLevelScreen(),
-                              ),
-                            );
-                          },
+                        : () => Get.toNamed(Routes.fitnessLevel),
                     child: Text(
                       'Next',
                       style: TextStyle(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:fun_fit/onboarding/gender_selection.dart';
+import 'package:get/get.dart';
+import 'package:fun_fit/main.dart';
 
 class AreYouReadyScreen extends StatelessWidget {
   const AreYouReadyScreen({super.key});
@@ -69,9 +70,7 @@ class AreYouReadyScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                       ),
-                      onPressed: () {
-                        Navigator.of(context).push(_animatedRoute());
-                      },
+                      onPressed: () => Get.toNamed(Routes.gender),
                       child: Text(
                         "I'm Ready",
                         style: TextStyle(
@@ -91,25 +90,5 @@ class AreYouReadyScreen extends StatelessWidget {
     );
   }
 
-  /// 🎬 Fade + Slide Animation
-  Route _animatedRoute() {
-    return PageRouteBuilder(
-      transitionDuration: const Duration(milliseconds: 600),
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          const GenderSelectionScreen(),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        final slide = Tween<Offset>(
-          begin: const Offset(0, 0.2),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
-
-        final fade = Tween<double>(begin: 0, end: 1).animate(animation);
-
-        return FadeTransition(
-          opacity: fade,
-          child: SlideTransition(position: slide, child: child),
-        );
-      },
-    );
-  }
+  /// 🎬 Custom animation can be reintroduced later using GetX transitions if needed.
 }
