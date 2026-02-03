@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:fun_fit/main.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
   const PasswordResetSuccessScreen({super.key});

@@ -1,8 +1,8 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:fun_fit/main.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -181,7 +181,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   /// Back
                   GestureDetector(
-                  onTap: () => Get.back(),
+                    onTap: () => Get.back(),
                     child: Text(
                       'Back to Login',
                       style: TextStyle(

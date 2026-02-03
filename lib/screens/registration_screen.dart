@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:fun_fit/main.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
