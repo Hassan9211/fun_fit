@@ -137,8 +137,8 @@ class _OtpScreenState extends State<OtpScreen> {
 
             /// VERIFY BUTTON
             SizedBox(
-              width: double.infinity,
-              height: 52,
+              width: 500,
+              height: 50,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue.shade900,
