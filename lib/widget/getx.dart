@@ -11,6 +11,9 @@ import 'package:fun_fit/onboarding/goal_screen.dart';
 import 'package:fun_fit/onboarding/height_measure.dart';
 import 'package:fun_fit/onboarding/ready_screen.dart';
 import 'package:fun_fit/onboarding/waight_measure.dart';
+import 'package:fun_fit/home/food_logging_screen.dart';
+import 'package:fun_fit/home/challenges.dart';
+import 'package:fun_fit/home/home_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
@@ -33,24 +36,14 @@ class Routes {
   static const String height = '/height';
   static const String weight = '/weight';
   static const String home = '/home';
+  static const String foodLogging = '/food-logging';
+  static const String challenges = '/challenges';
 
   static final pages = <GetPage>[
-    GetPage(
-      name: splash,
-      page: () => const SplashScreen(),
-    ),
-    GetPage(
-      name: signup,
-      page: () => const SignUpScreen(),
-    ),
-    GetPage(
-      name: login,
-      page: () => const LoginScreen(),
-    ),
-    GetPage(
-      name: forgotPassword,
-      page: () => const ForgotPasswordScreen(),
-    ),
+    GetPage(name: splash, page: () => const SplashScreen()),
+    GetPage(name: signup, page: () => const SignUpScreen()),
+    GetPage(name: login, page: () => const LoginScreen()),
+    GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
     // We reuse OtpScreen but differentiate by route name + purpose
     GetPage(
       name: otpSignup,
@@ -72,38 +65,16 @@ class Routes {
       name: passwordResetSuccess,
       page: () => const PasswordResetSuccessScreen(),
     ),
-    GetPage(
-      name: ready,
-      page: () => const AreYouReadyScreen(),
-    ),
-    GetPage(
-      name: gender,
-      page: () => const GenderSelectionScreen(),
-    ),
-    GetPage(
-      name: goal,
-      page: () => const GoalSelectionScreen(),
-    ),
-    GetPage(
-      name: fitnessLevel,
-      page: () => const FitnessLevelScreen(),
-    ),
-    GetPage(
-      name: age,
-      page: () => const AgeSelectionScreen(),
-    ),
-    GetPage(
-      name: height,
-      page: () => const HeightSelectionScreen(),
-    ),
-    GetPage(
-      name: weight,
-      page: () => const WeightSelectionScreen(),
-    ),
+    GetPage(name: ready, page: () => const AreYouReadyScreen()),
+    GetPage(name: gender, page: () => const GenderSelectionScreen()),
+    GetPage(name: goal, page: () => const GoalSelectionScreen()),
+    GetPage(name: fitnessLevel, page: () => const FitnessLevelScreen()),
+    GetPage(name: age, page: () => const AgeSelectionScreen()),
+    GetPage(name: height, page: () => const HeightSelectionScreen()),
+    GetPage(name: weight, page: () => const WeightSelectionScreen()),
     // Home route placeholder – you can point it to your real home screen later
-    GetPage(
-      name: home,
-      page: () => const AreYouReadyScreen(),
-    ),
+    GetPage(name: home, page: () => const HomeScreen()),
+    GetPage(name: foodLogging, page: () => const FoodLoggingScreen()),
+    GetPage(name: challenges, page: () => const ChallengesScreen()),
   ];
 }
