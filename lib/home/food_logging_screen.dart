@@ -47,16 +47,35 @@ class _FoodLoggingScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5FB),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _BlueHeader(title: 'Food Logging', showBack: true),
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, 24),
-                children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final hPadding = isDesktop
+            ? 36.0
+            : isTablet
+            ? 28.0
+            : 20.0;
+        final contentMaxWidth = isDesktop
+            ? 1040.0
+            : isTablet
+            ? 900.0
+            : width;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF3F5FB),
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    _BlueHeader(title: 'Food Logging', showBack: true),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
+                        children: [
                   _SegmentedTabs(
                     items: ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Water'],
                     selectedIndex: _selectedIndex(),
@@ -164,12 +183,16 @@ class _FoodLoggingScaffold extends StatelessWidget {
                       ],
                     ),
                   ),
-                ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -179,16 +202,35 @@ class _AddMealScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5FB),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _BlueHeader(title: 'Add Meal', showBack: true),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final hPadding = isDesktop
+            ? 36.0
+            : isTablet
+            ? 28.0
+            : 20.0;
+        final contentMaxWidth = isDesktop
+            ? 1040.0
+            : isTablet
+            ? 900.0
+            : width;
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF3F5FB),
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    _BlueHeader(title: 'Add Meal', showBack: true),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
+                        children: [
                   Text(
                     'Meal Planner',
                     style: TextStyle(
@@ -232,12 +274,16 @@ class _AddMealScaffold extends StatelessWidget {
                       arguments: {'meal': 'Water'},
                     ),
                   ),
-                ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

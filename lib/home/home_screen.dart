@@ -3,6 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import '../widget/app_colors.dart';
+import '../widget/home_bottom_nav.dart';
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -40,7 +43,7 @@ class HomeScreen extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1D3DBB),
+                    color: AppColors.primary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -52,7 +55,7 @@ class HomeScreen extends StatelessWidget {
                       height: 44,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1D3DBB),
+                          backgroundColor: AppColors.primary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -72,6 +75,99 @@ class HomeScreen extends StatelessWidget {
               ],
             ),
           ),
+        );
+      },
+    );
+  }
+
+  void _showNotificationsSheet(BuildContext context) {
+    const notifications = [
+      _NotificationData(
+        title: 'Challenge completed',
+        icon: Icons.emoji_events_outlined,
+      ),
+      _NotificationData(
+        title: 'New task available',
+        icon: Icons.task_alt_outlined,
+      ),
+      _NotificationData(
+        title: 'You spent 2 hours today',
+        icon: Icons.timer_outlined,
+      ),
+    ];
+
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Notifications',
+      barrierColor: const Color(0x33000000),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return SafeArea(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Material(
+                color: AppColors.white,
+                borderRadius: BorderRadius.circular(18),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Notifications',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textTitle,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...notifications.map(
+                        (item) => Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.appBackground,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(item.icon, color: AppColors.primary),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  item.title,
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final slide = Tween<Offset>(
+          begin: const Offset(0, -0.1),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut));
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: slide, child: child),
         );
       },
     );
@@ -119,7 +215,7 @@ class HomeScreen extends StatelessWidget {
             : 160.0;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F5FB),
+          backgroundColor: AppColors.appBackground,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -129,7 +225,7 @@ class HomeScreen extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.fromLTRB(hPadding, 8, hPadding, 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1D3DBB),
+                        color: AppColors.primary,
                         borderRadius: BorderRadius.vertical(
                           bottom: Radius.circular(headerRadius),
                         ),
@@ -172,17 +268,20 @@ class HomeScreen extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              Container(
-                                width: isDesktop ? 40 : 36,
-                                height: isDesktop ? 40 : 36,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF2949C8),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Icon(
-                                  Icons.notifications_none,
-                                  color: Colors.white,
-                                  size: 20,
+                              GestureDetector(
+                                onTap: () => _showNotificationsSheet(context),
+                                child: Container(
+                                  width: isDesktop ? 40 : 36,
+                                  height: isDesktop ? 40 : 36,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryDark,
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(
+                                    Icons.notifications_none,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
                                 ),
                               ),
                             ],
@@ -211,7 +310,7 @@ class HomeScreen extends StatelessWidget {
                                         'Choose Random Challenge',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w600,
-                                          color: Color(0xFF47516B),
+                                          color: AppColors.textHeaderHint,
                                         ),
                                       ),
                                     ),
@@ -220,7 +319,7 @@ class HomeScreen extends StatelessWidget {
                                       child: const Icon(
                                         Icons.info_outline,
                                         size: 18,
-                                        color: Color(0xFF1D3DBB),
+                                        color: AppColors.primary,
                                       ),
                                     ),
                                   ],
@@ -231,7 +330,7 @@ class HomeScreen extends StatelessWidget {
                                   height: 44,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1D3DBB),
+                                      backgroundColor: AppColors.primary,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -368,7 +467,7 @@ class HomeScreen extends StatelessWidget {
                                         end: Alignment.topRight,
                                         colors: [
                                           Color(0xAA1D3DBB),
-                                          Color(0x001D3DBB),
+                                          AppColors.transparentPrimary,
                                         ],
                                       ),
                                     ),
@@ -398,13 +497,13 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            backgroundColor: const Color(0xFF1D3DBB),
+            backgroundColor: AppColors.primary,
             onPressed: () {},
             child: const Icon(Icons.add, color: Colors.white),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: const _HomeBottomNav(),
+          bottomNavigationBar: const HomeBottomNav(selected: 'Home'),
         );
       },
     );
@@ -427,7 +526,7 @@ class _SectionHeader extends StatelessWidget {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF374151),
+              color: AppColors.textPrimary,
             ),
           ),
         ),
@@ -438,7 +537,7 @@ class _SectionHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF8A94A6),
+              color: AppColors.textMuted,
             ),
           ),
         ),
@@ -487,7 +586,7 @@ class _CategoryCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.bottomLeft,
             end: Alignment.topRight,
-            colors: [Color(0xAA0F172A), Color(0x001D3DBB)],
+            colors: [Color(0xAA0F172A), AppColors.transparentPrimary],
           ),
         ),
         child: Center(
@@ -505,125 +604,11 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _HomeBottomNav extends StatelessWidget {
-  const _HomeBottomNav();
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final iconSize = compact ? 18.0 : 20.0;
-        final fontSize = compact ? 9.0 : 10.0;
-        return BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          child: SizedBox(
-            height: compact ? 62 : 68,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _NavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  selected: true,
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                _NavItem(
-                  icon: Icons.restaurant_menu,
-                  label: 'Food Log',
-                  onTap: () => Get.toNamed('/food-logging'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                const SizedBox(width: 24),
-                _NavItem(
-                  icon: Icons.flag,
-                  label: 'Challenges',
-                  onTap: () => Get.toNamed('/challenges'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                _NavItem(
-                  icon: Icons.leaderboard,
-                  label: 'Leaderboard',
-                  onTap: () => Get.toNamed('/leaderboard'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                _NavItem(
-                  icon: Icons.menu_book,
-                  label: 'Guides',
-                  onTap: () => Get.toNamed('/guides'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                _NavItem(
-                  icon: Icons.settings,
-                  label: 'Settings',
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
+class _NotificationData {
+  final String title;
   final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-  final double iconSize;
-  final double fontSize;
-  final bool showLabel;
 
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    this.selected = false,
-    this.onTap,
-    this.iconSize = 20,
-    this.fontSize = 10,
-    this.showLabel = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF1D3DBB) : const Color(0xFFB0B7C3);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: iconSize, color: color),
-            if (showLabel) const SizedBox(height: 4),
-            if (showLabel)
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  color: color,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
+  const _NotificationData({required this.title, required this.icon});
 }
+
+

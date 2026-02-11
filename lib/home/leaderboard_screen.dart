@@ -1,23 +1,43 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import '../widget/app_colors.dart';
+import '../widget/home_bottom_nav.dart';
 
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5FB),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const _BlueHeader(title: 'Leaderboard', showBack: true),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final hPadding = isDesktop
+            ? 36.0
+            : isTablet
+            ? 28.0
+            : 20.0;
+        final contentMaxWidth = isDesktop
+            ? 1040.0
+            : isTablet
+            ? 900.0
+            : width;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    const _BlueHeader(title: 'Leaderboard', showBack: true),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
+                        children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: const [
@@ -46,7 +66,7 @@ class LeaderboardScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF4EA),
+                      color: AppColors.successPale,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
@@ -86,19 +106,23 @@ class LeaderboardScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF1D3DBB),
-        onPressed: () {},
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const _HomeBottomNav(selected: 'Leaderboard'),
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: AppColors.primary,
+            onPressed: () {},
+            child: const Icon(Icons.add, color: AppColors.white),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: const HomeBottomNav(selected: 'Leaderboard'),
+        );
+      },
     );
   }
 }
@@ -114,7 +138,7 @@ class _BlueHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: const BoxDecoration(
-        color: Color(0xFF1D3DBB),
+        color: AppColors.primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: Row(
@@ -124,7 +148,7 @@ class _BlueHeader extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -139,7 +163,7 @@ class _BlueHeader extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -180,7 +204,7 @@ class _TopUser extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isTop ? const Color(0xFF1D3DBB) : Colors.white,
+                  color: isTop ? AppColors.primary : AppColors.white,
                   width: 2,
                 ),
               ),
@@ -193,11 +217,11 @@ class _TopUser extends StatelessWidget {
               bottom: -2,
               child: CircleAvatar(
                 radius: 12,
-                backgroundColor: const Color(0xFF1D3DBB),
+                backgroundColor: AppColors.primary,
                 child: Text(
                   '$rank',
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -214,7 +238,7 @@ class _TopUser extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           points,
-          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
         ),
       ],
     );
@@ -236,8 +260,8 @@ class _RankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = highlight ? const Color(0xFF1D3DBB) : Colors.white;
-    final fg = highlight ? Colors.white : const Color(0xFF374151);
+    final bg = highlight ? AppColors.primary : AppColors.white;
+    final fg = highlight ? AppColors.white : AppColors.textPrimary;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -256,11 +280,11 @@ class _RankRow extends StatelessWidget {
             radius: 14,
             backgroundColor: highlight
                 ? Colors.white.withOpacity(0.2)
-                : const Color(0xFFEAEFFD),
+                : AppColors.avatarBg,
             child: Icon(
               Icons.person,
               size: 14,
-              color: highlight ? Colors.white : const Color(0xFF1D3DBB),
+              color: highlight ? AppColors.white : AppColors.primary,
             ),
           ),
           const SizedBox(width: 10),
@@ -275,106 +299,6 @@ class _RankRow extends StatelessWidget {
             style: TextStyle(color: fg, fontWeight: FontWeight.w600),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeBottomNav extends StatelessWidget {
-  final String selected;
-
-  const _HomeBottomNav({required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomAppBar(
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: SizedBox(
-        height: 68,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: Icons.home,
-              label: 'Home',
-              selected: selected == 'Home',
-              onTap: () => Get.toNamed('/home'),
-            ),
-            _NavItem(
-              icon: Icons.restaurant_menu,
-              label: 'Food Log',
-              selected: selected == 'Food Log',
-              onTap: () => Get.toNamed('/food-logging'),
-            ),
-            const SizedBox(width: 24),
-            _NavItem(
-              icon: Icons.flag,
-              label: 'Challenges',
-              selected: selected == 'Challenges',
-              onTap: () => Get.toNamed('/challenges'),
-            ),
-            _NavItem(
-              icon: Icons.leaderboard,
-              label: 'Leaderboard',
-              selected: selected == 'Leaderboard',
-              onTap: () => Get.toNamed('/leaderboard'),
-            ),
-            _NavItem(
-              icon: Icons.menu_book,
-              label: 'Guides',
-              selected: selected == 'Guides',
-              onTap: () => Get.toNamed('/guides'),
-            ),
-            _NavItem(
-              icon: Icons.settings,
-              label: 'Settings',
-              selected: selected == 'Settings',
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF1D3DBB) : const Color(0xFFB0B7C3);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

@@ -1,25 +1,50 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
+import '../widget/app_colors.dart';
+import '../widget/home_bottom_nav.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F5FB),
-      body: SafeArea(
-        child: Column(
-          children: [
-            const _BlueHeader(title: 'Challenges', showBack: true),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-                children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final hPadding = isDesktop
+            ? 36.0
+            : isTablet
+            ? 28.0
+            : 20.0;
+        final contentMaxWidth = isDesktop
+            ? 1040.0
+            : isTablet
+            ? 900.0
+            : width;
+        final categoryHeight = isDesktop
+            ? 150.0
+            : isTablet
+            ? 140.0
+            : 130.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    const _BlueHeader(title: 'Challenges', showBack: true),
+                    Expanded(
+                      child: ListView(
+                        padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
+                        children: [
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: AppColors.white,
                       borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
@@ -28,7 +53,7 @@ class ChallengesScreen extends StatelessWidget {
                         const Text(
                           'Choose Random Challenge',
                           style: TextStyle(
-                            color: Color(0xFF5E6B86),
+                            color: AppColors.textCardHint,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -65,7 +90,7 @@ class ChallengesScreen extends StatelessWidget {
                                   height: 36,
                                   child: ElevatedButton(
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1D3DBB),
+                                      backgroundColor: AppColors.primary,
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(12),
                                       ),
@@ -74,7 +99,7 @@ class ChallengesScreen extends StatelessWidget {
                                     child: const Text(
                                       'Select Random Challenge',
                                       style: TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.white,
                                         fontWeight: FontWeight.w600,
                                       ),
                                     ),
@@ -96,7 +121,7 @@ class ChallengesScreen extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF374151),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ),
@@ -105,14 +130,14 @@ class ChallengesScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF8A94A6),
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 130,
+                    height: categoryHeight,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: const [
@@ -137,7 +162,7 @@ class ChallengesScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF374151),
+                      color: AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -162,19 +187,23 @@ class ChallengesScreen extends StatelessWidget {
                     progress: 0.35,
                     imagePath: 'assets/images/knee pushup.jpg',
                   ),
-                ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: const Color(0xFF1D3DBB),
-        onPressed: () {},
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const _HomeBottomNav(selected: 'Challenges'),
+          ),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: AppColors.primary,
+            onPressed: () {},
+            child: const Icon(Icons.add, color: AppColors.white),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
+        );
+      },
     );
   }
 }
@@ -190,7 +219,7 @@ class _BlueHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       decoration: const BoxDecoration(
-        color: Color(0xFF1D3DBB),
+        color: AppColors.primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: Row(
@@ -200,7 +229,7 @@ class _BlueHeader extends StatelessWidget {
               width: 34,
               height: 34,
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 shape: BoxShape.circle,
               ),
               child: IconButton(
@@ -215,7 +244,7 @@ class _BlueHeader extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.white,
                 fontWeight: FontWeight.w700,
                 fontSize: 16,
               ),
@@ -257,7 +286,7 @@ class _CategoryCard extends StatelessWidget {
             title.toUpperCase(),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.white,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -288,7 +317,7 @@ class _ChallengeTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -318,7 +347,7 @@ class _ChallengeTile extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: Color(0xFF6B7280),
+                    color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
                 ),
@@ -327,8 +356,8 @@ class _ChallengeTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF1D3DBB)),
+                    backgroundColor: AppColors.borderLight,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
                     minHeight: 6,
                   ),
                 ),
@@ -338,119 +367,19 @@ class _ChallengeTile extends StatelessWidget {
           const SizedBox(width: 8),
           Column(
             children: [
-              const Icon(Icons.sync, size: 16, color: Color(0xFF6B7280)),
+              const Icon(Icons.sync, size: 16, color: AppColors.textSecondary),
               const SizedBox(height: 8),
               Text(
                 time,
                 style: const TextStyle(
                   fontSize: 11,
-                  color: Color(0xFF6B7280),
+                  color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _HomeBottomNav extends StatelessWidget {
-  final String selected;
-
-  const _HomeBottomNav({required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomAppBar(
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: SizedBox(
-        height: 68,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(
-              icon: Icons.home,
-              label: 'Home',
-              selected: selected == 'Home',
-              onTap: () => Get.toNamed('/home'),
-            ),
-            _NavItem(
-              icon: Icons.restaurant_menu,
-              label: 'Food Log',
-              selected: selected == 'Food Log',
-              onTap: () => Get.toNamed('/food-logging'),
-            ),
-            const SizedBox(width: 24),
-            _NavItem(
-              icon: Icons.flag,
-              label: 'Challenges',
-              selected: selected == 'Challenges',
-              onTap: () => Get.toNamed('/challenges'),
-            ),
-            _NavItem(
-              icon: Icons.leaderboard,
-              label: 'Leaderboard',
-              selected: selected == 'Leaderboard',
-              onTap: () => Get.toNamed('/leaderboard'),
-            ),
-            _NavItem(
-              icon: Icons.menu_book,
-              label: 'Guides',
-              selected: selected == 'Guides',
-              onTap: () {},
-            ),
-            _NavItem(
-              icon: Icons.settings,
-              label: 'Settings',
-              selected: selected == 'Settings',
-              onTap: () {},
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF1D3DBB) : const Color(0xFFB0B7C3);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 20, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                color: color,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
