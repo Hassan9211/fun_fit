@@ -1,8 +1,10 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class ChallengesScreen extends StatelessWidget {
-  const ChallengesScreen({super.key});
+class GuidesScreen extends StatelessWidget {
+  const GuidesScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -11,74 +13,75 @@ class ChallengesScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            const _BlueHeader(title: 'Challenges', showBack: true),
+            const _BlueHeader(title: 'Guides', showBack: true),
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Choose Random Challenge',
+                  Row(
+                    children: const [
+                      Expanded(
+                        child: Text(
+                          'Recommended Meal',
                           style: TextStyle(
-                            color: Color(0xFF5E6B86),
-                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF374151),
                           ),
                         ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(16),
-                          child: Stack(
-                            children: [
-                              Image.asset(
-                                'assets/images/yoga.jpg',
-                                height: 140,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
+                      ),
+                      Text(
+                        'View all',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF8A94A6),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Stack(
+                      children: [
+                        Image.asset(
+                          'assets/images/healthy bowl.jpg',
+                          height: 160,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomLeft,
+                                end: Alignment.topRight,
+                                colors: [Color(0xAA0F172A), Color(0x000F172A)],
                               ),
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [
-                                        Color(0x990F172A),
-                                        Color(0x000F172A),
-                                      ],
-                                    ),
-                                  ),
+                            ),
+                          ),
+                        ),
+                        const Positioned(
+                          left: 16,
+                          bottom: 16,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Nut Butter Toast With Boiled Eggs',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                              Positioned(
-                                left: 12,
-                                right: 12,
-                                bottom: 12,
-                                child: SizedBox(
-                                  height: 36,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF1D3DBB),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'Select Random Challenge',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
+                              SizedBox(height: 4),
+                              Text(
+                                '1648kcl',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -92,7 +95,7 @@ class ChallengesScreen extends StatelessWidget {
                     children: const [
                       Expanded(
                         child: Text(
-                          'Workout Category',
+                          'Workout Videos',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
@@ -112,20 +115,20 @@ class ChallengesScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 130,
+                    height: 160,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       children: const [
-                        _CategoryCard(
-                          title: 'Yoga',
-                          imagePath: 'assets/images/yoga.jpg',
+                        _VideoCard(
+                          title: 'Lower Body Training',
+                          kcal: '500 Kcal',
+                          minutes: '50 Min',
+                          imagePath: 'assets/images/weightlifting.jpg',
                         ),
-                        _CategoryCard(
-                          title: 'Pilates',
-                          imagePath: 'assets/images/pilates.jpg',
-                        ),
-                        _CategoryCard(
-                          title: 'Calisthenics',
+                        _VideoCard(
+                          title: 'Hand Training',
+                          kcal: '600 Kcal',
+                          minutes: '40 Min',
                           imagePath: 'assets/images/Calisthenics.jpg',
                         ),
                       ],
@@ -133,34 +136,54 @@ class ChallengesScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   const Text(
-                    'Current Challenges',
+                    'Challenge Tutorial Guide',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF374151),
                     ),
                   ),
-                  const SizedBox(height: 10),
-                  const _ChallengeTile(
-                    title: 'Push Up',
-                    subtitle: '100 Push up a day',
-                    time: '5:00 min',
-                    progress: 0.45,
-                    imagePath: 'assets/images/pushup.jpg',
-                  ),
-                  const _ChallengeTile(
-                    title: 'Sit Up',
-                    subtitle: '20 Sit up a day',
-                    time: '4:30 min',
-                    progress: 0.70,
-                    imagePath: 'assets/images/situp.jpg',
-                  ),
-                  const _ChallengeTile(
-                    title: 'Knee Push Up',
-                    subtitle: '20 Sit up a day',
-                    time: '3:00 min',
-                    progress: 0.35,
-                    imagePath: 'assets/images/knee pushup.jpg',
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Stack(
+                      children: [
+                        Image.asset(
+                          'assets/images/Stretching & Mobility.jpg',
+                          height: 170,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                        ),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomLeft,
+                                end: Alignment.topRight,
+                                colors: [Color(0x660F172A), Color(0x000F172A)],
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned.fill(
+                          child: Align(
+                            alignment: Alignment.center,
+                            child: Container(
+                              width: 46,
+                              height: 46,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1D3DBB),
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                              child: const Icon(
+                                Icons.play_arrow,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -174,7 +197,7 @@ class ChallengesScreen extends StatelessWidget {
         child: const Icon(Icons.add, color: Colors.white),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const _HomeBottomNav(selected: 'Challenges'),
+      bottomNavigationBar: const _HomeBottomNav(selected: 'Guides'),
     );
   }
 }
@@ -228,16 +251,23 @@ class _BlueHeader extends StatelessWidget {
   }
 }
 
-class _CategoryCard extends StatelessWidget {
+class _VideoCard extends StatelessWidget {
   final String title;
+  final String kcal;
+  final String minutes;
   final String imagePath;
 
-  const _CategoryCard({required this.title, required this.imagePath});
+  const _VideoCard({
+    required this.title,
+    required this.kcal,
+    required this.minutes,
+    required this.imagePath,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 120,
+      width: 170,
       margin: const EdgeInsets.only(right: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
@@ -249,17 +279,30 @@ class _CategoryCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment.bottomLeft,
             end: Alignment.topRight,
-            colors: [Color(0xAA0F172A), Color(0x001D3DBB)],
+            colors: [Color(0xCC0F172A), Color(0x000F172A)],
           ),
         ),
-        child: Center(
-          child: Text(
-            title.toUpperCase(),
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-            ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  _Pill(label: kcal),
+                  const SizedBox(width: 6),
+                  _Pill(label: minutes),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -267,90 +310,26 @@ class _CategoryCard extends StatelessWidget {
   }
 }
 
-class _ChallengeTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final String time;
-  final double progress;
-  final String imagePath;
+class _Pill extends StatelessWidget {
+  final String label;
 
-  const _ChallengeTile({
-    required this.title,
-    required this.subtitle,
-    required this.time,
-    required this.progress,
-    required this.imagePath,
-  });
+  const _Pill({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
       ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: Image.asset(
-              imagePath,
-              width: 64,
-              height: 64,
-              fit: BoxFit.cover,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    backgroundColor: const Color(0xFFE5E7EB),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF1D3DBB)),
-                    minHeight: 6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            children: [
-              const Icon(Icons.sync, size: 16, color: Color(0xFF6B7280)),
-              const SizedBox(height: 8),
-              Text(
-                time,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF6B7280),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ],
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -400,7 +379,7 @@ class _HomeBottomNav extends StatelessWidget {
               icon: Icons.menu_book,
               label: 'Guides',
               selected: selected == 'Guides',
-              onTap: () {},
+              onTap: () => Get.toNamed('/guides'),
             ),
             _NavItem(
               icon: Icons.settings,

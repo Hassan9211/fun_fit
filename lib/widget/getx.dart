@@ -14,6 +14,9 @@ import 'package:fun_fit/onboarding/waight_measure.dart';
 import 'package:fun_fit/home/food_logging_screen.dart';
 import 'package:fun_fit/home/challenges.dart';
 import 'package:fun_fit/home/home_screen.dart';
+import 'package:fun_fit/home/profile_screen.dart';
+import 'package:fun_fit/home/leaderboard_screen.dart';
+import 'package:fun_fit/home/guides_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
@@ -38,6 +41,9 @@ class Routes {
   static const String home = '/home';
   static const String foodLogging = '/food-logging';
   static const String challenges = '/challenges';
+  static const String profile = '/profile';
+  static const String leaderboard = '/leaderboard';
+  static const String guides = '/guides';
 
   static final pages = <GetPage>[
     GetPage(name: splash, page: () => const SplashScreen()),
@@ -76,5 +82,8 @@ class Routes {
     GetPage(name: home, page: () => const HomeScreen()),
     GetPage(name: foodLogging, page: () => const FoodLoggingScreen()),
     GetPage(name: challenges, page: () => const ChallengesScreen()),
+    GetPage(name: profile, page: () => const ProfileScreen()),
+    GetPage(name: leaderboard, page: () => const LeaderboardScreen()),
+    GetPage(name: guides, page: () => const GuidesScreen()),
   ];
 }

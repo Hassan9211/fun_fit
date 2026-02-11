@@ -161,17 +161,14 @@ class HomeScreen extends StatelessWidget {
                                   ],
                                 ),
                               ),
-                              CircleAvatar(
-                                radius: isDesktop ? 20 : 18,
-                                backgroundColor: Colors.white,
+                              InkWell(
+                                onTap: () => Get.toNamed('/profile'),
+                                borderRadius: BorderRadius.circular(22),
                                 child: CircleAvatar(
-                                  radius: isDesktop ? 18 : 16,
-                                  backgroundColor: const Color(0xFFEAEFFD),
-                                  child: const Icon(
-                                    Icons.person,
-                                    size: 18,
-                                    color: Color(0xFF1D3DBB),
+                                  backgroundImage: NetworkImage(
+                                    'https://instagram.fbhv1-1.fna.fbcdn.net/v/t51.2885-19/472294191_1105393394457686_554111962204078586_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fbhv1-1.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2QFPco5nXp9cXZCormOpxSR_IStByEK7TtzKIix18azp0fhLpjo-OmRwB5YRM2MgfBk&_nc_ohc=43gHM-x_W18Q7kNvwELfwN1&_nc_gid=TYaa_VlHXwocm-WkhQhxgQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_AfsvBghJkIPr-6Tg34sElr5wVYnz4kXunkzZfQcCIUq_5A&oe=6990B0AD&_nc_sid=7a9f4b',
                                   ),
+                                  radius: isDesktop ? 20 : 18,
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -554,6 +551,7 @@ class _HomeBottomNav extends StatelessWidget {
                 _NavItem(
                   icon: Icons.leaderboard,
                   label: 'Leaderboard',
+                  onTap: () => Get.toNamed('/leaderboard'),
                   iconSize: iconSize,
                   fontSize: fontSize,
                   showLabel: !compact,
@@ -561,6 +559,7 @@ class _HomeBottomNav extends StatelessWidget {
                 _NavItem(
                   icon: Icons.menu_book,
                   label: 'Guides',
+                  onTap: () => Get.toNamed('/guides'),
                   iconSize: iconSize,
                   fontSize: fontSize,
                   showLabel: !compact,
