@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
@@ -111,26 +112,15 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                 // ✅ Continue Button
                 Padding(
                   padding: const EdgeInsets.all(40.0),
-                  child: SizedBox(
+                  child: AppButton(
+                    label: 'Continue',
+                    onPressed: () => Get.offAllNamed(Routes.ready),
                     width: double.infinity,
                     height: buttonHeight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => Get.offAllNamed(Routes.ready),
-                      child: Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: textSize * 0.6,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    backgroundColor: Colors.blue.shade900,
+                    borderRadius: 12,
+                    fontSize: textSize * 0.6,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class AreYouReadyScreen extends StatelessWidget {
   const AreYouReadyScreen({super.key});
@@ -60,26 +61,15 @@ class AreYouReadyScreen extends StatelessWidget {
                   SizedBox(height: height * 0.06),
 
                   /// Button
-                  SizedBox(
+                  AppButton(
+                    label: "I'm Ready",
+                    onPressed: () => Get.toNamed(Routes.gender),
                     width: double.infinity,
                     height: buttonHeight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      onPressed: () => Get.toNamed(Routes.gender),
-                      child: Text(
-                        "I'm Ready",
-                        style: TextStyle(
-                          fontSize: buttonFont,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+                    backgroundColor: Colors.blue.shade900,
+                    borderRadius: 14,
+                    fontSize: buttonFont,
+                    fontWeight: FontWeight.bold,
                   ),
                 ],
               ),

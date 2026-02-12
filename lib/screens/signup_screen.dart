@@ -5,6 +5,8 @@ import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widget/app_button.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -38,9 +40,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  void _submitSignup() {
+  Future<void> _submitSignup() async {
     if (!_formKey.currentState!.validate()) return;
-
     if (!agreeTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please accept Terms & Conditions')),
@@ -48,7 +49,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       return;
     }
 
-    /// ✅ ALL VALID → OTP SCREEN
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_email', emailController.text.trim());
     Get.toNamed(Routes.otpSignup);
   }
 
@@ -215,26 +217,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 10),
 
-                  SizedBox(
+                  AppButton(
+                    label: 'Sign Up',
+                    onPressed: _submitSignup,
                     width: double.infinity,
                     height: 50,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _submitSignup,
-                      child: Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          fontSize: fontSizeField,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    backgroundColor: Colors.blue.shade900,
+                    borderRadius: 12,
+                    fontSize: fontSizeField,
+                    fontWeight: FontWeight.bold,
                   ),
 
                   const SizedBox(height: 25),
@@ -352,3 +343,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 }
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'app_colors.dart';
+import 'getx.dart';
 
 class HomeBottomNav extends StatelessWidget {
   final String selected;
@@ -10,77 +11,114 @@ class HomeBottomNav extends StatelessWidget {
     super.key,
   });
 
+  void _go(String tabLabel, String routeName) {
+    if (selected == tabLabel) return;
+    Get.offNamed(routeName);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 360;
-        final iconSize = compact ? 18.0 : 20.0;
-        final fontSize = compact ? 9.0 : 10.0;
+        final width = constraints.maxWidth;
+        final compact = width < 420;
+        final isTablet = width >= 700 && width < 1100;
+        final isDesktop = width >= 1100;
+        final iconSize = compact
+            ? 21.0
+            : isDesktop
+            ? 24.0
+            : isTablet
+            ? 22.0
+            : 21.0;
+        final fontSize = compact
+            ? 10.0
+            : isDesktop
+            ? 11.0
+            : isTablet
+            ? 10.5
+            : 10.0;
+        final navHeight = compact
+            ? 62.0
+            : isDesktop
+            ? 74.0
+            : isTablet
+            ? 70.0
+            : 68.0;
+        final contentMaxWidth = isDesktop
+            ? 960.0
+            : isTablet
+            ? 820.0
+            : width;
 
         return BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 8,
           child: SizedBox(
-            height: compact ? 62 : 68,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                NavItem(
-                  icon: Icons.home,
-                  label: 'Home',
-                  selected: selected == 'Home',
-                  onTap: () => Get.toNamed('/home'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
+            height: navHeight,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    NavItem(
+                      icon: Icons.home,
+                      label: 'Home',
+                      selected: selected == 'Home',
+                      onTap: () => _go('Home', Routes.home),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                    NavItem(
+                      icon: Icons.restaurant_menu,
+                      label: 'Food Log',
+                      selected: selected == 'Food Log',
+                      onTap: () => _go('Food Log', Routes.foodLogging),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                    NavItem(
+                      icon: Icons.flag,
+                      label: 'Challenges',
+                      selected: selected == 'Challenges',
+                      onTap: () => _go('Challenges', Routes.challenges),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                    NavItem(
+                      icon: Icons.leaderboard,
+                      label: 'Leaderboard',
+                      selected: selected == 'Leaderboard',
+                      onTap: () => _go('Leaderboard', Routes.leaderboard),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                    NavItem(
+                      icon: Icons.menu_book,
+                      label: 'Guides',
+                      selected: selected == 'Guides',
+                      onTap: () => _go('Guides', Routes.guides),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                    NavItem(
+                      icon: Icons.settings,
+                      label: 'Settings',
+                      selected: selected == 'Settings',
+                      onTap: () => _go('Settings', Routes.settings),
+                      iconSize: iconSize,
+                      fontSize: fontSize,
+                      showLabel: !compact,
+                    ),
+                  ],
                 ),
-                NavItem(
-                  icon: Icons.restaurant_menu,
-                  label: 'Food Log',
-                  selected: selected == 'Food Log',
-                  onTap: () => Get.toNamed('/food-logging'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                NavItem(
-                  icon: Icons.flag,
-                  label: 'Challenges',
-                  selected: selected == 'Challenges',
-                  onTap: () => Get.toNamed('/challenges'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                NavItem(
-                  icon: Icons.leaderboard,
-                  label: 'Leaderboard',
-                  selected: selected == 'Leaderboard',
-                  onTap: () => Get.toNamed('/leaderboard'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                NavItem(
-                  icon: Icons.menu_book,
-                  label: 'Guides',
-                  selected: selected == 'Guides',
-                  onTap: () => Get.toNamed('/guides'),
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-                NavItem(
-                  icon: Icons.settings,
-                  label: 'Settings',
-                  selected: selected == 'Settings',
-                  onTap: () {},
-                  iconSize: iconSize,
-                  fontSize: fontSize,
-                  showLabel: !compact,
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -125,6 +163,7 @@ class NavItem extends StatelessWidget {
             if (showLabel)
               Text(
                 label,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: fontSize,
                   color: color,

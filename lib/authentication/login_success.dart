@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
   const PasswordResetSuccessScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final args = Get.arguments;
+    final asChangePassword =
+        args is Map && args['asChangePassword'] == true;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -74,41 +79,34 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                   SizedBox(height: height * 0.04),
 
                   // Continue button
-                  SizedBox(
+                  AppButton(
+                    label: 'Continue',
+                    onPressed: () => Get.offAllNamed(
+                      asChangePassword ? Routes.login : Routes.home,
+                    ),
                     width: double.infinity,
                     height: buttonHeight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green.shade700,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: () => Get.offAllNamed(Routes.home),
-                      child: const Text(
-                        'Continue',
+                    backgroundColor: Colors.green.shade700,
+                    borderRadius: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+
+                  if (!asChangePassword) ...[
+                    SizedBox(height: height * 0.02),
+
+                    // Back to Login
+                    GestureDetector(
+                      onTap: () => Get.offAllNamed(Routes.login),
+                      child: Text(
+                        'Back to Login',
                         style: TextStyle(
-                          color: Colors.white,
+                          fontSize: textSizeDesc,
+                          color: Colors.blue.shade900,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                  ),
-
-                  SizedBox(height: height * 0.02),
-
-                  // Back to Login
-                  GestureDetector(
-                    onTap: () => Get.offAllNamed(Routes.login),
-                    child: Text(
-                      'Back to Login',
-                      style: TextStyle(
-                        fontSize: textSizeDesc,
-                        color: Colors.blue.shade900,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
+                  ],
                 ],
               ),
             ),

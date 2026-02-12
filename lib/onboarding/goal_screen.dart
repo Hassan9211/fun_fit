@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class GoalSelectionScreen extends StatefulWidget {
   const GoalSelectionScreen({super.key});
@@ -99,30 +100,17 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                 SizedBox(height: height * 0.06),
 
                 /// Next Button
-                SizedBox(
+                AppButton(
+                  label: 'Next',
+                  onPressed: selectedGoal == null
+                      ? null
+                      : () => Get.toNamed(Routes.fitnessLevel),
                   width: double.infinity,
                   height: buttonHeight,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedGoal == null
-                          ? Colors.blue.shade900.withOpacity(0.6)
-                          : Colors.blue.shade900,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: selectedGoal == null
-                        ? null
-                        : () => Get.toNamed(Routes.fitnessLevel),
-                    child: Text(
-                      'Next',
-                      style: TextStyle(
-                        fontSize: buttonFont,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  backgroundColor: Colors.blue.shade900,
+                  borderRadius: 14,
+                  fontSize: buttonFont,
+                  fontWeight: FontWeight.bold,
                 ),
               ],
             ),

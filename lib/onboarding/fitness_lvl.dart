@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class FitnessLevelScreen extends StatefulWidget {
   const FitnessLevelScreen({super.key});
@@ -102,30 +103,17 @@ class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
                 SizedBox(height: height * 0.06),
 
                 /// Next Button
-                SizedBox(
+                AppButton(
+                  label: 'Next',
+                  onPressed: selectedLevel == null
+                      ? null
+                      : () => Get.toNamed(Routes.age),
                   width: double.infinity,
                   height: buttonHeight,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedLevel == null
-                          ? Colors.blue.shade900.withOpacity(0.6)
-                          : Colors.blue.shade900,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: selectedLevel == null
-                        ? null
-                        : () => Get.toNamed(Routes.age),
-                    child: Text(
-                      'Next',
-                      style: TextStyle(
-                        fontSize: buttonFont,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  backgroundColor: Colors.blue.shade900,
+                  borderRadius: 14,
+                  fontSize: buttonFont,
+                  fontWeight: FontWeight.bold,
                 ),
               ],
             ),

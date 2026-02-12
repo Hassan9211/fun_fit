@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -22,13 +23,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   }
 
   void _submit() {
+    final args = Get.arguments;
+    final asChangePassword =
+        args is Map && args['asChangePassword'] == true;
     if (_formKey.currentState!.validate()) {
-      Get.toNamed(Routes.otpForgotPassword);
+      Get.toNamed(
+        Routes.otpForgotPassword,
+        arguments: {'asChangePassword': asChangePassword},
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final args = Get.arguments;
+    final asChangePassword =
+        args is Map && args['asChangePassword'] == true;
+    final screenTitle = asChangePassword
+        ? 'Change Password'
+        : 'Forgot Password';
+    final helperText = asChangePassword
+        ? 'Enter your mail address to receive a password reset link.'
+        : 'Enter your email address and we will send you a 4-digit OTP to reset your password.';
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -72,10 +89,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           backgroundColor: Colors.white,
           appBar: AppBar(
             backgroundColor: Colors.blue.shade900,
-            title: const Text(
-              'Forgot Password',
-              style: TextStyle(color: Colors.white),
-            ),
+            title: Text(screenTitle, style: const TextStyle(color: Colors.white)),
             centerTitle: true,
           ),
           body: SingleChildScrollView(
@@ -112,7 +126,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   /// Description
                   Text(
-                    'Enter your email address and we will send you a 4-digit OTP to reset your password.',
+                    helperText,
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
                   ),
@@ -153,26 +167,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
-                      child: SizedBox(
+                      child: AppButton(
+                        label: 'Send OTP',
+                        onPressed: _submit,
                         width: double.infinity,
                         height: buttonHeight,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade900,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          onPressed: _submit,
-                          child: Text(
-                            'Send OTP',
-                            style: TextStyle(
-                              fontSize: fieldFontSize,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
+                        backgroundColor: Colors.blue.shade900,
+                        borderRadius: 12,
+                        fontSize: fieldFontSize,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
@@ -181,7 +184,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                   /// Back
                   GestureDetector(
-                    onTap: () => Get.back(),
+                    onTap: () => Get.offAllNamed(Routes.login),
                     child: Text(
                       'Back to Login',
                       style: TextStyle(

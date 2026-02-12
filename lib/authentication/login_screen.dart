@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../widget/app_button.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,9 +28,10 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() {
+  Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      /// 👉 SAME OTP SCREEN (LOGIN PURPOSE)
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_email', emailController.text.trim());
       Get.toNamed(Routes.otpSignin);
     }
   }
@@ -172,26 +175,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(height: height * 0.03),
 
                   /// Continue
-                  SizedBox(
+                  AppButton(
+                    label: 'Continue',
+                    onPressed: _login,
                     width: double.infinity,
                     height: buttonHeight,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue.shade900,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      onPressed: _login,
-                      child: Text(
-                        'Continue',
-                        style: TextStyle(
-                          fontSize: fontField,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
+                    backgroundColor: Colors.blue.shade900,
+                    borderRadius: 12,
+                    fontSize: fontField,
+                    fontWeight: FontWeight.bold,
                   ),
 
                   SizedBox(height: height * 0.04),
@@ -240,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Don’t have an account? '),
+                      const Text("Don't have an account? "),
                       GestureDetector(
                         onTap: () => Get.toNamed(Routes.signup),
                         child: Text(
@@ -280,3 +272,5 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
+

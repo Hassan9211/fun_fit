@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../widget/app_colors.dart';
+import '../widget/app_button.dart';
+import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -42,7 +44,7 @@ class HomeScreen extends StatelessWidget {
                   'Workout Category',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: AppColors.primary,
                   ),
                 ),
@@ -53,21 +55,12 @@ class HomeScreen extends StatelessWidget {
                     child: SizedBox(
                       width: double.infinity,
                       height: 44,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
+                      child: AppButton(
+                        label: label,
                         onPressed: () => Navigator.of(dialogContext).pop(),
-                        child: Text(
-                          label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        backgroundColor: AppColors.primary,
+                        borderRadius: 12,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   );
@@ -121,7 +114,7 @@ class HomeScreen extends StatelessWidget {
                         'Notifications',
                         style: TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.textTitle,
                         ),
                       ),
@@ -216,14 +209,14 @@ class HomeScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: AppColors.appBackground,
-          body: SafeArea(
+          body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
                     Container(
-                      padding: EdgeInsets.fromLTRB(hPadding, 8, hPadding, 16),
+                      padding: EdgeInsets.fromLTRB(hPadding, 36, hPadding, 28),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.vertical(
@@ -251,14 +244,14 @@ class HomeScreen extends StatelessWidget {
                                       style: TextStyle(
                                         color: Colors.white,
                                         fontSize: titleSize,
-                                        fontWeight: FontWeight.w700,
+                                        fontWeight: FontWeight.w800,
                                       ),
                                     ),
                                   ],
                                 ),
                               ),
                               InkWell(
-                                onTap: () => Get.toNamed('/profile'),
+                                onTap: () => Get.toNamed(Routes.profile),
                                 borderRadius: BorderRadius.circular(22),
                                 child: CircleAvatar(
                                   backgroundImage: NetworkImage(
@@ -325,25 +318,14 @@ class HomeScreen extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                SizedBox(
+                                AppButton(
+                                  label: 'Start Random Challenge',
+                                  onPressed: () {},
                                   width: double.infinity,
                                   height: 44,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'Start Random Challenge',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
+                                  backgroundColor: AppColors.primary,
+                                  borderRadius: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ],
                             ),
@@ -525,7 +507,7 @@ class _SectionHeader extends StatelessWidget {
             title,
             style: const TextStyle(
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               color: AppColors.textPrimary,
             ),
           ),
@@ -595,7 +577,7 @@ class _CategoryCard extends StatelessWidget {
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ),
@@ -610,5 +592,9 @@ class _NotificationData {
 
   const _NotificationData({required this.title, required this.icon});
 }
+
+
+
+
 
 

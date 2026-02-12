@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class HeightSelectionScreen extends StatefulWidget {
   const HeightSelectionScreen({super.key});
@@ -12,144 +13,314 @@ class HeightSelectionScreen extends StatefulWidget {
 }
 
 class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
-  double selectedHeight = 170;
-  bool isCm = true; // toggle between cm / ft
+  double selectedHeightCm = 180;
+  bool isCmSelected = false;
+
+  String get _feetInchesText {
+    final totalInches = selectedHeightCm / 2.54;
+    var feet = totalInches ~/ 12;
+    var inches = (totalInches - (feet * 12)).round();
+    if (inches == 12) {
+      feet += 1;
+      inches = 0;
+    }
+    return '$feet.${inches.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showHeightInputDialog() async {
+    final currentValue = isCmSelected
+        ? selectedHeightCm.round().toString()
+        : _feetInchesText;
+    final unit = isCmSelected ? 'cm' : 'ft';
+    final controller = TextEditingController(text: currentValue);
+
+    final value = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Set height in $unit'),
+          content: TextField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: isCmSelected ? 'e.g. 180' : 'e.g. 5.10',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+              child: const Text('Done'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (value == null || value.isEmpty) return;
+    if (isCmSelected) {
+      final cm = double.tryParse(value);
+      if (cm == null) return;
+      setState(() => selectedHeightCm = cm.clamp(100, 220));
+      return;
+    }
+
+    final match = RegExp(r"^(\d{1,2})(?:[.' :](\d{1,2}))?$").firstMatch(value);
+    if (match == null) return;
+    final feet = int.tryParse(match.group(1) ?? '');
+    final inches = int.tryParse(match.group(2) ?? '0') ?? 0;
+    if (feet == null || inches > 11) return;
+    final totalInches = (feet * 12) + inches;
+    final cm = totalInches * 2.54;
+    setState(() => selectedHeightCm = cm.clamp(100, 220));
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final contentMaxWidth = isDesktop
+            ? 420.0
+            : isTablet
+            ? 380.0
+            : width;
 
-        double titleSize = width * 0.075;
-        double valueSize = width * 0.08;
-        double buttonFont = width * 0.045;
-        double paddingH = width * 0.08;
-        double buttonHeight = 52;
+        final titleSize = isDesktop
+            ? 38.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final buttonFont = isDesktop
+            ? 16.0
+            : isTablet
+            ? 15.0
+            : 14.0;
 
-        if (width >= 1200) {
-          titleSize = width * 0.04;
-          valueSize = width * 0.06;
-          buttonFont = width * 0.025;
-          paddingH = width * 0.3;
-        } else if (width >= 800) {
-          titleSize = width * 0.05;
-          valueSize = width * 0.07;
-          buttonFont = width * 0.035;
-          paddingH = width * 0.2;
-        }
-
-        double displayHeight = isCm
-            ? selectedHeight
-            : (selectedHeight / 30.48); // convert cm to ft
+        final mainValue = isCmSelected
+            ? selectedHeightCm.round().toString()
+            : _feetInchesText;
+        final mainUnit = isCmSelected ? 'cm' : 'ft';
+        final secondaryValue = isCmSelected
+            ? _feetInchesText
+            : selectedHeightCm.round().toString();
+        final secondaryUnit = isCmSelected ? 'ft' : 'cm';
 
         return Scaffold(
-          backgroundColor: Colors.white,
-          body: Padding(
-            padding: EdgeInsets.symmetric(horizontal: paddingH),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'What is your height?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-
-                SizedBox(height: height * 0.04),
-
-                /// Toggle cm / ft
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          backgroundColor: const Color(0xFFF5F5F5),
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
                   children: [
-                    ChoiceChip(
-                      label: const Text('cm'),
-                      selected: isCm,
-                      onSelected: (val) => setState(() => isCm = true),
-                      selectedColor: Colors.blue.shade900,
-                      labelStyle: TextStyle(
-                        color: isCm ? Colors.white : Colors.black,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          width: 30,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.06),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: const Icon(
+                              Icons.arrow_back,
+                              size: 16,
+                              color: Colors.black54,
+                            ),
+                            onPressed: () => Get.back(),
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    ChoiceChip(
-                      label: const Text('ft'),
-                      selected: !isCm,
-                      onSelected: (val) => setState(() => isCm = false),
-                      selectedColor: Colors.blue.shade900,
-                      labelStyle: TextStyle(
-                        color: !isCm ? Colors.white : Colors.black,
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "What's your height?",
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: titleSize,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 40),
+                          _HeightUnitSwitch(
+                            isCmSelected: isCmSelected,
+                            onCmTap: () => setState(() => isCmSelected = true),
+                            onFtTap: () =>
+                                setState(() => isCmSelected = false),
+                          ),
+                          const SizedBox(height: 34),
+                          _HeightPill(value: mainValue, unit: mainUnit),
+                          const SizedBox(height: 6),
+                          GestureDetector(
+                            onTap: _showHeightInputDialog,
+                            child: const Text(
+                              'Tap to edit',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black45,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          _HeightPill(
+                            value: secondaryValue,
+                            unit: secondaryUnit,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
+                      child: AppButton(
+                        label: 'Next',
+                        onPressed: () => Get.toNamed(Routes.weight),
+                        width: double.infinity,
+                        height: 48,
+                        backgroundColor: const Color(0xFF1D3DBB),
+                        borderRadius: 10,
+                        fontSize: buttonFont,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
                 ),
-
-                SizedBox(height: height * 0.06),
-
-                /// Display Height
-                Text(
-                  '${displayHeight.toStringAsFixed(1)} ${isCm ? 'cm' : 'ft'}',
-                  style: TextStyle(
-                    fontSize: valueSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue.shade900,
-                  ),
-                ),
-
-                SizedBox(height: height * 0.03),
-
-                /// Slider
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: Colors.blue.shade900,
-                    inactiveTrackColor: Colors.blue.shade900.withOpacity(0.2),
-                    thumbColor: Colors.blue.shade900,
-                    overlayColor: Colors.blue.shade900.withOpacity(0.2),
-                  ),
-                  child: Slider(
-                    min: 100,
-                    max: 220,
-                    divisions: 120,
-                    value: selectedHeight,
-                    label: '${selectedHeight.toStringAsFixed(0)} cm',
-                    onChanged: (val) => setState(() => selectedHeight = val),
-                  ),
-                ),
-
-                SizedBox(height: height * 0.06),
-
-                /// Next Button
-                SizedBox(
-                  width: double.infinity,
-                  height: buttonHeight,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade900,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () => Get.toNamed(Routes.weight),
-                    child: Text(
-                      'Next',
-                      style: TextStyle(
-                        fontSize: buttonFont,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _HeightUnitSwitch extends StatelessWidget {
+  final bool isCmSelected;
+  final VoidCallback onCmTap;
+  final VoidCallback onFtTap;
+
+  const _HeightUnitSwitch({
+    required this.isCmSelected,
+    required this.onCmTap,
+    required this.onFtTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 80,
+      height: 30,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6E9F8),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          _HeightUnitChip(
+            label: 'cm',
+            selected: isCmSelected,
+            onTap: onCmTap,
+          ),
+          const SizedBox(width: 3),
+          _HeightUnitChip(
+            label: 'ft',
+            selected: !isCmSelected,
+            onTap: onFtTap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeightUnitChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _HeightUnitChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF1D3DBB) : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.black54,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeightPill extends StatelessWidget {
+  final String value;
+  final String unit;
+
+  const _HeightPill({required this.value, required this.unit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 126,
+      height: 42,
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7E7E7),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      alignment: Alignment.center,
+      child: RichText(
+        text: TextSpan(
+          text: value,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.w700,
+            fontSize: 34,
+            height: 1,
+          ),
+          children: [
+            TextSpan(
+              text: ' $unit',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.black45,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

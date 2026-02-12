@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
+import '../widget/app_button.dart';
 
 class OtpScreen extends StatefulWidget {
   final OtpPurpose purpose;
@@ -66,7 +67,13 @@ class _OtpScreenState extends State<OtpScreen> {
         break;
 
       case OtpPurpose.forgotPassword:
-        Get.offNamed(Routes.passwordResetSuccess);
+        final args = Get.arguments;
+        final asChangePassword =
+            args is Map && args['asChangePassword'] == true;
+        Get.offNamed(
+          Routes.passwordResetSuccess,
+          arguments: {'asChangePassword': asChangePassword},
+        );
         break;
 
       case OtpPurpose.signin:
@@ -113,11 +120,17 @@ class _OtpScreenState extends State<OtpScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: titleSize,
-                        fontWeight: FontWeight.bold,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        title,
+                        style: TextStyle(
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -157,26 +170,15 @@ class _OtpScreenState extends State<OtpScreen> {
                       }),
                     ),
                     const SizedBox(height: 40),
-                    SizedBox(
+                    AppButton(
+                      label: 'Verify OTP',
+                      onPressed: _verifyOtp,
                       width: double.infinity,
                       height: 50,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue.shade900,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        onPressed: _verifyOtp,
-                        child: const Text(
-                          'Verify OTP',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
+                      backgroundColor: Colors.blue.shade900,
+                      borderRadius: 14,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
                     ),
                   ],
                 ),

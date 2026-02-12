@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widget/app_colors.dart';
+import '../widget/app_button.dart';
 import '../widget/home_bottom_nav.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -88,9 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('Cancel'),
             ),
-            ElevatedButton(
+            AppButton(
+              label: 'Done',
               onPressed: () => Navigator.of(context).pop(controller.text),
-              child: const Text('Done'),
             ),
           ],
         );
@@ -219,7 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         return Scaffold(
           backgroundColor: AppColors.appBackground,
-          body: SafeArea(
+          body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
@@ -340,8 +341,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   style: TextStyle(
                                     color: AppColors.white,
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                  ),
+                                    fontWeight: FontWeight.w800,
+                    ),
                                 ),
                               ),
                             ],
@@ -386,7 +387,7 @@ class _WelcomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 36, 16, 28),
       decoration: const BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
@@ -409,7 +410,7 @@ class _WelcomeHeader extends StatelessWidget {
                     style: const TextStyle(
                       color: AppColors.white,
                       fontSize: 20,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
@@ -533,3 +534,8 @@ class _ChallengeTile extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

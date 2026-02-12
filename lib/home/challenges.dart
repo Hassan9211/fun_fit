@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../widget/app_colors.dart';
+import '../widget/app_button.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/getx.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -30,13 +33,17 @@ class ChallengesScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: AppColors.appBackground,
-          body: SafeArea(
+          body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    const _BlueHeader(title: 'Challenges', showBack: true),
+                    _BlueHeader(
+                      title: 'Challenges',
+                      showBack: true,
+                      onBackTap: () => Get.offNamed(Routes.home),
+                    ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
@@ -86,24 +93,14 @@ class ChallengesScreen extends StatelessWidget {
                                 left: 12,
                                 right: 12,
                                 bottom: 12,
-                                child: SizedBox(
+                                child: AppButton(
+                                  label: 'Select Random Challenge',
+                                  onPressed: () {},
+                                  width: double.infinity,
                                   height: 36,
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppColors.primary,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                    child: const Text(
-                                      'Select Random Challenge',
-                                      style: TextStyle(
-                                        color: AppColors.white,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
+                                  backgroundColor: AppColors.primary,
+                                  borderRadius: 12,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -211,13 +208,18 @@ class ChallengesScreen extends StatelessWidget {
 class _BlueHeader extends StatelessWidget {
   final String title;
   final bool showBack;
+  final VoidCallback? onBackTap;
 
-  const _BlueHeader({required this.title, this.showBack = false});
+  const _BlueHeader({
+    required this.title,
+    this.showBack = false,
+    this.onBackTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 36, 16, 28),
       decoration: const BoxDecoration(
         color: AppColors.primary,
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
@@ -235,7 +237,7 @@ class _BlueHeader extends StatelessWidget {
               child: IconButton(
                 padding: EdgeInsets.zero,
                 icon: const Icon(Icons.arrow_back, size: 18),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: onBackTap ?? () => Navigator.of(context).pop(),
               ),
             ),
           const SizedBox(width: 12),
@@ -245,8 +247,8 @@ class _BlueHeader extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
               ),
             ),
           ),
@@ -384,3 +386,7 @@ class _ChallengeTile extends StatelessWidget {
     );
   }
 }
+
+
+
+

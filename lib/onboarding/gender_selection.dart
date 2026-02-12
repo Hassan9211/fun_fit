@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_button.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
   const GenderSelectionScreen({super.key});
@@ -90,30 +91,17 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                 SizedBox(height: height * 0.06),
 
                 /// Next Button
-                SizedBox(
+                AppButton(
+                  label: 'Next',
+                  onPressed: selectedGender == null
+                      ? null
+                      : () => Get.toNamed(Routes.goal),
                   width: double.infinity,
                   height: buttonHeight,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: selectedGender == null
-                          ? Colors.blue.shade900.withOpacity(0.6)
-                          : Colors.blue.shade900,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: selectedGender == null
-                        ? null
-                        : () => Get.toNamed(Routes.goal),
-                    child: Text(
-                      'Next',
-                      style: TextStyle(
-                        fontSize: buttonFont,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
+                  backgroundColor: Colors.blue.shade900,
+                  borderRadius: 14,
+                  fontSize: buttonFont,
+                  fontWeight: FontWeight.bold,
                 ),
               ],
             ),

@@ -17,6 +17,7 @@ import 'package:fun_fit/home/home_screen.dart';
 import 'package:fun_fit/home/profile_screen.dart';
 import 'package:fun_fit/home/leaderboard_screen.dart';
 import 'package:fun_fit/home/guides_screen.dart';
+import 'package:fun_fit/home/settings_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
@@ -44,6 +45,7 @@ class Routes {
   static const String profile = '/profile';
   static const String leaderboard = '/leaderboard';
   static const String guides = '/guides';
+  static const String settings = '/settings';
 
   static final pages = <GetPage>[
     GetPage(name: splash, page: () => const SplashScreen()),
@@ -85,5 +87,6 @@ class Routes {
     GetPage(name: profile, page: () => const ProfileScreen()),
     GetPage(name: leaderboard, page: () => const LeaderboardScreen()),
     GetPage(name: guides, page: () => const GuidesScreen()),
+    GetPage(name: settings, page: () => const SettingsScreen()),
   ];
 }

@@ -3,9 +3,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
 import '../widget/home_bottom_nav.dart';
+import '../widget/getx.dart';
 
 class GuidesScreen extends StatelessWidget {
   const GuidesScreen({super.key});
@@ -35,13 +37,17 @@ class GuidesScreen extends StatelessWidget {
 
         return Scaffold(
           backgroundColor: const Color(0xFFF3F5FB),
-          body: SafeArea(
+          body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    const _BlueHeader(title: 'Guides', showBack: true),
+                    _BlueHeader(
+                      title: 'Guides',
+                      showBack: true,
+                      onBackTap: () => Get.offNamed(Routes.home),
+                    ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
@@ -200,13 +206,18 @@ class GuidesScreen extends StatelessWidget {
 class _BlueHeader extends StatelessWidget {
   final String title;
   final bool showBack;
+  final VoidCallback? onBackTap;
 
-  const _BlueHeader({required this.title, this.showBack = false});
+  const _BlueHeader({
+    required this.title,
+    this.showBack = false,
+    this.onBackTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      padding: const EdgeInsets.fromLTRB(16, 36, 16, 28),
       decoration: const BoxDecoration(
         color: Color(0xFF1D3DBB),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
@@ -224,7 +235,7 @@ class _BlueHeader extends StatelessWidget {
               child: IconButton(
                 padding: EdgeInsets.zero,
                 icon: const Icon(Icons.arrow_back, size: 18),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: onBackTap ?? () => Navigator.of(context).pop(),
               ),
             ),
           const SizedBox(width: 12),
@@ -234,8 +245,8 @@ class _BlueHeader extends StatelessWidget {
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
               ),
             ),
           ),
@@ -641,7 +652,7 @@ class _GuidesFullscreenVideoScreenState
     final controller = widget.controller;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: SafeArea(
+      body: SafeArea(top: false, bottom: false,
         child: Stack(
           children: [
             Positioned.fill(
@@ -878,3 +889,8 @@ class _Pill extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
