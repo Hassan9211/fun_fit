@@ -129,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
                 color: AppColors.surface(context),
-                            borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                   child: Column(
@@ -251,7 +251,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     AnimatedReveal(
                       child: Container(
-                        padding: EdgeInsets.fromLTRB(hPadding, 36, hPadding, 28),
+                        padding: EdgeInsets.fromLTRB(
+                          hPadding,
+                          36,
+                          hPadding,
+                          28,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.primary,
                           borderRadius: BorderRadius.vertical(
@@ -264,7 +269,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Welcome to',
@@ -376,142 +382,144 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: AnimatedReveal(
                         delay: const Duration(milliseconds: 120),
                         child: ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          hPadding,
-                          20,
-                          hPadding,
-                          90,
-                        ),
-                        children: [
-                          _SectionHeader(
-                            title: 'Workout Category',
-                            onTap: () => _showWorkoutPopup(context),
+                          padding: EdgeInsets.fromLTRB(
+                            hPadding,
+                            20,
+                            hPadding,
+                            90,
                           ),
-                          const SizedBox(height: 12),
-                          if (isDesktop)
-                            GridView.count(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisCount: 3,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 1.3,
-                              children: [
-                                _CategoryCard(
-                                  title: 'Yoga',
-                                  imagePath: _categoryImages['Yoga'],
-                                  margin: EdgeInsets.zero,
-                                ),
-                                _CategoryCard(
-                                  title: 'Pilates',
-                                  imagePath: _categoryImages['Pilates'],
-                                  margin: EdgeInsets.zero,
-                                ),
-                                _CategoryCard(
-                                  title: 'Weightlifting',
-                                  imagePath: _categoryImages['Weightlifting'],
-                                  margin: EdgeInsets.zero,
-                                ),
-                                _CategoryCard(
-                                  title: 'Calisthenics',
-                                  imagePath: _categoryImages['Calisthenics'],
-                                  margin: EdgeInsets.zero,
-                                ),
-                                _CategoryCard(
-                                  title: 'Stretching & Mobility',
-                                  imagePath:
-                                      _categoryImages['Stretching & Mobility'],
-                                  margin: EdgeInsets.zero,
-                                ),
-                              ],
-                            )
-                          else
-                            SizedBox(
-                              height: categoryCardHeight,
-                              child: ListView(
-                                scrollDirection: Axis.horizontal,
+                          children: [
+                            _SectionHeader(
+                              title: 'Workout Category',
+                              onTap: () => _showWorkoutPopup(context),
+                            ),
+                            const SizedBox(height: 12),
+                            if (isDesktop)
+                              GridView.count(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                crossAxisCount: 3,
+                                crossAxisSpacing: 12,
+                                mainAxisSpacing: 12,
+                                childAspectRatio: 1.3,
                                 children: [
                                   _CategoryCard(
                                     title: 'Yoga',
                                     imagePath: _categoryImages['Yoga'],
-                                    width: categoryCardWidth,
-                                    height: categoryCardHeight,
+                                    margin: EdgeInsets.zero,
                                   ),
                                   _CategoryCard(
                                     title: 'Pilates',
                                     imagePath: _categoryImages['Pilates'],
-                                    width: categoryCardWidth,
-                                    height: categoryCardHeight,
+                                    margin: EdgeInsets.zero,
                                   ),
                                   _CategoryCard(
                                     title: 'Weightlifting',
                                     imagePath: _categoryImages['Weightlifting'],
-                                    width: categoryCardWidth,
-                                    height: categoryCardHeight,
+                                    margin: EdgeInsets.zero,
                                   ),
                                   _CategoryCard(
                                     title: 'Calisthenics',
                                     imagePath: _categoryImages['Calisthenics'],
-                                    width: categoryCardWidth,
-                                    height: categoryCardHeight,
+                                    margin: EdgeInsets.zero,
                                   ),
                                   _CategoryCard(
                                     title: 'Stretching & Mobility',
                                     imagePath:
                                         _categoryImages['Stretching & Mobility'],
-                                    width: categoryCardWidth,
-                                    height: categoryCardHeight,
+                                    margin: EdgeInsets.zero,
+                                  ),
+                                ],
+                              )
+                            else
+                              SizedBox(
+                                height: categoryCardHeight,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    _CategoryCard(
+                                      title: 'Yoga',
+                                      imagePath: _categoryImages['Yoga'],
+                                      width: categoryCardWidth,
+                                      height: categoryCardHeight,
+                                    ),
+                                    _CategoryCard(
+                                      title: 'Pilates',
+                                      imagePath: _categoryImages['Pilates'],
+                                      width: categoryCardWidth,
+                                      height: categoryCardHeight,
+                                    ),
+                                    _CategoryCard(
+                                      title: 'Weightlifting',
+                                      imagePath:
+                                          _categoryImages['Weightlifting'],
+                                      width: categoryCardWidth,
+                                      height: categoryCardHeight,
+                                    ),
+                                    _CategoryCard(
+                                      title: 'Calisthenics',
+                                      imagePath:
+                                          _categoryImages['Calisthenics'],
+                                      width: categoryCardWidth,
+                                      height: categoryCardHeight,
+                                    ),
+                                    _CategoryCard(
+                                      title: 'Stretching & Mobility',
+                                      imagePath:
+                                          _categoryImages['Stretching & Mobility'],
+                                      width: categoryCardWidth,
+                                      height: categoryCardHeight,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const SizedBox(height: 22),
+                            const _SectionHeader(title: 'Recommended Meal'),
+                            const SizedBox(height: 12),
+                            Container(
+                              height: mealHeight,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(18),
+                                image: const DecorationImage(
+                                  image: AssetImage(
+                                    'assets/images/healthy bowl.jpg',
+                                  ),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                              child: Stack(
+                                children: [
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(18),
+                                        gradient: const LinearGradient(
+                                          begin: Alignment.bottomLeft,
+                                          end: Alignment.topRight,
+                                          colors: [
+                                            Color(0xAA1D3DBB),
+                                            AppColors.transparentPrimary,
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const Positioned(
+                                    left: 16,
+                                    bottom: 16,
+                                    child: Text(
+                                      'Healthy Bowl',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
-                          const SizedBox(height: 22),
-                          const _SectionHeader(title: 'Recommended Meal'),
-                          const SizedBox(height: 12),
-                          Container(
-                            height: mealHeight,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(18),
-                              image: const DecorationImage(
-                                image: AssetImage(
-                                  'assets/images/healthy bowl.jpg',
-                                ),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                            child: Stack(
-                              children: [
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(18),
-                                      gradient: const LinearGradient(
-                                        begin: Alignment.bottomLeft,
-                                        end: Alignment.topRight,
-                                        colors: [
-                                          Color(0xAA1D3DBB),
-                                          AppColors.transparentPrimary,
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const Positioned(
-                                  left: 16,
-                                  bottom: 16,
-                                  child: Text(
-                                    'Healthy Bowl',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
+                          ],
                         ),
                       ),
                     ),
@@ -634,8 +642,3 @@ class _NotificationData {
 
   const _NotificationData({required this.title, required this.icon});
 }
-
-
-
-
-
