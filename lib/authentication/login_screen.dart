@@ -60,7 +60,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: const Text('Login', style: TextStyle(color: Colors.white)),
             centerTitle: true,
@@ -272,5 +272,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+
 
 

@@ -131,20 +131,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(18),
+                color: AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Notifications',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textTitle,
+                          color: AppColors.textTitleFor(context),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -153,7 +153,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.appBackground,
+                            color: AppColors.surfaceMuted(context),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -163,10 +163,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Expanded(
                                 child: Text(
                                   item.title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                                    color: AppColors.textPrimaryFor(context),
                                   ),
                                 ),
                               ),
@@ -219,7 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : width;
 
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
@@ -247,17 +247,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(
                           padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: AppColors.white,
+                            color: AppColors.surface(context),
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
+                            children: [
                               Text(
                                 'Current Challenges',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: AppColors.textPrimaryFor(context),
                                 ),
                               ),
                               SizedBox(height: 12),
@@ -287,14 +287,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(height: 18),
                         Row(
-                          children: const [
+                          children: [
                             Expanded(
                               child: Text(
                                 'Recommended Meal',
                                 style: TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
+                                  color: AppColors.textPrimaryFor(context),
                                 ),
                               ),
                             ),
@@ -303,7 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textMuted,
+                                color: AppColors.textMutedFor(context),
                               ),
                             ),
                           ],
@@ -496,8 +496,8 @@ class _ChallengeTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: AppColors.textSecondaryFor(context),
                     fontSize: 12,
                   ),
                 ),
@@ -521,9 +521,9 @@ class _ChallengeTile extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textSecondaryFor(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -534,6 +534,11 @@ class _ChallengeTile extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
 
 

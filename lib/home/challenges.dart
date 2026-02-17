@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/app_button.dart';
 import '../widget/home_bottom_nav.dart';
-import '../widget/getx.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -32,35 +31,37 @@ class ChallengesScreen extends StatelessWidget {
             : 130.0;
 
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _BlueHeader(
-                      title: 'Challenges',
-                      showBack: true,
-                      onBackTap: () => Get.offNamed(Routes.home),
+                    const AnimatedReveal(
+                      child: _BlueHeader(
+                        title: 'Challenges',
+                      ),
                     ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
                         children: [
-                  Container(
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 80),
+                    child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(18),
+                      color: AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Choose Random Challenge',
                           style: TextStyle(
-                            color: AppColors.textCardHint,
+                            color: AppColors.textSecondaryFor(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -109,16 +110,19 @@ class ChallengesScreen extends StatelessWidget {
                       ],
                     ),
                   ),
+                  ),
                   const SizedBox(height: 18),
-                  Row(
-                    children: const [
+                  AnimatedReveal(
+                    delay: Duration(milliseconds: 140),
+                    child: Row(
+                    children: [
                       Expanded(
                         child: Text(
                           'Workout Category',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: AppColors.textPrimaryFor(context),
                           ),
                         ),
                       ),
@@ -127,62 +131,78 @@ class ChallengesScreen extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.textMuted,
+                          color: AppColors.textMutedFor(context),
                         ),
                       ),
                     ],
                   ),
+                  ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: categoryHeight,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: const [
-                        _CategoryCard(
-                          title: 'Yoga',
-                          imagePath: 'assets/images/yoga.jpg',
-                        ),
-                        _CategoryCard(
-                          title: 'Pilates',
-                          imagePath: 'assets/images/pilates.jpg',
-                        ),
-                        _CategoryCard(
-                          title: 'Calisthenics',
-                          imagePath: 'assets/images/Calisthenics.jpg',
-                        ),
-                      ],
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 180),
+                    child: SizedBox(
+                      height: categoryHeight,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: const [
+                          _CategoryCard(
+                            title: 'Yoga',
+                            imagePath: 'assets/images/yoga.jpg',
+                          ),
+                          _CategoryCard(
+                            title: 'Pilates',
+                            imagePath: 'assets/images/pilates.jpg',
+                          ),
+                          _CategoryCard(
+                            title: 'Calisthenics',
+                            imagePath: 'assets/images/Calisthenics.jpg',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text(
-                    'Current Challenges',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                  AnimatedReveal(
+                    delay: Duration(milliseconds: 220),
+                    child: Text(
+                      'Current Challenges',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimaryFor(context),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
-                  const _ChallengeTile(
-                    title: 'Push Up',
-                    subtitle: '100 Push up a day',
-                    time: '5:00 min',
-                    progress: 0.45,
-                    imagePath: 'assets/images/pushup.jpg',
+                  const AnimatedReveal(
+                    delay: Duration(milliseconds: 260),
+                    child: _ChallengeTile(
+                      title: 'Push Up',
+                      subtitle: '100 Push up a day',
+                      time: '5:00 min',
+                      progress: 0.45,
+                      imagePath: 'assets/images/pushup.jpg',
+                    ),
                   ),
-                  const _ChallengeTile(
-                    title: 'Sit Up',
-                    subtitle: '20 Sit up a day',
-                    time: '4:30 min',
-                    progress: 0.70,
-                    imagePath: 'assets/images/situp.jpg',
+                  const AnimatedReveal(
+                    delay: Duration(milliseconds: 300),
+                    child: _ChallengeTile(
+                      title: 'Sit Up',
+                      subtitle: '20 Sit up a day',
+                      time: '4:30 min',
+                      progress: 0.70,
+                      imagePath: 'assets/images/situp.jpg',
+                    ),
                   ),
-                  const _ChallengeTile(
-                    title: 'Knee Push Up',
-                    subtitle: '20 Sit up a day',
-                    time: '3:00 min',
-                    progress: 0.35,
-                    imagePath: 'assets/images/knee pushup.jpg',
+                  const AnimatedReveal(
+                    delay: Duration(milliseconds: 340),
+                    child: _ChallengeTile(
+                      title: 'Knee Push Up',
+                      subtitle: '20 Sit up a day',
+                      time: '3:00 min',
+                      progress: 0.35,
+                      imagePath: 'assets/images/knee pushup.jpg',
+                    ),
                   ),
                         ],
                       ),
@@ -207,14 +227,8 @@ class ChallengesScreen extends StatelessWidget {
 
 class _BlueHeader extends StatelessWidget {
   final String title;
-  final bool showBack;
-  final VoidCallback? onBackTap;
 
-  const _BlueHeader({
-    required this.title,
-    this.showBack = false,
-    this.onBackTap,
-  });
+  const _BlueHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -226,21 +240,7 @@ class _BlueHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (showBack)
-            Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.arrow_back, size: 18),
-                onPressed: onBackTap ?? () => Navigator.of(context).pop(),
-              ),
-            ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 34),
           Expanded(
             child: Text(
               title,
@@ -319,7 +319,7 @@ class _ChallengeTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.white,
+        color: AppColors.surface(context),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -348,8 +348,8 @@ class _ChallengeTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: AppColors.textSecondaryFor(context),
                     fontSize: 12,
                   ),
                 ),
@@ -369,13 +369,17 @@ class _ChallengeTile extends StatelessWidget {
           const SizedBox(width: 8),
           Column(
             children: [
-              const Icon(Icons.sync, size: 16, color: AppColors.textSecondary),
+              Icon(
+                Icons.sync,
+                size: 16,
+                color: AppColors.textSecondaryFor(context),
+              ),
               const SizedBox(height: 8),
               Text(
                 time,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textSecondaryFor(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -386,6 +390,11 @@ class _ChallengeTile extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
 
 

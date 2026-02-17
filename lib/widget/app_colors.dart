@@ -21,4 +21,37 @@ class AppColors {
   static const Color successPale = Color(0xFFEFF4EA);
   static const Color danger = Color(0xFFEF4444);
   static const Color navUnselected = Color(0xFFB0B7C3);
+
+  static bool isDark(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark;
+
+  static Color surface(BuildContext context) =>
+      Theme.of(context).colorScheme.surface;
+
+  static Color surfaceMuted(BuildContext context) =>
+      isDark(context) ? const Color(0xFF1E293B) : appBackground;
+
+  static Color textPrimaryFor(BuildContext context) =>
+      Theme.of(context).colorScheme.onSurface;
+
+  static Color textSecondaryFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF94A3B8) : textSecondary;
+
+  static Color textMutedFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF7C8BA1) : textMuted;
+
+  static Color textTitleFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFFF8FAFC) : textTitle;
+
+  static Color borderLightFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF334155) : borderLight;
+
+  static Color avatarBgFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF27344A) : avatarBg;
+
+  static Color successPaleFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF1B2B1F) : successPale;
+
+  static Color navUnselectedFor(BuildContext context) =>
+      isDark(context) ? const Color(0xFF94A3B8) : navUnselected;
 }

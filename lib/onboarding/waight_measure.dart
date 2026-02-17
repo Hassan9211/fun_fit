@@ -97,7 +97,7 @@ class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
         final secondaryUnit = isKgSelected ? 'lb' : 'kg';
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -306,3 +306,4 @@ class _WeightPill extends StatelessWidget {
     );
   }
 }
+

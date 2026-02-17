@@ -1,15 +1,28 @@
 // ignore_for_file: deprecated_member_use
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/app_button.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  static const String _defaultProfileImageUrl =
+      'https://instagram.fbhv1-1.fna.fbcdn.net/v/t51.2885-19/472294191_1105393394457686_554111962204078586_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fbhv1-1.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2QFPco5nXp9cXZCormOpxSR_IStByEK7TtzKIix18azp0fhLpjo-OmRwB5YRM2MgfBk&_nc_ohc=43gHM-x_W18Q7kNvwELfwN1&_nc_gid=TYaa_VlHXwocm-WkhQhxgQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_AfsvBghJkIPr-6Tg34sElr5wVYnz4kXunkzZfQcCIUq_5A&oe=6990B0AD&_nc_sid=7a9f4b';
+  String _profileImagePath = '';
 
   static const _categoryImages = <String, String>{
     'Yoga': 'assets/images/yoga.jpg',
@@ -18,6 +31,19 @@ class HomeScreen extends StatelessWidget {
     'Calisthenics': 'assets/images/Calisthenics.jpg',
     'Stretching & Mobility': 'assets/images/Stretching & Mobility.jpg',
   };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final imagePath = prefs.getString('profile_image_path') ?? '';
+    if (!mounted) return;
+    setState(() => _profileImagePath = imagePath);
+  }
 
   void _showWorkoutPopup(BuildContext context) {
     const items = [
@@ -102,20 +128,20 @@ class HomeScreen extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
-                color: AppColors.white,
-                borderRadius: BorderRadius.circular(18),
+                color: AppColors.surface(context),
+                            borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Notifications',
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: AppColors.textTitle,
+                          color: AppColors.textTitleFor(context),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -124,7 +150,7 @@ class HomeScreen extends StatelessWidget {
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.appBackground,
+                            color: AppColors.surfaceMuted(context),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -134,10 +160,10 @@ class HomeScreen extends StatelessWidget {
                               Expanded(
                                 child: Text(
                                   item.title,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
-                                    color: AppColors.textPrimary,
+                                    color: AppColors.textPrimaryFor(context),
                                   ),
                                 ),
                               ),
@@ -168,6 +194,12 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasLocalProfileImage =
+        _profileImagePath.isNotEmpty && File(_profileImagePath).existsSync();
+    final ImageProvider avatarImage = hasLocalProfileImage
+        ? FileImage(File(_profileImagePath))
+        : const NetworkImage(_defaultProfileImageUrl);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -208,133 +240,142 @@ class HomeScreen extends StatelessWidget {
             : 160.0;
 
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
-          body: SafeArea(top: false, bottom: false,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            top: false,
+            bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    Container(
-                      padding: EdgeInsets.fromLTRB(hPadding, 36, hPadding, 28),
-                      decoration: BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(headerRadius),
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Welcome to',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: subtitleSize,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      'Fitness',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: titleSize,
-                                        fontWeight: FontWeight.w800,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              InkWell(
-                                onTap: () => Get.toNamed(Routes.profile),
-                                borderRadius: BorderRadius.circular(22),
-                                child: CircleAvatar(
-                                  backgroundImage: NetworkImage(
-                                    'https://instagram.fbhv1-1.fna.fbcdn.net/v/t51.2885-19/472294191_1105393394457686_554111962204078586_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fbhv1-1.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2QFPco5nXp9cXZCormOpxSR_IStByEK7TtzKIix18azp0fhLpjo-OmRwB5YRM2MgfBk&_nc_ohc=43gHM-x_W18Q7kNvwELfwN1&_nc_gid=TYaa_VlHXwocm-WkhQhxgQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_AfsvBghJkIPr-6Tg34sElr5wVYnz4kXunkzZfQcCIUq_5A&oe=6990B0AD&_nc_sid=7a9f4b',
-                                  ),
-                                  radius: isDesktop ? 20 : 18,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              GestureDetector(
-                                onTap: () => _showNotificationsSheet(context),
-                                child: Container(
-                                  width: isDesktop ? 40 : 36,
-                                  height: isDesktop ? 40 : 36,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primaryDark,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: const Icon(
-                                    Icons.notifications_none,
-                                    color: Colors.white,
-                                    size: 20,
-                                  ),
-                                ),
-                              ),
-                            ],
+                    AnimatedReveal(
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(hPadding, 36, hPadding, 28),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(headerRadius),
                           ),
-                          const SizedBox(height: 16),
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(18),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x14000000),
-                                  blurRadius: 10,
-                                  offset: Offset(0, 6),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
                               children: [
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Choose Random Challenge',
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Welcome to',
                                         style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: AppColors.textHeaderHint,
+                                          color: Colors.white70,
+                                          fontSize: subtitleSize,
                                         ),
                                       ),
-                                    ),
-                                    InkWell(
-                                      onTap: () => _showWorkoutPopup(context),
-                                      child: const Icon(
-                                        Icons.info_outline,
-                                        size: 18,
-                                        color: AppColors.primary,
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Fitness',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: titleSize,
+                                          fontWeight: FontWeight.w800,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                                const SizedBox(height: 12),
-                                AppButton(
-                                  label: 'Start Random Challenge',
-                                  onPressed: () {},
-                                  width: double.infinity,
-                                  height: 44,
-                                  backgroundColor: AppColors.primary,
-                                  borderRadius: 12,
-                                  fontWeight: FontWeight.w600,
+                                InkWell(
+                                  onTap: () async {
+                                    await Get.toNamed(Routes.profile);
+                                    await _loadProfileImage();
+                                  },
+                                  borderRadius: BorderRadius.circular(22),
+                                  child: CircleAvatar(
+                                    backgroundImage: avatarImage,
+                                    radius: isDesktop ? 20 : 18,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                GestureDetector(
+                                  onTap: () => _showNotificationsSheet(context),
+                                  child: Container(
+                                    width: isDesktop ? 40 : 36,
+                                    height: isDesktop ? 40 : 36,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryDark,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(
+                                      Icons.notifications_none,
+                                      color: Colors.white,
+                                      size: 20,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface(context),
+                                borderRadius: BorderRadius.circular(18),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x14000000),
+                                    blurRadius: 10,
+                                    offset: Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Choose Random Challenge',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondaryFor(
+                                              context,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      InkWell(
+                                        onTap: () => _showWorkoutPopup(context),
+                                        child: const Icon(
+                                          Icons.info_outline,
+                                          size: 18,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 12),
+                                  AppButton(
+                                    label: 'Start Random Challenge',
+                                    onPressed: () {},
+                                    width: double.infinity,
+                                    height: 44,
+                                    backgroundColor: AppColors.primary,
+                                    borderRadius: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     Expanded(
-                      child: ListView(
+                      child: AnimatedReveal(
+                        delay: const Duration(milliseconds: 120),
+                        child: ListView(
                         padding: EdgeInsets.fromLTRB(
                           hPadding,
                           20,
@@ -471,6 +512,7 @@ class HomeScreen extends StatelessWidget {
                             ),
                           ),
                         ],
+                        ),
                       ),
                     ),
                   ],
@@ -505,21 +547,21 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: AppColors.textPrimaryFor(context),
             ),
           ),
         ),
         GestureDetector(
           onTap: onTap,
-          child: const Text(
+          child: Text(
             'View all',
             style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w600,
-              color: AppColors.textMuted,
+              color: AppColors.textMutedFor(context),
             ),
           ),
         ),
@@ -592,7 +634,6 @@ class _NotificationData {
 
   const _NotificationData({required this.title, required this.icon});
 }
-
 
 
 

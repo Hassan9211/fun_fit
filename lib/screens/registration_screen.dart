@@ -65,7 +65,7 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: width * 0.1),
             child: Column(
@@ -131,3 +131,4 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
     );
   }
 }
+

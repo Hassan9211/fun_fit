@@ -41,7 +41,7 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: paddingH),
             child: Column(
@@ -161,3 +161,4 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
     );
   }
 }
+

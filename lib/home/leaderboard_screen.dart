@@ -1,10 +1,9 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/home_bottom_nav.dart';
-import '../widget/getx.dart';
 
 class LeaderboardScreen extends StatelessWidget {
   const LeaderboardScreen({super.key});
@@ -28,88 +27,94 @@ class LeaderboardScreen extends StatelessWidget {
             : width;
 
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _BlueHeader(
-                      title: 'Leaderboard',
-                      showBack: true,
-                      onBackTap: () => Get.offNamed(Routes.home),
+                    const AnimatedReveal(
+                      child: _BlueHeader(
+                        title: 'Leaderboard',
+                      ),
                     ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
                         children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: const [
-                      _TopUser(
-                        rank: 2,
-                        name: 'Tammana batiya...',
-                        points: '40 pts',
-                        imagePath: 'assets/images/tammana.jpg',
-                      ),
-                      _TopUser(
-                        rank: 1,
-                        name: 'Nora fathi',
-                        points: '43 pts',
-                        imagePath: 'assets/images/nora.jpg',
-                        isTop: true,
-                      ),
-                      _TopUser(
-                        rank: 3,
-                        name: 'Alina Amir',
-                        points: '38 pts',
-                        imagePath: 'assets/images/alina.jpg',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.successPale,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Column(
-                      children: const [
-                        _RankRow(
-                          rank: 4,
-                          name: 'Sofia Ansari',
-                          points: '36 pts',
+                  const AnimatedReveal(
+                    delay: Duration(milliseconds: 90),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _TopUser(
+                          rank: 2,
+                          name: 'Tammana batiya...',
+                          points: '40 pts',
+                          imagePath: 'assets/images/tammana.jpg',
                         ),
-                        _RankRow(
-                          rank: 5,
-                          name: 'Sonam Kapoor',
-                          points: '35 pts',
+                        _TopUser(
+                          rank: 1,
+                          name: 'Nora fathi',
+                          points: '43 pts',
+                          imagePath: 'assets/images/nora.jpg',
+                          isTop: true,
                         ),
-                        _RankRow(
-                          rank: 6,
-                          name: 'You',
-                          points: '34 pts',
-                          highlight: true,
-                        ),
-                        _RankRow(
-                          rank: 7,
-                          name: 'Sonam Bajwa',
-                          points: '33 pts',
-                        ),
-                        _RankRow(rank: 8, name: 'Lina Khan', points: '32 pts'),
-                        _RankRow(
-                          rank: 9,
-                          name: 'Anita Hassanandani',
-                          points: '31 pts',
-                        ),
-                        _RankRow(
-                          rank: 10,
-                          name: 'Sara Ali Khan',
-                          points: '30 pts',
+                        _TopUser(
+                          rank: 3,
+                          name: 'Alina Amir',
+                          points: '38 pts',
+                          imagePath: 'assets/images/alina.jpg',
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 170),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.successPaleFor(context),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: const Column(
+                        children: [
+                          _RankRow(
+                            rank: 4,
+                            name: 'Sofia Ansari',
+                            points: '36 pts',
+                          ),
+                          _RankRow(
+                            rank: 5,
+                            name: 'Sonam Kapoor',
+                            points: '35 pts',
+                          ),
+                          _RankRow(
+                            rank: 6,
+                            name: 'You',
+                            points: '34 pts',
+                            highlight: true,
+                          ),
+                          _RankRow(
+                            rank: 7,
+                            name: 'Sonam Bajwa',
+                            points: '33 pts',
+                          ),
+                          _RankRow(rank: 8, name: 'Lina Khan', points: '32 pts'),
+                          _RankRow(
+                            rank: 9,
+                            name: 'Anita Hassanandani',
+                            points: '31 pts',
+                          ),
+                          _RankRow(
+                            rank: 10,
+                            name: 'Sara Ali Khan',
+                            points: '30 pts',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                         ],
@@ -135,14 +140,8 @@ class LeaderboardScreen extends StatelessWidget {
 
 class _BlueHeader extends StatelessWidget {
   final String title;
-  final bool showBack;
-  final VoidCallback? onBackTap;
 
-  const _BlueHeader({
-    required this.title,
-    this.showBack = false,
-    this.onBackTap,
-  });
+  const _BlueHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -154,21 +153,7 @@ class _BlueHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (showBack)
-            Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppColors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.arrow_back, size: 18),
-                onPressed: onBackTap ?? () => Navigator.of(context).pop(),
-              ),
-            ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 34),
           Expanded(
             child: Text(
               title,
@@ -249,7 +234,10 @@ class _TopUser extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           points,
-          style: const TextStyle(color: AppColors.textSecondary, fontSize: 11),
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 11,
+          ),
         ),
       ],
     );
@@ -271,8 +259,10 @@ class _RankRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = highlight ? AppColors.primary : AppColors.white;
-    final fg = highlight ? AppColors.white : AppColors.textPrimary;
+    final bg = highlight ? AppColors.primary : AppColors.surface(context);
+    final fg = highlight
+        ? AppColors.white
+        : AppColors.textPrimaryFor(context);
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -291,7 +281,7 @@ class _RankRow extends StatelessWidget {
             radius: 14,
             backgroundColor: highlight
                 ? Colors.white.withOpacity(0.2)
-                : AppColors.avatarBg,
+                : AppColors.avatarBgFor(context),
             child: Icon(
               Icons.person,
               size: 14,
@@ -314,6 +304,9 @@ class _RankRow extends StatelessWidget {
     );
   }
 }
+
+
+
 
 
 

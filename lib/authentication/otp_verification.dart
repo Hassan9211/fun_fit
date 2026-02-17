@@ -106,7 +106,7 @@ class _OtpScreenState extends State<OtpScreen> {
             : 26.0;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: const Text('OTP Verification'),
             backgroundColor: Colors.blue.shade900,
@@ -190,3 +190,4 @@ class _OtpScreenState extends State<OtpScreen> {
     );
   }
 }
+

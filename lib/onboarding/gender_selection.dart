@@ -41,7 +41,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: paddingH),
             child: Column(
@@ -152,3 +152,4 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
     );
   }
 }
+

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/app_button.dart';
 import '../widget/getx.dart';
 
@@ -66,25 +68,30 @@ class _FoodLoggingScaffold extends StatelessWidget {
             : width;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F5FB),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _BlueHeader(
-                      title: 'Food Logging',
-                      showBack: true,
-                      onBackTap: () => Get.offNamed(Routes.home),
+                    AnimatedReveal(
+                      child: _BlueHeader(
+                        title: 'Food Logging',
+                        showBack: true,
+                        onBackTap: () => Get.offNamed(Routes.home),
+                      ),
                     ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
                         children: [
-                  _SegmentedTabs(
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 80),
+                    child: _SegmentedTabs(
                     items: ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Water'],
                     selectedIndex: _selectedIndex(),
+                  ),
                   ),
                   const SizedBox(height: 18),
                   if (selectedMeal != null)
@@ -98,10 +105,10 @@ class _FoodLoggingScaffold extends StatelessWidget {
                         ),
                       ),
                     ),
-                  const Text(
+                  Text(
                     'Previous Meal:',
                     style: TextStyle(
-                      color: Color(0xFF5E6B86),
+                      color: AppColors.textSecondaryFor(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -131,47 +138,50 @@ class _FoodLoggingScaffold extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Column(
-                      children: [
-                        _InputField(
-                          hint: 'Search for a food...',
-                          prefixIcon: Icons.search,
-                        ),
-                        const SizedBox(height: 10),
-                        _InputField(
-                          hint: 'Meal name',
-                          initialValue: selectedMeal,
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: const [
-                            Expanded(child: _InputField(hint: 'Portion sizes')),
-                            SizedBox(width: 10),
-                            _DropdownPill(initialValue: 'Kilograms (kg)'),
-                          ],
-                        ),
-                        const SizedBox(height: 25),
-                        AppButton(
-                          label: 'Add Photo',
-                          onPressed: () {},
-                          icon: Icons.camera_alt,
-                          width: double.infinity,
-                          height: 60,
-                          backgroundColor: const Color(0xFF1D3DBB),
-                          borderRadius: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        const SizedBox(height: 25),
-                        const _MacroRow(),
-                        const SizedBox(height: 25),
-                        const _GoalsBlock(),
-                      ],
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 140),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface(context),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Column(
+                        children: [
+                          _InputField(
+                            hint: 'Search for a food...',
+                            prefixIcon: Icons.search,
+                          ),
+                          const SizedBox(height: 10),
+                          _InputField(
+                            hint: 'Meal name',
+                            initialValue: selectedMeal,
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: const [
+                              Expanded(child: _InputField(hint: 'Portion sizes')),
+                              SizedBox(width: 10),
+                              _DropdownPill(initialValue: 'Kilograms (kg)'),
+                            ],
+                          ),
+                          const SizedBox(height: 25),
+                          AppButton(
+                            label: 'Add Photo',
+                            onPressed: () {},
+                            icon: Icons.camera_alt,
+                            width: double.infinity,
+                            height: 60,
+                            backgroundColor: const Color(0xFF1D3DBB),
+                            borderRadius: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          const SizedBox(height: 25),
+                          const _MacroRow(),
+                          const SizedBox(height: 25),
+                          const _GoalsBlock(),
+                        ],
+                      ),
                     ),
                   ),
                         ],
@@ -210,64 +220,84 @@ class _AddMealScaffold extends StatelessWidget {
             : width;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F5FB),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _BlueHeader(
-                      title: 'Add Meal',
-                      showBack: true,
-                      onBackTap: () => Get.offNamed(Routes.foodLogging),
+                    AnimatedReveal(
+                      child: _BlueHeader(
+                        title: 'Add Meal',
+                        showBack: true,
+                        onBackTap: () => Get.offNamed(Routes.foodLogging),
+                      ),
                     ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
                         children: [
-                  Text(
+                  AnimatedReveal(
+                    delay: Duration(milliseconds: 80),
+                    child: Text(
                     'Meal Planner',
                     style: TextStyle(
-                      color: Color(0xFF5E6B86),
+                      color: AppColors.textSecondaryFor(context),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  ),
                   SizedBox(height: 14),
-                  _PlannerTile(
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 120),
+                    child: _PlannerTile(
                     title: 'Breakfast',
                     onTap: () => Get.toNamed(
                       Routes.foodLogging,
                       arguments: {'meal': 'Breakfast'},
                     ),
                   ),
-                  _PlannerTile(
+                  ),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 160),
+                    child: _PlannerTile(
                     title: 'Lunch',
                     onTap: () => Get.toNamed(
                       Routes.foodLogging,
                       arguments: {'meal': 'Lunch'},
                     ),
                   ),
-                  _PlannerTile(
+                  ),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 200),
+                    child: _PlannerTile(
                     title: 'Dinner',
                     onTap: () => Get.toNamed(
                       Routes.foodLogging,
                       arguments: {'meal': 'Dinner'},
                     ),
                   ),
-                  _PlannerTile(
+                  ),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 240),
+                    child: _PlannerTile(
                     title: 'Snacks',
                     onTap: () => Get.toNamed(
                       Routes.foodLogging,
                       arguments: {'meal': 'Snacks'},
                     ),
                   ),
-                  _PlannerTile(
+                  ),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 280),
+                    child: _PlannerTile(
                     title: 'Water',
                     onTap: () => Get.toNamed(
                       Routes.foodLogging,
                       arguments: {'meal': 'Water'},
                     ),
+                  ),
                   ),
                         ],
                       ),
@@ -417,7 +447,7 @@ class _InputField extends StatelessWidget {
         hintText: hint,
         prefixIcon: prefixIcon != null ? Icon(prefixIcon, size: 18) : null,
         filled: true,
-        fillColor: const Color(0xFFF6F7FB),
+        fillColor: AppColors.surfaceMuted(context),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
@@ -461,7 +491,7 @@ class _DropdownPillState extends State<_DropdownPill> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF6F7FB),
+        color: AppColors.surfaceMuted(context),
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonHideUnderline(
@@ -524,7 +554,7 @@ class _MacroDial extends StatelessWidget {
       width: 60,
       height: 60,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.surface(context),
         shape: BoxShape.circle,
         border: Border.all(color: const Color(0xFF1D3DBB), width: 2),
       ),
@@ -558,8 +588,8 @@ class _MacroStat extends StatelessWidget {
       children: [
         Text(
           percent,
-          style: const TextStyle(
-            color: Color(0xFF6B7280),
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -574,7 +604,10 @@ class _MacroStat extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11),
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 11,
+          ),
         ),
       ],
     );
@@ -589,10 +622,10 @@ class _GoalsBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Percent of Your Daily Goals',
           style: TextStyle(
-            color: Color(0xFF6B7280),
+            color: AppColors.textSecondaryFor(context),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -607,7 +640,7 @@ class _GoalsBlock extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Container(height: 2, color: const Color(0xFFE5E7EB)),
+        Container(height: 2, color: AppColors.borderLightFor(context)),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -629,7 +662,7 @@ class _PlannerTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: const Color(0xFFE4F8E7),
+        color: AppColors.successPaleFor(context),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -664,6 +697,8 @@ class _PlannerTile extends StatelessWidget {
     );
   }
 }
+
+
 
 
 

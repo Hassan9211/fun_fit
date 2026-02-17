@@ -3,11 +3,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:video_player/video_player.dart';
 
+import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/home_bottom_nav.dart';
-import '../widget/getx.dart';
 
 class GuidesScreen extends StatelessWidget {
   const GuidesScreen({super.key});
@@ -36,86 +36,93 @@ class GuidesScreen extends StatelessWidget {
             : 160.0;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF3F5FB),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(top: false, bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _BlueHeader(
-                      title: 'Guides',
-                      showBack: true,
-                      onBackTap: () => Get.offNamed(Routes.home),
+                    const AnimatedReveal(
+                      child: _BlueHeader(
+                        title: 'Guides',
+                      ),
                     ),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
                         children: [
-                  Row(
-                    children: const [
-                      Expanded(
-                        child: Text(
-                          'Recommended Meal',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF374151),
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'View all',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8A94A6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
-                    child: Stack(
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 90),
+                    child: Column(
                       children: [
-                        Image.asset(
-                          'assets/images/healthy bowl.jpg',
-                          height: mediaHeight,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                        Positioned.fill(
-                          child: Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomLeft,
-                                end: Alignment.topRight,
-                                colors: [Color(0xAA0F172A), Color(0x000F172A)],
-                              ),
-                            ),
-                          ),
-                        ),
-                        const Positioned(
-                          left: 16,
-                          bottom: 16,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Nut Butter Toast With Boiled Eggs',
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Recommended Meal',
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
+                                  fontSize: 15,
                                   fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimaryFor(context),
                                 ),
                               ),
-                              SizedBox(height: 4),
-                              Text(
-                                '1648kcl',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 11,
+                            ),
+                            Text(
+                              'View all',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMutedFor(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Stack(
+                            children: [
+                              Image.asset(
+                                'assets/images/healthy bowl.jpg',
+                                height: mediaHeight,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                              ),
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.bottomLeft,
+                                      end: Alignment.topRight,
+                                      colors: [Color(0xAA0F172A), Color(0x000F172A)],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const Positioned(
+                                left: 16,
+                                bottom: 16,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Nut Butter Toast With Boiled Eggs',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      '1648kcl',
+                                      style: TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -125,62 +132,77 @@ class GuidesScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  Row(
-                    children: const [
-                      Expanded(
-                        child: Text(
-                          'Workout Videos',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF374151),
+                  AnimatedReveal(
+                    delay: const Duration(milliseconds: 170),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Workout Videos',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimaryFor(context),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'View all',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textMutedFor(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: mediaHeight,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: const [
+                              _AssetVideoCard(
+                                title: 'Lower Body Training',
+                                kcal: '500 Kcal',
+                                minutes: '50 Min',
+                                videoPath: 'assets/videos/LowerBodyTraning.mp4',
+                              ),
+                              _AssetVideoCard(
+                                title: 'Hand Training',
+                                kcal: '600 Kcal',
+                                minutes: '40 Min',
+                                videoPath: 'assets/videos/HandTraning.mp4',
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      Text(
-                        'View all',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF8A94A6),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: mediaHeight,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: const [
-                        _AssetVideoCard(
-                          title: 'Lower Body Training',
-                          kcal: '500 Kcal',
-                          minutes: '50 Min',
-                          videoPath: 'assets/videos/LowerBodyTraning.mp4',
-                        ),
-                        _AssetVideoCard(
-                          title: 'Hand Training',
-                          kcal: '600 Kcal',
-                          minutes: '40 Min',
-                          videoPath: 'assets/videos/HandTraning.mp4',
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 18),
-                  const Text(
-                    'Challenge Tutorial Guide',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF374151),
+                  AnimatedReveal(
+                    delay: Duration(milliseconds: 250),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Challenge Tutorial Guide',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textPrimaryFor(context),
+                          ),
+                        ),
+                        SizedBox(height: 12),
+                        _ChallengeVideoCard(
+                          title: 'Challenge Tutorial',
+                          videoPath: 'assets/videos/ChallangeTetorial.mp4',
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  const _ChallengeVideoCard(
-                    title: 'Challenge Tutorial',
-                    videoPath: 'assets/videos/ChallangeTetorial.mp4',
                   ),
                         ],
                       ),
@@ -205,14 +227,8 @@ class GuidesScreen extends StatelessWidget {
 
 class _BlueHeader extends StatelessWidget {
   final String title;
-  final bool showBack;
-  final VoidCallback? onBackTap;
 
-  const _BlueHeader({
-    required this.title,
-    this.showBack = false,
-    this.onBackTap,
-  });
+  const _BlueHeader({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -224,21 +240,7 @@ class _BlueHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          if (showBack)
-            Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                padding: EdgeInsets.zero,
-                icon: const Icon(Icons.arrow_back, size: 18),
-                onPressed: onBackTap ?? () => Navigator.of(context).pop(),
-              ),
-            ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 34),
           Expanded(
             child: Text(
               title,
@@ -677,7 +679,7 @@ class _GuidesFullscreenVideoScreenState
                 child: Row(
                   children: [
                     _ControlCircle(
-                      icon: Icons.arrow_back,
+                      icon: Icons.close,
                       onTap: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 8),
@@ -889,6 +891,8 @@ class _Pill extends StatelessWidget {
     );
   }
 }
+
+
 
 
 

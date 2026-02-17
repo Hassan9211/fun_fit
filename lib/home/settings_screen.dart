@@ -3,11 +3,71 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../widget/app_colors.dart';
+import '../widget/animated_reveal.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/theme_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
+
+  Future<void> _showThemeOptions(BuildContext context) async {
+    final themeController = Get.find<ThemeController>();
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Obx(() {
+            final isDark = themeController.isDarkMode;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 10),
+                const Text(
+                  'Choose Theme',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                ListTile(
+                  leading: const Icon(Icons.light_mode_outlined),
+                  title: const Text('Light'),
+                  trailing: Icon(
+                    isDark
+                        ? Icons.radio_button_unchecked
+                        : Icons.check_circle,
+                  ),
+                  onTap: () async {
+                    await themeController.setLightTheme();
+                    if (!sheetContext.mounted) return;
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.dark_mode_outlined),
+                  title: const Text('Dark'),
+                  trailing: Icon(
+                    isDark
+                        ? Icons.check_circle
+                        : Icons.radio_button_unchecked,
+                  ),
+                  onTap: () async {
+                    await themeController.setDarkTheme();
+                    if (!sheetContext.mounted) return;
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+                const SizedBox(height: 6),
+              ],
+            );
+          }),
+        );
+      },
+    );
+  }
 
   Future<void> _showLogoutDialog(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
@@ -60,14 +120,16 @@ class SettingsScreen extends StatelessWidget {
             : width;
 
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
-          body: SafeArea(top: false, bottom: false,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          body: SafeArea(
+            top: false,
+            bottom: false,
             child: Center(
               child: SizedBox(
                 width: contentMaxWidth,
                 child: Column(
                   children: [
-                    _SettingsHeader(onBackTap: () => Get.offNamed(Routes.home)),
+                    const AnimatedReveal(child: _SettingsHeader()),
                     Expanded(
                       child: ListView(
                         padding: EdgeInsets.fromLTRB(
@@ -77,19 +139,39 @@ class SettingsScreen extends StatelessWidget {
                           24,
                         ),
                         children: [
-                          _SettingsActionTile(
-                            label: 'Change Password',
-                            icon: Icons.edit_outlined,
-                            onTap: () => Get.toNamed(
-                              Routes.forgotPassword,
-                              arguments: {'asChangePassword': true},
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 70),
+                            child: _SettingsActionTile(
+                              label: 'Themes',
+                              icon: Icons.palette_outlined,
+                              onTap: () => _showThemeOptions(context),
+                              trailing: const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.white,
+                                size: 18,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),
-                          _SettingsActionTile(
-                            label: 'Logout',
-                            icon: Icons.logout,
-                            onTap: () => _showLogoutDialog(context),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 90),
+                            child: _SettingsActionTile(
+                              label: 'Change Password',
+                              icon: Icons.edit_outlined,
+                              onTap: () => Get.toNamed(
+                                Routes.forgotPassword,
+                                arguments: {'asChangePassword': true},
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 160),
+                            child: _SettingsActionTile(
+                              label: 'Logout',
+                              icon: Icons.logout,
+                              onTap: () => _showLogoutDialog(context),
+                            ),
                           ),
                         ],
                       ),
@@ -100,9 +182,9 @@ class SettingsScreen extends StatelessWidget {
             ),
           ),
           floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.white,
+            backgroundColor: AppColors.primary,
             onPressed: () {},
-            child: const Icon(Icons.add, color: Colors.black),
+            child: const Icon(Icons.add, color: Colors.white),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
@@ -114,9 +196,7 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class _SettingsHeader extends StatelessWidget {
-  final VoidCallback onBackTap;
-
-  const _SettingsHeader({required this.onBackTap});
+  const _SettingsHeader();
 
   @override
   Widget build(BuildContext context) {
@@ -128,20 +208,7 @@ class _SettingsHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: const BoxDecoration(
-              color: AppColors.white,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.arrow_back, size: 18),
-              onPressed: onBackTap,
-            ),
-          ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 34),
           const Expanded(
             child: Text(
               'Settings',
@@ -164,11 +231,13 @@ class _SettingsActionTile extends StatelessWidget {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final Widget? trailing;
 
   const _SettingsActionTile({
     required this.label,
     required this.icon,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -193,7 +262,7 @@ class _SettingsActionTile extends StatelessWidget {
                   ),
                 ),
               ),
-              Icon(icon, color: AppColors.white, size: 18),
+              trailing ?? Icon(icon, color: AppColors.white, size: 18),
             ],
           ),
         ),
@@ -201,8 +270,3 @@ class _SettingsActionTile extends StatelessWidget {
     );
   }
 }
-
-
-
-
-

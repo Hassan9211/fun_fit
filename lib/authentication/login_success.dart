@@ -36,7 +36,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Center(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: paddingH),
@@ -116,3 +116,4 @@ class PasswordResetSuccessScreen extends StatelessWidget {
     );
   }
 }
+

@@ -65,7 +65,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
             : 14.0;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -197,3 +197,4 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
     );
   }
 }
+

@@ -112,7 +112,7 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
         final secondaryUnit = isCmSelected ? 'ft' : 'cm';
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF5F5F5),
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -324,3 +324,4 @@ class _HeightPill extends StatelessWidget {
     );
   }
 }
+

@@ -149,7 +149,7 @@ class NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? AppColors.primary : AppColors.navUnselected;
+    final color = selected ? AppColors.primary : AppColors.navUnselectedFor(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
@@ -176,3 +176,4 @@ class NavItem extends StatelessWidget {
     );
   }
 }
+

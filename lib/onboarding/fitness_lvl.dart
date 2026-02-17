@@ -41,7 +41,7 @@ class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: paddingH),
             child: Column(
@@ -158,3 +158,4 @@ class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
     );
   }
 }
+

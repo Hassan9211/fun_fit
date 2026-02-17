@@ -54,6 +54,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
     Get.toNamed(Routes.otpSignup);
   }
 
+  InputDecoration _loginStyleDecoration({
+    required String hint,
+    required IconData icon,
+    String? prefixText,
+    Widget? suffixIcon,
+    Widget? prefixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: prefixIcon ?? Icon(icon),
+      prefixText: prefixText,
+      suffixIcon: suffixIcon,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -77,7 +93,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
             title: const Text('Sign Up', style: TextStyle(color: Colors.white)),
             centerTitle: true,
@@ -111,16 +127,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         : null,
                   ),
 
-                  _textFormField(
-                    controller: phoneController,
-                    hint: 'Phone Number',
-                    icon: Icons.phone,
-                    fontSize: fontSizeField,
-                    keyboardType: TextInputType.phone,
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Phone required' : null,
-                  ),
-
                   Padding(
                     padding: const EdgeInsets.only(bottom: 14),
                     child: TextFormField(
@@ -134,7 +140,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           onSelect: (c) => setState(() => selectedCountry = c),
                         );
                       },
-                      decoration: InputDecoration(
+                      decoration: _loginStyleDecoration(
+                        hint: selectedCountry?.name ?? 'Select Country',
+                        icon: Icons.flag,
                         prefixIcon: selectedCountry != null
                             ? Padding(
                                 padding: const EdgeInsets.all(8),
@@ -143,12 +151,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                                 ),
                               )
                             : const Icon(Icons.flag),
-                        hintText: selectedCountry?.name ?? 'Select Country',
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
                       ),
                     ),
+                  ),
+
+                  _textFormField(
+                    controller: phoneController,
+                    hint: 'Phone Number',
+                    icon: Icons.phone,
+                    fontSize: fontSizeField,
+                    keyboardType: TextInputType.phone,
+                    prefixText: selectedCountry != null
+                        ? '+${selectedCountry!.phoneCode} '
+                        : null,
+                    validator: (v) =>
+                        v == null || v.trim().isEmpty ? 'Phone required' : null,
                   ),
 
                   _textFormField(
@@ -317,6 +334,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     bool obscureText = false,
     VoidCallback? toggleVisibility,
     TextInputType keyboardType = TextInputType.text,
+    String? prefixText,
     String? Function(String?)? validator,
   }) {
     return Padding(
@@ -326,9 +344,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
         obscureText: obscureText,
         keyboardType: keyboardType,
         validator: validator,
-        decoration: InputDecoration(
-          prefixIcon: Icon(icon),
-          hintText: hint,
+        decoration: _loginStyleDecoration(
+          hint: hint,
+          icon: icon,
+          prefixText: prefixText,
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
@@ -337,7 +356,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   onPressed: toggleVisibility,
                 )
               : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );
