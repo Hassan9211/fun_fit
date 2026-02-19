@@ -1,8 +1,10 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
 
 import 'package:flutter/material.dart';
+import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../widget/app_button.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -15,6 +17,8 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
+  final AuthApiService _authApiService = AuthApiService();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -22,16 +26,35 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final args = Get.arguments;
     final asChangePassword =
         args is Map && args['asChangePassword'] == true;
-    if (_formKey.currentState!.validate()) {
-      Get.toNamed(
-        Routes.otpForgotPassword,
-        arguments: {'asChangePassword': asChangePassword},
-      );
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSubmitting = true);
+    final result = await _authApiService.requestOtp(
+      email: emailController.text,
+      purpose: 'forgotPassword',
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_email', emailController.text.trim());
+
+    Get.toNamed(
+      Routes.otpForgotPassword,
+      arguments: {'asChangePassword': asChangePassword},
+    );
   }
 
   @override
@@ -168,8 +191,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
                       child: AppButton(
-                        label: 'Send OTP',
-                        onPressed: _submit,
+                        label: _isSubmitting ? 'Please wait...' : 'Send OTP',
+                        onPressed: _isSubmitting ? null : _submit,
                         width: double.infinity,
                         height: buttonHeight,
                         backgroundColor: Colors.blue.shade900,

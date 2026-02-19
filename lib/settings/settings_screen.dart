@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:fun_fit/settings/help_screen.dart';
+import 'package:fun_fit/settings/language_preferences_screen.dart';
+import 'package:fun_fit/settings/subscription_screen.dart';
 
-import '../widget/app_colors.dart';
 import '../widget/animated_reveal.dart';
+import '../widget/app_colors.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/theme_controller.dart';
@@ -36,9 +39,7 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.light_mode_outlined),
                   title: const Text('Light'),
                   trailing: Icon(
-                    isDark
-                        ? Icons.radio_button_unchecked
-                        : Icons.check_circle,
+                    isDark ? Icons.radio_button_unchecked : Icons.check_circle,
                   ),
                   onTap: () async {
                     await themeController.setLightTheme();
@@ -50,9 +51,7 @@ class SettingsScreen extends StatelessWidget {
                   leading: const Icon(Icons.dark_mode_outlined),
                   title: const Text('Dark'),
                   trailing: Icon(
-                    isDark
-                        ? Icons.check_circle
-                        : Icons.radio_button_unchecked,
+                    isDark ? Icons.check_circle : Icons.radio_button_unchecked,
                   ),
                   onTap: () async {
                     await themeController.setDarkTheme();
@@ -140,21 +139,63 @@ class SettingsScreen extends StatelessWidget {
                         ),
                         children: [
                           AnimatedReveal(
+                            delay: const Duration(milliseconds: 50),
+                            child: _SettingsActionTile(
+                              label: 'Profile Settings',
+                              icon: Icons.edit_outlined,
+                              onTap: () => Get.toNamed(Routes.profile),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 60),
+                            child: _SettingsActionTile(
+                              label: 'Subscription',
+                              icon: Icons.edit_outlined,
+                              onTap: () => Get.to(() => const SubscriptionScreen()),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
                             delay: const Duration(milliseconds: 70),
                             child: _SettingsActionTile(
-                              label: 'Themes',
-                              icon: Icons.palette_outlined,
-                              onTap: () => _showThemeOptions(context),
-                              trailing: const Icon(
-                                Icons.chevron_right,
-                                color: AppColors.white,
-                                size: 18,
-                              ),
+                              label: 'Change Fitness Level',
+                              icon: Icons.edit_outlined,
+                              onTap: () => Get.toNamed(Routes.fitnessLevel),
                             ),
                           ),
                           const SizedBox(height: 12),
                           AnimatedReveal(
                             delay: const Duration(milliseconds: 90),
+                            child: _SettingsActionTile(
+                              label: 'Help',
+                              icon: Icons.help_outline,
+                              onTap: () => Get.to(() => const HelpScreen()),
+                              trailing: const SizedBox.shrink(),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 100),
+                            child: _SettingsActionTile(
+                              label: 'Language Preferences',
+                              icon: Icons.edit_outlined,
+                              onTap: () =>
+                                  Get.to(() => const LanguagePreferencesScreen()),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 110),
+                            child: _SettingsActionTile(
+                              label: 'Change Theme',
+                              icon: Icons.edit_outlined,
+                              onTap: () => _showThemeOptions(context),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 120),
                             child: _SettingsActionTile(
                               label: 'Change Password',
                               icon: Icons.edit_outlined,
@@ -171,6 +212,7 @@ class SettingsScreen extends StatelessWidget {
                               label: 'Logout',
                               icon: Icons.logout,
                               onTap: () => _showLogoutDialog(context),
+                              trailing: const SizedBox.shrink(),
                             ),
                           ),
                         ],

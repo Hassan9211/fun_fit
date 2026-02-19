@@ -3,6 +3,7 @@
 import 'package:country_picker/country_picker.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
+import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,8 +19,10 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   Country? selectedCountry;
   bool agreeTerms = false;
+  bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  final AuthApiService _authApiService = AuthApiService();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -46,6 +49,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please accept Terms & Conditions')),
       );
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+
+    final result = await _authApiService.signup(
+      fullName: fullNameController.text,
+      email: emailController.text,
+      password: passwordController.text,
+      phoneNumber: phoneController.text,
+      countryCode: selectedCountry?.countryCode,
+      countryPhoneCode: selectedCountry?.phoneCode,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    final isExistingEmail =
+        result.statusCode == 409 ||
+        result.message.toLowerCase().contains('already exists');
+
+    if (isExistingEmail) {
+      final otpResult = await _authApiService.requestOtp(
+        email: emailController.text,
+        purpose: 'signup',
+      );
+      if (!mounted) return;
+      if (!otpResult.success) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(otpResult.message)));
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('auth_email', emailController.text.trim());
+      Get.toNamed(Routes.otpSignup);
+      return;
+    }
+
+    if (!result.success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
       return;
     }
 
@@ -235,8 +282,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   const SizedBox(height: 10),
 
                   AppButton(
-                    label: 'Sign Up',
-                    onPressed: _submitSignup,
+                    label: _isSubmitting ? 'Please wait...' : 'Sign Up',
+                    onPressed: _isSubmitting ? null : _submitSignup,
                     width: double.infinity,
                     height: 50,
                     backgroundColor: Colors.blue.shade900,

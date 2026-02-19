@@ -1,6 +1,7 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use, unused_local_variable
 
 import 'package:flutter/material.dart';
+import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +17,8 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = false;
   bool obscurePassword = true;
+  bool _isSubmitting = false;
+  final AuthApiService _authApiService = AuthApiService();
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
@@ -29,11 +32,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _login() async {
-    if (_formKey.currentState!.validate()) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_email', emailController.text.trim());
-      Get.toNamed(Routes.otpSignin);
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+
+    final result = await _authApiService.login(
+      email: emailController.text,
+      password: passwordController.text,
+    );
+
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
+
+    if (!result.success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_email', emailController.text.trim());
+    Get.toNamed(Routes.otpSignin);
   }
 
   @override
@@ -176,8 +195,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   /// Continue
                   AppButton(
-                    label: 'Continue',
-                    onPressed: _login,
+                    label: _isSubmitting ? 'Please wait...' : 'Continue',
+                    onPressed: _isSubmitting ? null : _login,
                     width: double.infinity,
                     height: buttonHeight,
                     backgroundColor: Colors.blue.shade900,

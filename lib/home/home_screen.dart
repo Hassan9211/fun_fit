@@ -128,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
-                color: AppColors.surface(context),
+                color: const Color(0xFFFCFDFF),
                 borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -150,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppColors.surfaceMuted(context),
+                            color: const Color(0xFFF2F6FF),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -626,7 +626,7 @@ class _CategoryCard extends StatelessWidget {
             title.toUpperCase(),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Colors.white,
+              color: Colors.transparent,
               fontWeight: FontWeight.w800,
             ),
           ),
