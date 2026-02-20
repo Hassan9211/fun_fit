@@ -11,6 +11,7 @@ class SubscriptionScreen extends StatefulWidget {
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isPremiumTab = false;
+  final ScrollController _scrollController = ScrollController();
 
   static const List<String> _basicFeatures = <String>[
     '3 beginner-level challenges per day',
@@ -39,6 +40,53 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     'Challenge chat rooms + expert Q&A',
     'Motivational alerts & reminders',
   ];
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _openPremiumSection() {
+    if (!_isPremiumTab) {
+      setState(() => _isPremiumTab = true);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        _scrollController.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  Future<void> _showFreePlanSubscribedPopup() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Subscribed'),
+          content: const Text('You have been subscribed free plan for 7 days'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _onContinuePressed(bool isPremium) async {
+    if (isPremium) {
+      _openPremiumSection();
+      return;
+    }
+    await _showFreePlanSubscribedPopup();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -92,96 +140,93 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                   ),
                   const SizedBox(height: 12),
                   Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceMuted(context),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${isPremium ? '💎' : '🟩'} $title',
-                            style: TextStyle(
-                              color: AppColors.textTitleFor(context),
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
-                            ),
+                    child: ListView(
+                      controller: _scrollController,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceMuted(context),
+                            borderRadius: BorderRadius.circular(14),
                           ),
-                          const SizedBox(height: 10),
-                          Expanded(
-                            child: ListView.separated(
-                              itemCount: features.length,
-                              separatorBuilder: (context, index) =>
-                                  const SizedBox(height: 6),
-                              itemBuilder: (context, index) {
-                                return Text(
-                                  '✓ ${features[index]}',
-                                  style: TextStyle(
-                                    color: AppColors.textPrimaryFor(context),
-                                    fontSize: 13,
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                setState(() => _isPremiumTab = true);
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                style: TextStyle(
+                                  color: AppColors.textTitleFor(context),
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
                                 ),
                               ),
-                              child: Text(
-                                isPremium
-                                    ? 'Continue'
-                                    : 'Switch to Premium',
-                                style: const TextStyle(color: Colors.white),
+                              const SizedBox(height: 10),
+                              ...features.map((feature) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Text(
+                                    '? $feature',
+                                    style: TextStyle(
+                                      color: AppColors.textPrimaryFor(context),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                );
+                              }),
+                              const SizedBox(height: 8),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed: () => _onContinuePressed(isPremium),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Continue',
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                ),
                               ),
+                            ],
+                          ),
+                        ),
+                        if (isPremium) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceMuted(context),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Column(
+                              children: [
+                                _PriceCard(
+                                  title: 'Monthly',
+                                  price: '\$9.99/month',
+                                  subtitle: 'All features, no ads',
+                                ),
+                                SizedBox(height: 10),
+                                _PriceCard(
+                                  title: 'Quarterly',
+                                  price: '\$24.99 every 3 months',
+                                  subtitle: 'Save 15%',
+                                ),
+                                SizedBox(height: 10),
+                                _PriceCard(
+                                  title: 'Yearly',
+                                  price: '\$89.99/year',
+                                  subtitle: 'Save 25% + 2 bonus months',
+                                ),
+                              ],
                             ),
                           ),
                         ],
-                      ),
+                      ],
                     ),
                   ),
-                  if (isPremium) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceMuted(context),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: const Column(
-                        children: [
-                          _PriceCard(
-                            title: 'Monthly',
-                            price: '\$9.99/month',
-                            subtitle: 'All features, no ads',
-                          ),
-                          SizedBox(height: 10),
-                          _PriceCard(
-                            title: 'Quarterly',
-                            price: '\$24.99 every 3 months',
-                            subtitle: 'Save 15%',
-                          ),
-                          SizedBox(height: 10),
-                          _PriceCard(
-                            title: 'Yearly',
-                            price: '\$89.99/year',
-                            subtitle: 'Save 25% + 2 bonus months',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ),

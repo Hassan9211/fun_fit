@@ -1,6 +1,8 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:io';
+import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -22,7 +24,21 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const String _defaultProfileImageUrl =
       'https://instagram.fbhv1-1.fna.fbcdn.net/v/t51.2885-19/472294191_1105393394457686_554111962204078586_n.jpg?efg=eyJ2ZW5jb2RlX3RhZyI6InByb2ZpbGVfcGljLmRqYW5nby4xMDgwLmMyIn0&_nc_ht=instagram.fbhv1-1.fna.fbcdn.net&_nc_cat=102&_nc_oc=Q6cZ2QFPco5nXp9cXZCormOpxSR_IStByEK7TtzKIix18azp0fhLpjo-OmRwB5YRM2MgfBk&_nc_ohc=43gHM-x_W18Q7kNvwELfwN1&_nc_gid=TYaa_VlHXwocm-WkhQhxgQ&edm=AP4sbd4BAAAA&ccb=7-5&oh=00_AfsvBghJkIPr-6Tg34sElr5wVYnz4kXunkzZfQcCIUq_5A&oe=6990B0AD&_nc_sid=7a9f4b';
+  static const String _kCompletedChallenges = 'completed_challenges_count';
+  static const String _kChallengePoints = 'challenge_points_count';
+
   String _profileImagePath = '';
+  final Random _random = Random();
+  int? _lastChallengeIndex;
+  bool _isSelectingChallenge = false;
+  _RandomChallenge? _selectedChallenge;
+  Timer? _challengeTimer;
+  Duration _challengeTotal = Duration.zero;
+  Duration _challengeRemaining = Duration.zero;
+  bool _isChallengeRunning = false;
+  bool _isChallengeCompleted = false;
+  int _completedChallenges = 0;
+  int _challengePoints = 0;
 
   static const _categoryImages = <String, String>{
     'Yoga': 'assets/images/yoga.jpg',
@@ -32,17 +48,210 @@ class _HomeScreenState extends State<HomeScreen> {
     'Stretching & Mobility': 'assets/images/Stretching & Mobility.jpg',
   };
 
+  static const List<_RandomChallenge> _randomChallenges = [
+    _RandomChallenge(
+      title: 'Push Up',
+      subtitle: '100 push ups a day',
+      durationLabel: '5:00 min',
+      duration: Duration(minutes: 5),
+      rewardPoints: 10,
+    ),
+    _RandomChallenge(
+      title: 'Sit Up',
+      subtitle: '20 sit ups a day',
+      durationLabel: '4:30 min',
+      duration: Duration(minutes: 4, seconds: 30),
+      rewardPoints: 10,
+    ),
+    _RandomChallenge(
+      title: 'Knee Push Up',
+      subtitle: '20 reps x 3 sets',
+      durationLabel: '3:00 min',
+      duration: Duration(minutes: 3),
+      rewardPoints: 10,
+    ),
+    _RandomChallenge(
+      title: 'Plank Hold',
+      subtitle: '3 rounds of 60 seconds',
+      durationLabel: '6:00 min',
+      duration: Duration(minutes: 6),
+      rewardPoints: 12,
+    ),
+    _RandomChallenge(
+      title: 'Jump Squats',
+      subtitle: '40 reps x 3 sets',
+      durationLabel: '5:30 min',
+      duration: Duration(minutes: 5, seconds: 30),
+      rewardPoints: 11,
+    ),
+  ];
+
   @override
   void initState() {
     super.initState();
-    _loadProfileImage();
+    _loadHomeData();
   }
 
-  Future<void> _loadProfileImage() async {
+  @override
+  void dispose() {
+    _challengeTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadHomeData() async {
     final prefs = await SharedPreferences.getInstance();
     final imagePath = prefs.getString('profile_image_path') ?? '';
+    final completed = prefs.getInt(_kCompletedChallenges) ?? 0;
+    final points = prefs.getInt(_kChallengePoints) ?? 0;
     if (!mounted) return;
-    setState(() => _profileImagePath = imagePath);
+    setState(() {
+      _profileImagePath = imagePath;
+      _completedChallenges = completed;
+      _challengePoints = points;
+    });
+  }
+
+  Future<void> _saveChallengeStats() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_kCompletedChallenges, _completedChallenges);
+    await prefs.setInt(_kChallengePoints, _challengePoints);
+  }
+
+  int _pickNextChallengeIndex() {
+    if (_randomChallenges.length <= 1) return 0;
+    var next = _random.nextInt(_randomChallenges.length);
+    while (next == _lastChallengeIndex) {
+      next = _random.nextInt(_randomChallenges.length);
+    }
+    return next;
+  }
+
+  Future<void> _startRandomChallenge() async {
+    if (_isSelectingChallenge) return;
+    setState(() => _isSelectingChallenge = true);
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return PopScope(
+          canPop: false,
+          child: Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: const Padding(
+              padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3.5,
+                      valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                    ),
+                  ),
+                  SizedBox(height: 14),
+                  Text(
+                    'Selecting random challenge...',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    if (!mounted) return;
+
+    final index = _pickNextChallengeIndex();
+    final challenge = _randomChallenges[index];
+    Navigator.of(context, rootNavigator: true).pop();
+
+    setState(() {
+      _lastChallengeIndex = index;
+      _selectedChallenge = challenge;
+      _challengeTimer?.cancel();
+      _challengeTotal = challenge.duration;
+      _challengeRemaining = challenge.duration;
+      _isChallengeRunning = false;
+      _isChallengeCompleted = false;
+      _isSelectingChallenge = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Selected: ${challenge.title} - ${challenge.durationLabel}')),
+    );
+  }
+
+  String _formatDuration(Duration duration) {
+    final totalSeconds = duration.inSeconds.clamp(0, 359999);
+    final minutes = (totalSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (totalSeconds % 60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  void _startOrResumeChallengeTimer() {
+    if (_selectedChallenge == null || _isChallengeCompleted || _isChallengeRunning) {
+      return;
+    }
+    if (_challengeRemaining <= Duration.zero) {
+      _challengeRemaining = _challengeTotal;
+    }
+    setState(() => _isChallengeRunning = true);
+    _challengeTimer?.cancel();
+    _challengeTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_challengeRemaining <= const Duration(seconds: 1)) {
+        timer.cancel();
+        _completeActiveChallenge();
+        return;
+      }
+      setState(() => _challengeRemaining -= const Duration(seconds: 1));
+    });
+  }
+
+  void _pauseChallengeTimer() {
+    if (!_isChallengeRunning) return;
+    _challengeTimer?.cancel();
+    setState(() => _isChallengeRunning = false);
+  }
+
+  void _resetChallengeTimer() {
+    if (_selectedChallenge == null) return;
+    _challengeTimer?.cancel();
+    setState(() {
+      _isChallengeRunning = false;
+      _isChallengeCompleted = false;
+      _challengeRemaining = _challengeTotal;
+    });
+  }
+
+  Future<void> _completeActiveChallenge() async {
+    final challenge = _selectedChallenge;
+    if (challenge == null || _isChallengeCompleted) return;
+
+    _challengeTimer?.cancel();
+    setState(() {
+      _isChallengeRunning = false;
+      _isChallengeCompleted = true;
+      _challengeRemaining = Duration.zero;
+      _completedChallenges += 1;
+      _challengePoints += challenge.rewardPoints;
+    });
+    await _saveChallengeStats();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${challenge.title} completed. +${challenge.rewardPoints} pts')),
+    );
   }
 
   void _showWorkoutPopup(BuildContext context) {
@@ -294,7 +503,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 InkWell(
                                   onTap: () async {
                                     await Get.toNamed(Routes.profile);
-                                    await _loadProfileImage();
+                                    await _loadHomeData();
                                   },
                                   borderRadius: BorderRadius.circular(22),
                                   child: CircleAvatar(
@@ -363,14 +572,172 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ),
                                   const SizedBox(height: 12),
                                   AppButton(
-                                    label: 'Start Random Challenge',
-                                    onPressed: () {},
+                                    label: _isSelectingChallenge
+                                        ? 'Selecting...'
+                                        : 'Start Random Challenge',
+                                    onPressed: _isSelectingChallenge
+                                        ? null
+                                        : _startRandomChallenge,
                                     width: double.infinity,
                                     height: 44,
                                     backgroundColor: AppColors.primary,
                                     borderRadius: 12,
                                     fontWeight: FontWeight.w600,
                                   ),
+                                  if (_selectedChallenge != null) ...[
+                                    const SizedBox(height: 10),
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 10,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary.withOpacity(0.08),
+                                        borderRadius: BorderRadius.circular(10),
+                                        border: Border.all(
+                                          color: AppColors.primary.withOpacity(0.2),
+                                        ),
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            _selectedChallenge!.title,
+                                            style: TextStyle(
+                                              color: AppColors.textPrimaryFor(context),
+                                              fontWeight: FontWeight.w700,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 2),
+                                          Text(
+                                            _selectedChallenge!.subtitle,
+                                            style: TextStyle(
+                                              color: AppColors.textSecondaryFor(context),
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              const Icon(
+                                                Icons.timer_outlined,
+                                                color: AppColors.primary,
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                _isChallengeCompleted
+                                                    ? 'Completed'
+                                                    : _formatDuration(_challengeRemaining),
+                                                style: TextStyle(
+                                                  color: AppColors.textPrimaryFor(context),
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              Text(
+                                                '+${_selectedChallenge!.rewardPoints} pts',
+                                                style: const TextStyle(
+                                                  color: AppColors.primary,
+                                                  fontWeight: FontWeight.w700,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Wrap(
+                                            spacing: 8,
+                                            runSpacing: 8,
+                                            children: [
+                                              if (!_isChallengeCompleted)
+                                                SizedBox(
+                                                  height: 34,
+                                                  child: ElevatedButton(
+                                                    onPressed: _isChallengeRunning
+                                                        ? _pauseChallengeTimer
+                                                        : _startOrResumeChallengeTimer,
+                                                    style: ElevatedButton.styleFrom(
+                                                      backgroundColor: AppColors.primary,
+                                                      foregroundColor: Colors.white,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(10),
+                                                      ),
+                                                    ),
+                                                    child: Text(
+                                                      _isChallengeRunning
+                                                          ? 'Pause'
+                                                          : (_challengeRemaining ==
+                                                                  _challengeTotal
+                                                              ? 'Start'
+                                                              : 'Resume'),
+                                                    ),
+                                                  ),
+                                                ),
+                                              if (!_isChallengeCompleted)
+                                                SizedBox(
+                                                  height: 34,
+                                                  child: OutlinedButton(
+                                                    onPressed: _resetChallengeTimer,
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor: AppColors.primary,
+                                                      side: const BorderSide(
+                                                        color: AppColors.primary,
+                                                      ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(10),
+                                                      ),
+                                                    ),
+                                                    child: const Text('Reset'),
+                                                  ),
+                                                ),
+                                              if (!_isChallengeCompleted)
+                                                SizedBox(
+                                                  height: 34,
+                                                  child: OutlinedButton(
+                                                    onPressed: _completeActiveChallenge,
+                                                    style: OutlinedButton.styleFrom(
+                                                      foregroundColor: AppColors.primary,
+                                                      side: const BorderSide(
+                                                        color: AppColors.primary,
+                                                      ),
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius:
+                                                            BorderRadius.circular(10),
+                                                      ),
+                                                    ),
+                                                    child: const Text('Mark Complete'),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(height: 10),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: _ChallengeMiniStat(
+                                            label: 'Completed',
+                                            value: '$_completedChallenges',
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: _ChallengeMiniStat(
+                                            label: 'Points',
+                                            value: '$_challengePoints',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -641,4 +1008,62 @@ class _NotificationData {
   final IconData icon;
 
   const _NotificationData({required this.title, required this.icon});
+}
+
+class _ChallengeMiniStat extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ChallengeMiniStat({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.borderLightFor(context)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
+                fontSize: 12,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              color: AppColors.textPrimaryFor(context),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RandomChallenge {
+  final String title;
+  final String subtitle;
+  final String durationLabel;
+  final Duration duration;
+  final int rewardPoints;
+
+  const _RandomChallenge({
+    required this.title,
+    required this.subtitle,
+    required this.durationLabel,
+    required this.duration,
+    required this.rewardPoints,
+  });
 }

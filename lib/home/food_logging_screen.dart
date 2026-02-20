@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
@@ -63,6 +64,37 @@ class _FoodLogViewState extends State<_FoodLogView> {
     'Dinner': [],
     'Snacks': [],
     'Water': [],
+  };
+
+  static const Map<String, _FoodItem> _barcodeCatalog = {
+    '3017620422003': _FoodItem(
+      name: 'Nutella (100g)',
+      calories: 539,
+      protein: 6,
+      carbs: 57,
+      fat: 31,
+    ),
+    '7622210449283': _FoodItem(
+      name: 'Oreo Cookies (3 pcs)',
+      calories: 160,
+      protein: 2,
+      carbs: 25,
+      fat: 7,
+    ),
+    '8901030865398': _FoodItem(
+      name: 'Mango Juice (250ml)',
+      calories: 128,
+      protein: 1,
+      carbs: 31,
+      fat: 0,
+    ),
+    '5000159461122': _FoodItem(
+      name: 'Coca-Cola Can (330ml)',
+      calories: 139,
+      protein: 0,
+      carbs: 35,
+      fat: 0,
+    ),
   };
 
   @override
@@ -224,6 +256,112 @@ class _FoodLogViewState extends State<_FoodLogView> {
     setState(() => _mealData[_selectedMeal]!.add(item));
   }
 
+  Future<void> _scanBarcode() async {
+    try {
+      final scannedCode = await Navigator.of(context).push<String>(
+        MaterialPageRoute(builder: (_) => const _BarcodeScannerScreen()),
+      );
+      if (!mounted || scannedCode == null || scannedCode.trim().isEmpty) return;
+      await _showScannedBarcodeDialog(scannedCode.trim());
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open barcode scanner')),
+      );
+    }
+  }
+
+  Future<void> _showScannedBarcodeDialog(String barcode) async {
+    final preset = _barcodeCatalog[barcode];
+    final nameCtrl = TextEditingController(
+      text: preset?.name ?? 'Scanned Item ($barcode)',
+    );
+    final calCtrl = TextEditingController(text: '${preset?.calories ?? 0}');
+    final proteinCtrl = TextEditingController(text: '${preset?.protein ?? 0}');
+    final carbsCtrl = TextEditingController(text: '${preset?.carbs ?? 0}');
+    final fatCtrl = TextEditingController(text: '${preset?.fat ?? 0}');
+    String meal = _selectedMeal;
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Scanned Barcode'),
+        content: SizedBox(
+          width: 420,
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                TextField(
+                  readOnly: true,
+                  controller: TextEditingController(text: barcode),
+                  decoration: const InputDecoration(
+                    labelText: 'Barcode',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _field(nameCtrl, 'Food name'),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  initialValue: meal,
+                  items: _meals
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (v) => meal = v ?? meal,
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Meal',
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _field(calCtrl, 'Calories')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _field(proteinCtrl, 'Protein (g)')),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(child: _field(carbsCtrl, 'Carbs (g)')),
+                    const SizedBox(width: 10),
+                    Expanded(child: _field(fatCtrl, 'Fat (g)')),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Add Food'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+    if (!mounted) return;
+    final item = _FoodItem(
+      name: nameCtrl.text.trim().isEmpty ? 'Scanned Food' : nameCtrl.text.trim(),
+      calories: int.tryParse(calCtrl.text) ?? 0,
+      protein: int.tryParse(proteinCtrl.text) ?? 0,
+      carbs: int.tryParse(carbsCtrl.text) ?? 0,
+      fat: int.tryParse(fatCtrl.text) ?? 0,
+    );
+    setState(() => _mealData[meal]!.add(item));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${item.name} added to $meal')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
@@ -352,7 +490,7 @@ class _FoodLogViewState extends State<_FoodLogView> {
                           backgroundColor: Colors.black,
                           minimumSize: const Size.fromHeight(44),
                         ),
-                        onPressed: () {},
+                        onPressed: _scanBarcode,
                         icon: const Icon(Icons.qr_code_scanner),
                         label: const Text('Scan Barcode'),
                       ),
@@ -564,6 +702,92 @@ class _FoodLogViewState extends State<_FoodLogView> {
         Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
       ],
+    );
+  }
+}
+
+class _BarcodeScannerScreen extends StatefulWidget {
+  const _BarcodeScannerScreen();
+
+  @override
+  State<_BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
+}
+
+class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
+  final MobileScannerController _controller = MobileScannerController(
+    detectionSpeed: DetectionSpeed.noDuplicates,
+  );
+  bool _handled = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onDetect(BarcodeCapture capture) {
+    if (_handled) return;
+    final value = capture.barcodes
+        .map((b) => b.rawValue)
+        .whereType<String>()
+        .firstWhere((v) => v.isNotEmpty, orElse: () => '');
+    if (value.isEmpty) return;
+    _handled = true;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text('Scan Barcode', style: TextStyle(color: Colors.white)),
+        iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _controller.toggleTorch,
+            icon: const Icon(Icons.flash_on),
+          ),
+          IconButton(
+            onPressed: _controller.switchCamera,
+            icon: const Icon(Icons.flip_camera_android),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: MobileScanner(
+              controller: _controller,
+              onDetect: _onDetect,
+            ),
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 150,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.white, width: 2),
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 20,
+            right: 20,
+            bottom: 24,
+            child: Text(
+              'Align barcode inside the frame',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
