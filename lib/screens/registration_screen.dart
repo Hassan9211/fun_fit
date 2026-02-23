@@ -65,7 +65,7 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
         }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: width * 0.1),
             child: Column(
@@ -77,12 +77,8 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                     scale: _scaleAnimation,
                     child: CircleAvatar(
                       radius: avatarSize / 2,
-                      backgroundColor: Colors.blue.shade100,
-                      child: Icon(
-                        Icons.check_circle,
-                        color: Colors.blue.shade900,
-                        size: avatarSize * 0.6,
-                      ),
+                      backgroundColor: Colors.black,
+                      child: Icon(Icons.check, color: Colors.white, size: avatarSize * 0.45),
                     ),
                   ),
                 ),
@@ -117,8 +113,8 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                     onPressed: () => Get.offAllNamed(Routes.ready),
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.blue.shade900,
-                    borderRadius: 12,
+                    backgroundColor: Colors.black,
+                    borderRadius: 8,
                     fontSize: textSize * 0.6,
                     fontWeight: FontWeight.bold,
                   ),

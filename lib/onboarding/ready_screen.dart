@@ -29,18 +29,13 @@ class AreYouReadyScreen extends StatelessWidget {
         }
 
         return Scaffold(
+          backgroundColor: Colors.white,
           body: Container(
             height: height,
             width: width,
 
             /// 🎨 Gradient Background
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.white, Colors.white],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
+            color: Colors.white,
 
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: paddingH),
@@ -66,8 +61,8 @@ class AreYouReadyScreen extends StatelessWidget {
                     onPressed: () => Get.toNamed(Routes.gender),
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.blue.shade900,
-                    borderRadius: 14,
+                    backgroundColor: Colors.black,
+                    borderRadius: 8,
                     fontSize: buttonFont,
                     fontWeight: FontWeight.bold,
                   ),

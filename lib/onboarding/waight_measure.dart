@@ -97,7 +97,7 @@ class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
         final secondaryUnit = isKgSelected ? 'lb' : 'kg';
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -173,8 +173,8 @@ class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
                         onPressed: () => Get.toNamed(Routes.home),
                         width: double.infinity,
                         height: 48,
-                        backgroundColor: const Color(0xFF1D3DBB),
-                        borderRadius: 10,
+                        backgroundColor: Colors.black,
+                        borderRadius: 8,
                         fontSize: buttonFont,
                         fontWeight: FontWeight.w600,
                       ),
@@ -208,7 +208,7 @@ class _UnitSwitch extends StatelessWidget {
       height: 30,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFE6E9F8),
+        color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -248,7 +248,7 @@ class _UnitChip extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1D3DBB) : Colors.transparent,
+            color: selected ? Colors.black : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
@@ -278,7 +278,8 @@ class _WeightPill extends StatelessWidget {
       width: 126,
       height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xFFE7E7E7),
+        color: const Color(0xFFF3F4F6),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.center,

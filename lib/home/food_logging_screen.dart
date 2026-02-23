@@ -1,22 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/getx.dart';
-import '../widget/home_bottom_nav.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
   const FoodLoggingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final args = Get.arguments;
-    final selectedMeal = args is Map && args['meal'] is String
-        ? args['meal'] as String
-        : 'Breakfast';
-    return _FoodLogView(initialMeal: selectedMeal);
+    return const _FoodLogFeed();
   }
 }
 
@@ -29,787 +25,457 @@ class AddMealScreen extends StatelessWidget {
   }
 }
 
-class _FoodLogView extends StatefulWidget {
-  final String initialMeal;
+enum _FeedTab { publicPosts, myPosts }
+enum _Reaction { none, like, dislike }
 
-  const _FoodLogView({required this.initialMeal});
+class _FoodLogFeed extends StatefulWidget {
+  const _FoodLogFeed();
 
   @override
-  State<_FoodLogView> createState() => _FoodLogViewState();
+  State<_FoodLogFeed> createState() => _FoodLogFeedState();
 }
 
-class _FoodLogViewState extends State<_FoodLogView> {
-  static const _meals = ['Breakfast', 'Lunch', 'Dinner', 'Snacks', 'Water'];
-  String _selectedMeal = 'Breakfast';
+class _FoodLogFeedState extends State<_FoodLogFeed> {
+  static const String _kProfileName = 'profile_name';
+  static const String _kProfileImagePath = 'profile_image_path';
+  static const String _defaultProfileName = 'Jacob West';
+  final TextEditingController _composerController = TextEditingController();
+  _FeedTab _selectedTab = _FeedTab.publicPosts;
+  String _profileName = _defaultProfileName;
+  String _profileImagePath = '';
 
-  final Map<String, List<_FoodItem>> _mealData = {
-    'Breakfast': [
-      const _FoodItem(
-        name: 'Greek Yogurt Bowl',
-        calories: 220,
-        protein: 17,
-        carbs: 21,
-        fat: 8,
-      ),
-    ],
-    'Lunch': [
-      const _FoodItem(
-        name: 'Grilled Chicken Salad',
-        calories: 340,
-        protein: 32,
-        carbs: 11,
-        fat: 16,
-      ),
-    ],
-    'Dinner': [],
-    'Snacks': [],
-    'Water': [],
-  };
+  final List<_FeedPost> _publicPosts = <_FeedPost>[
+    const _FeedPost(
+      author: 'Maude Hal',
+      minutesAgo: 14,
+      avatarAsset: 'assets/images/tammana.jpg',
+      content:
+          "Hey! My body weight is increasing. I'm gaining weight and want some suggestions.",
+      likes: 2,
+    ),
+    const _FeedPost(
+      author: 'Dianne Russell',
+      minutesAgo: 24,
+      avatarAsset: 'assets/images/nora.jpg',
+      content:
+          'Sure! First, can you tell me about your daily routine and eating habits? That will help me suggest something suitable.',
+      likes: 1,
+    ),
+    const _FeedPost(
+      author: 'Esther Howard',
+      minutesAgo: 26,
+      avatarAsset: 'assets/images/alina.jpg',
+      content:
+          'I mostly sit all day due to work, and my diet includes a lot of carbs and snacks.',
+      likes: 1,
+    ),
+  ];
 
-  static const Map<String, _FoodItem> _barcodeCatalog = {
-    '3017620422003': _FoodItem(
-      name: 'Nutella (100g)',
-      calories: 539,
-      protein: 6,
-      carbs: 57,
-      fat: 31,
+  final List<_FeedPost> _myPosts = <_FeedPost>[
+    const _FeedPost(
+      author: 'Maude Hal',
+      minutesAgo: 14,
+      avatarAsset: 'assets/images/tammana.jpg',
+      content:
+          "Hey! My body weight is increasing. I'm gaining weight and want some suggestions.",
+      likes: 2,
+      isMine: true,
     ),
-    '7622210449283': _FoodItem(
-      name: 'Oreo Cookies (3 pcs)',
-      calories: 160,
-      protein: 2,
-      carbs: 25,
-      fat: 7,
+    const _FeedPost(
+      author: 'Maude Hal',
+      minutesAgo: 14,
+      avatarAsset: 'assets/images/tammana.jpg',
+      content:
+          "Hey! My body weight is increasing. I'm gaining weight and want some suggestions.",
+      likes: 2,
+      isMine: true,
     ),
-    '8901030865398': _FoodItem(
-      name: 'Mango Juice (250ml)',
-      calories: 128,
-      protein: 1,
-      carbs: 31,
-      fat: 0,
+    const _FeedPost(
+      author: 'Maude Hal',
+      minutesAgo: 14,
+      avatarAsset: 'assets/images/tammana.jpg',
+      content:
+          "Hey! My body weight is increasing. I'm gaining weight and want some suggestions.",
+      likes: 2,
+      isMine: true,
     ),
-    '5000159461122': _FoodItem(
-      name: 'Coca-Cola Can (330ml)',
-      calories: 139,
-      protein: 0,
-      carbs: 35,
-      fat: 0,
-    ),
-  };
+  ];
 
   @override
   void initState() {
     super.initState();
-    _selectedMeal = _meals.contains(widget.initialMeal)
-        ? widget.initialMeal
-        : 'Breakfast';
+    _loadProfileData();
   }
-
-  int get _totalCalories =>
-      _mealData.values.expand((e) => e).fold(0, (s, i) => s + i.calories);
-  int get _totalProtein =>
-      _mealData.values.expand((e) => e).fold(0, (s, i) => s + i.protein);
-  int get _totalCarbs =>
-      _mealData.values.expand((e) => e).fold(0, (s, i) => s + i.carbs);
-  int get _totalFat =>
-      _mealData.values.expand((e) => e).fold(0, (s, i) => s + i.fat);
-
-  Future<void> _showAddFoodDialog() async {
-    final nameCtrl = TextEditingController();
-    final calCtrl = TextEditingController();
-    final proteinCtrl = TextEditingController();
-    final carbsCtrl = TextEditingController();
-    final fatCtrl = TextEditingController();
-    String meal = _selectedMeal;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Food'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _field(nameCtrl, 'Food name'),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: meal,
-                  items: _meals
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (v) => meal = v ?? meal,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Meal',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(calCtrl, 'Calories')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(proteinCtrl, 'Protein (g)')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(carbsCtrl, 'Carbs (g)')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(fatCtrl, 'Fat (g)')),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add Food'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-    final item = _FoodItem(
-      name: nameCtrl.text.trim().isEmpty ? 'Custom Food' : nameCtrl.text.trim(),
-      calories: int.tryParse(calCtrl.text) ?? 0,
-      protein: int.tryParse(proteinCtrl.text) ?? 0,
-      carbs: int.tryParse(carbsCtrl.text) ?? 0,
-      fat: int.tryParse(fatCtrl.text) ?? 0,
-    );
-    setState(() => _mealData[meal]!.add(item));
-  }
-
-  Future<void> _showAddRecipeDialog() async {
-    final nameCtrl = TextEditingController();
-    final ingredientsCtrl = TextEditingController();
-    final calCtrl = TextEditingController();
-    final proteinCtrl = TextEditingController();
-    final carbsCtrl = TextEditingController();
-    final fatCtrl = TextEditingController();
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Recipe'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                _field(nameCtrl, 'Recipe Name'),
-                const SizedBox(height: 10),
-                _field(ingredientsCtrl, 'Ingredients', maxLines: 3),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(calCtrl, 'Calories')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(proteinCtrl, 'Protein (g)')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(carbsCtrl, 'Carbs (g)')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(fatCtrl, 'Fat (g)')),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Save Recipe'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-    final item = _FoodItem(
-      name: nameCtrl.text.trim().isEmpty
-          ? 'Custom Recipe'
-          : nameCtrl.text.trim(),
-      calories: int.tryParse(calCtrl.text) ?? 0,
-      protein: int.tryParse(proteinCtrl.text) ?? 0,
-      carbs: int.tryParse(carbsCtrl.text) ?? 0,
-      fat: int.tryParse(fatCtrl.text) ?? 0,
-    );
-    setState(() => _mealData[_selectedMeal]!.add(item));
-  }
-
-  Future<void> _scanBarcode() async {
-    try {
-      final scannedCode = await Navigator.of(context).push<String>(
-        MaterialPageRoute(builder: (_) => const _BarcodeScannerScreen()),
-      );
-      if (!mounted || scannedCode == null || scannedCode.trim().isEmpty) return;
-      await _showScannedBarcodeDialog(scannedCode.trim());
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open barcode scanner')),
-      );
-    }
-  }
-
-  Future<void> _showScannedBarcodeDialog(String barcode) async {
-    final preset = _barcodeCatalog[barcode];
-    final nameCtrl = TextEditingController(
-      text: preset?.name ?? 'Scanned Item ($barcode)',
-    );
-    final calCtrl = TextEditingController(text: '${preset?.calories ?? 0}');
-    final proteinCtrl = TextEditingController(text: '${preset?.protein ?? 0}');
-    final carbsCtrl = TextEditingController(text: '${preset?.carbs ?? 0}');
-    final fatCtrl = TextEditingController(text: '${preset?.fat ?? 0}');
-    String meal = _selectedMeal;
-
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Scanned Barcode'),
-        content: SizedBox(
-          width: 420,
-          child: SingleChildScrollView(
-            child: Column(
-              children: [
-                TextField(
-                  readOnly: true,
-                  controller: TextEditingController(text: barcode),
-                  decoration: const InputDecoration(
-                    labelText: 'Barcode',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                _field(nameCtrl, 'Food name'),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: meal,
-                  items: _meals
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (v) => meal = v ?? meal,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Meal',
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(calCtrl, 'Calories')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(proteinCtrl, 'Protein (g)')),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    Expanded(child: _field(carbsCtrl, 'Carbs (g)')),
-                    const SizedBox(width: 10),
-                    Expanded(child: _field(fatCtrl, 'Fat (g)')),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Add Food'),
-          ),
-        ],
-      ),
-    );
-
-    if (ok != true) return;
-    if (!mounted) return;
-    final item = _FoodItem(
-      name: nameCtrl.text.trim().isEmpty ? 'Scanned Food' : nameCtrl.text.trim(),
-      calories: int.tryParse(calCtrl.text) ?? 0,
-      protein: int.tryParse(proteinCtrl.text) ?? 0,
-      carbs: int.tryParse(carbsCtrl.text) ?? 0,
-      fat: int.tryParse(fatCtrl.text) ?? 0,
-    );
-    setState(() => _mealData[meal]!.add(item));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${item.name} added to $meal')),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width >= 1100;
-    final isTablet = width >= 700 && width < 1100;
-    final hPadding = isDesktop
-        ? 32.0
-        : isTablet
-        ? 24.0
-        : 16.0;
-    final contentMaxWidth = isDesktop
-        ? 1020.0
-        : isTablet
-        ? 860.0
-        : width;
-    final chipHeight = isDesktop
-        ? 42.0
-        : isTablet
-        ? 40.0
-        : 36.0;
-    final summaryGridCount = isDesktop ? 4 : 2;
-    final summaryAspect = isDesktop
-        ? 1.8
-        : isTablet
-        ? 1.55
-        : 1.45;
-    final summaryValueSize = isDesktop
-        ? 26.0
-        : isTablet
-        ? 24.0
-        : 22.0;
-    final summaryLabelSize = isDesktop
-        ? 16.0
-        : isTablet
-        ? 15.0
-        : 14.0;
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: const Text('Food Log', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.offNamed(Routes.home),
-        ),
-      ),
-      body: Center(
-        child: SizedBox(
-          width: contentMaxWidth,
-          child: ListView(
-            padding: EdgeInsets.fromLTRB(hPadding, 14, hPadding, 90),
-            children: [
-              AnimatedReveal(
-                delay: const Duration(milliseconds: 60),
-                child: SizedBox(
-                  height: chipHeight,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _meals.length,
-                    separatorBuilder: (context, index) =>
-                        const SizedBox(width: 8),
-                    itemBuilder: (context, i) {
-                      final selected = _selectedMeal == _meals[i];
-                      return ChoiceChip(
-                        selected: selected,
-                        label: Text(
-                          _meals[i],
-                          style: TextStyle(fontSize: isDesktop ? 14 : 12),
-                        ),
-                        onSelected: (_) =>
-                            setState(() => _selectedMeal = _meals[i]),
-                        selectedColor: AppColors.primary,
-                        labelStyle: TextStyle(
-                          color: selected
-                              ? Colors.white
-                              : AppColors.textPrimaryFor(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const AnimatedReveal(
-                delay: Duration(milliseconds: 100),
-                child: Row(
-                  children: [
-                    Expanded(child: _MealTag(label: 'Burger')),
-                    SizedBox(width: 8),
-                    Expanded(child: _MealTag(label: 'Pizza')),
-                    SizedBox(width: 8),
-                    Expanded(child: _MealTag(label: 'Apple')),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-              AnimatedReveal(
-                delay: const Duration(milliseconds: 150),
-                child: Container(
-                  padding: EdgeInsets.all(isDesktop ? 16 : 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface(context),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    children: [
-                      TextField(
-                        decoration: InputDecoration(
-                          hintText: 'Search for a food...',
-                          prefixIcon: const Icon(Icons.search),
-                          filled: true,
-                          fillColor: AppColors.surfaceMuted(context),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      FilledButton.icon(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          minimumSize: const Size.fromHeight(44),
-                        ),
-                        onPressed: _scanBarcode,
-                        icon: const Icon(Icons.qr_code_scanner),
-                        label: const Text('Scan Barcode'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              AnimatedReveal(
-                delay: const Duration(milliseconds: 210),
-                child: Container(
-                  padding: EdgeInsets.all(isDesktop ? 16 : 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface(context),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Daily Summary',
-                            style: TextStyle(
-                              fontSize: isDesktop
-                                  ? 28
-                                  : isTablet
-                                  ? 25
-                                  : 22,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textTitleFor(context),
-                            ),
-                          ),
-                          const Spacer(),
-                          _miniIcon(Icons.add, Colors.blue, _showAddFoodDialog),
-                          const SizedBox(width: 8),
-                          _miniIcon(
-                            Icons.restaurant_menu,
-                            Colors.green,
-                            _showAddRecipeDialog,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      GridView.count(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisCount: summaryGridCount,
-                        crossAxisSpacing: 10,
-                        mainAxisSpacing: 10,
-                        childAspectRatio: summaryAspect,
-                        children: [
-                          _summary(
-                            '$_totalCalories',
-                            'Calories',
-                            valueSize: summaryValueSize,
-                            labelSize: summaryLabelSize,
-                          ),
-                          _summary(
-                            '${_totalProtein}g',
-                            'Protein',
-                            valueSize: summaryValueSize,
-                            labelSize: summaryLabelSize,
-                          ),
-                          _summary(
-                            '${_totalCarbs}g',
-                            'Carbs',
-                            valueSize: summaryValueSize,
-                            labelSize: summaryLabelSize,
-                          ),
-                          _summary(
-                            '${_totalFat}g',
-                            'Fat',
-                            valueSize: summaryValueSize,
-                            labelSize: summaryLabelSize,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      ..._mealData.entries
-                          .where((e) => e.value.isNotEmpty)
-                          .map((e) => _mealSection(context, e.key, e.value)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        onPressed: _showAddFoodDialog,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const HomeBottomNav(selected: 'Food Log'),
-    );
-  }
-
-  Widget _field(TextEditingController c, String label, {int maxLines = 1}) {
-    return TextField(
-      controller: c,
-      maxLines: maxLines,
-      keyboardType: TextInputType.text,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-    );
-  }
-
-  Widget _miniIcon(IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 30,
-        height: 30,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
-      ),
-    );
-  }
-
-  Widget _summary(
-    String value,
-    String label, {
-    required double valueSize,
-    required double labelSize,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceMuted(context),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.w700, fontSize: valueSize),
-          ),
-          const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: labelSize)),
-        ],
-      ),
-    );
-  }
-
-  Widget _mealSection(
-    BuildContext context,
-    String title,
-    List<_FoodItem> items,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              color: AppColors.textTitleFor(context),
-            ),
-          ),
-          const SizedBox(height: 4),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    style: TextStyle(
-                      color: AppColors.textSecondaryFor(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _kv('${item.calories}', 'Cal'),
-                      _kv('${item.carbs}g', 'Carbs'),
-                      _kv('${item.fat}g', 'Fat'),
-                      _kv('${item.protein}g', 'Protein'),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _kv(String value, String label) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-      ],
-    );
-  }
-}
-
-class _BarcodeScannerScreen extends StatefulWidget {
-  const _BarcodeScannerScreen();
-
-  @override
-  State<_BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
-}
-
-class _BarcodeScannerScreenState extends State<_BarcodeScannerScreen> {
-  final MobileScannerController _controller = MobileScannerController(
-    detectionSpeed: DetectionSpeed.noDuplicates,
-  );
-  bool _handled = false;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _composerController.dispose();
     super.dispose();
   }
 
-  void _onDetect(BarcodeCapture capture) {
-    if (_handled) return;
-    final value = capture.barcodes
-        .map((b) => b.rawValue)
-        .whereType<String>()
-        .firstWhere((v) => v.isNotEmpty, orElse: () => '');
-    if (value.isEmpty) return;
-    _handled = true;
-    Navigator.of(context).pop(value);
+  String get _profileDisplayName {
+    final value = _profileName.trim();
+    return value.isEmpty ? _defaultProfileName : value;
+  }
+
+  Future<void> _loadProfileData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedName = (prefs.getString(_kProfileName) ?? '').trim();
+    final savedImagePath = (prefs.getString(_kProfileImagePath) ?? '').trim();
+    if (!mounted) return;
+
+    final resolvedName = savedName.isEmpty ? _defaultProfileName : savedName;
+    final resolvedImagePath = savedImagePath.isEmpty ? null : savedImagePath;
+    setState(() {
+      _profileName = resolvedName;
+      _profileImagePath = savedImagePath;
+      for (var i = 0; i < _myPosts.length; i++) {
+        final post = _myPosts[i];
+        _myPosts[i] = post.copyWith(
+          author: resolvedName,
+          avatarFilePath: resolvedImagePath ?? post.avatarFilePath,
+        );
+      }
+    });
+  }
+
+  List<_FeedPost> get _visiblePosts =>
+      _selectedTab == _FeedTab.publicPosts ? _publicPosts : _myPosts;
+
+  void _submitPost() {
+    final text = _composerController.text.trim();
+    if (text.isEmpty) return;
+
+    final newPost = _FeedPost(
+      author: _profileDisplayName,
+      minutesAgo: 0,
+      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+      content: text,
+      likes: 0,
+      isMine: true,
+    );
+
+    setState(() {
+      _myPosts.insert(0, newPost);
+      _publicPosts.insert(0, newPost);
+      _composerController.clear();
+      _selectedTab = _FeedTab.myPosts;
+    });
+  }
+
+  void _toggleLike(int index) {
+    final post = _publicPosts[index];
+    var likes = post.likes;
+    _Reaction nextReaction = _Reaction.like;
+
+    if (post.reaction == _Reaction.like) {
+      nextReaction = _Reaction.none;
+      likes = likes > 0 ? likes - 1 : 0;
+    } else {
+      likes += 1;
+    }
+
+    setState(() {
+      _publicPosts[index] = post.copyWith(
+        likes: likes,
+        reaction: nextReaction,
+      );
+    });
+  }
+
+  void _toggleDislike(int index) {
+    final post = _publicPosts[index];
+    var likes = post.likes;
+    _Reaction nextReaction = _Reaction.dislike;
+
+    if (post.reaction == _Reaction.dislike) {
+      nextReaction = _Reaction.none;
+    } else if (post.reaction == _Reaction.like) {
+      likes = likes > 0 ? likes - 1 : 0;
+    }
+
+    setState(() {
+      _publicPosts[index] = post.copyWith(
+        likes: likes,
+        reaction: nextReaction,
+      );
+    });
+  }
+
+  Future<void> _openReplyDialog({
+    required bool isPublic,
+    required int index,
+  }) async {
+    final controller = TextEditingController();
+    final submit = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reply'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Write your reply',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Reply'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (submit != true) return;
+    final text = controller.text.trim();
+    if (text.isEmpty) return;
+
+    final reply = _PostReply(
+      author: _profileDisplayName,
+      minutesAgo: 0,
+      text: text,
+      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+    );
+
+    setState(() {
+      if (isPublic) {
+        final post = _publicPosts[index];
+        _publicPosts[index] = post.copyWith(
+          replies: <_PostReply>[...post.replies, reply],
+        );
+      } else {
+        final post = _myPosts[index];
+        _myPosts[index] = post.copyWith(
+          replies: <_PostReply>[...post.replies, reply],
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('Scan Barcode', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            onPressed: _controller.toggleTorch,
-            icon: const Icon(Icons.flash_on),
-          ),
-          IconButton(
-            onPressed: _controller.switchCamera,
-            icon: const Icon(Icons.flip_camera_android),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: MobileScanner(
-              controller: _controller,
-              onDetect: _onDetect,
-            ),
-          ),
-          Center(
-            child: Container(
-              width: 250,
-              height: 150,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(16),
+      body: SafeArea(
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              color: Colors.black,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: () => Get.offNamed(Routes.home),
+                          borderRadius: BorderRadius.circular(18),
+                          child: const CircleAvatar(
+                            radius: 14,
+                            backgroundColor: Colors.white,
+                            child: Icon(
+                              Icons.arrow_back_ios_new,
+                              size: 14,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'FoodLog',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 28),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          const Positioned(
-            left: 20,
-            right: 20,
-            bottom: 24,
-            child: Text(
-              'Align barcode inside the frame',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+            Expanded(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 400),
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(8, 8, 8, 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: const Color(0xFFE5E7EB)),
+                              borderRadius: BorderRadius.circular(9),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x14000000),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                _tabButton(
+                                  title: 'Public',
+                                  selected: _selectedTab == _FeedTab.publicPosts,
+                                  onTap: () => setState(
+                                    () => _selectedTab = _FeedTab.publicPosts,
+                                  ),
+                                ),
+                                _tabButton(
+                                  title: 'My Post',
+                                  selected: _selectedTab == _FeedTab.myPosts,
+                                  onTap: () => setState(
+                                    () => _selectedTab = _FeedTab.myPosts,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: ListView.separated(
+                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                            itemCount: _visiblePosts.length,
+                            separatorBuilder: (_, _) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              final isPublic =
+                                  _selectedTab == _FeedTab.publicPosts;
+                              return _PostTile(
+                                post: _visiblePosts[index],
+                                onLike: isPublic ? () => _toggleLike(index) : null,
+                                onDislike: isPublic
+                                    ? () => _toggleDislike(index)
+                                    : null,
+                                onReply: () => _openReplyDialog(
+                                  isPublic: isPublic,
+                                  index: index,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                          decoration: const BoxDecoration(
+                            border: Border(
+                              top: BorderSide(color: Color(0xFFE5E7EB)),
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _composerController,
+                                  decoration: InputDecoration(
+                                    hintText: "What's in your mind",
+                                    hintStyle: const TextStyle(fontSize: 13),
+                                    filled: true,
+                                    fillColor: AppColors.surfaceSoft,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 10,
+                                    ),
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.borderLight,
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: const BorderSide(
+                                        color: AppColors.borderLight,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                height: 28,
+                                child: ElevatedButton(
+                                  onPressed: _submitPost,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Post',
+                                    style: TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-}
 
-class _MealTag extends StatelessWidget {
-  final String label;
-  const _MealTag({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE25C4E),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Center(
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w700,
+  Widget _tabButton({
+    required String title,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected ? Colors.black : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: selected ? Colors.white : const Color(0xFF4B5563),
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
           ),
         ),
       ),
@@ -817,18 +483,289 @@ class _MealTag extends StatelessWidget {
   }
 }
 
-class _FoodItem {
-  final String name;
-  final int calories;
-  final int protein;
-  final int carbs;
-  final int fat;
+class _PostTile extends StatelessWidget {
+  final _FeedPost post;
+  final VoidCallback? onLike;
+  final VoidCallback? onDislike;
+  final VoidCallback? onReply;
 
-  const _FoodItem({
-    required this.name,
-    required this.calories,
-    required this.protein,
-    required this.carbs,
-    required this.fat,
+  const _PostTile({
+    required this.post,
+    this.onLike,
+    this.onDislike,
+    this.onReply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final initials = post.author.trim().isEmpty ? 'U' : post.author[0];
+    final timeText = post.minutesAgo == 0 ? 'now' : '${post.minutesAgo} min';
+    final likeLabel = post.likes == 1 ? '1 Like' : '${post.likes} Likes';
+    final filePath = post.avatarFilePath?.trim() ?? '';
+    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
+    final ImageProvider? avatarImage = hasLocalAvatar
+        ? FileImage(File(filePath))
+        : (post.avatarAsset != null ? AssetImage(post.avatarAsset!) : null);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            CircleAvatar(
+              radius: 12.5,
+              backgroundColor: const Color(0xFFF4D1D8),
+              backgroundImage: avatarImage,
+              child: avatarImage == null
+                  ? Text(
+                      initials,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 11,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              post.author,
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 11.5,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              timeText,
+              style: const TextStyle(
+                color: AppColors.textMuted,
+                fontSize: 10.5,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 7),
+        Text(
+          post.content,
+          style: const TextStyle(
+            color: Colors.black87,
+            height: 1.32,
+            fontSize: 13,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              likeLabel,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              '>',
+              style: TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: onReply,
+              borderRadius: BorderRadius.circular(8),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                child: Text(
+                  'Reply',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+            const Spacer(),
+            InkWell(
+              onTap: onLike,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.thumb_up_alt_outlined,
+                  size: 14,
+                  color: post.reaction == _Reaction.like
+                      ? Colors.black
+                      : Colors.grey[500],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: onDislike,
+              borderRadius: BorderRadius.circular(10),
+              child: Padding(
+                padding: const EdgeInsets.all(2),
+                child: Icon(
+                  Icons.thumb_down_alt_outlined,
+                  size: 14,
+                  color: post.reaction == _Reaction.dislike
+                      ? Colors.black
+                      : Colors.grey[500],
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (post.replies.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...post.replies.map(
+            (reply) => Padding(
+              padding: const EdgeInsets.only(top: 6, left: 18),
+              child: _ReplyTile(reply: reply),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ReplyTile extends StatelessWidget {
+  final _PostReply reply;
+
+  const _ReplyTile({required this.reply});
+
+  @override
+  Widget build(BuildContext context) {
+    final filePath = reply.avatarFilePath?.trim() ?? '';
+    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
+    final ImageProvider? avatar = hasLocalAvatar ? FileImage(File(filePath)) : null;
+    final initials = reply.author.trim().isEmpty ? 'U' : reply.author[0];
+    final timeText = reply.minutesAgo == 0 ? 'now' : '${reply.minutesAgo} min';
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(
+          radius: 9,
+          backgroundColor: const Color(0xFFF3F4F6),
+          backgroundImage: avatar,
+          child: avatar == null
+              ? Text(
+                  initials,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.black87,
+                  ),
+                )
+              : null,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    reply.author,
+                    style: const TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    timeText,
+                    style: const TextStyle(
+                      color: AppColors.textMuted,
+                      fontSize: 9.5,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(
+                reply.text,
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.black87,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FeedPost {
+  final String author;
+  final int minutesAgo;
+  final String? avatarAsset;
+  final String? avatarFilePath;
+  final String content;
+  final int likes;
+  final bool isMine;
+  final _Reaction reaction;
+  final List<_PostReply> replies;
+
+  const _FeedPost({
+    required this.author,
+    required this.minutesAgo,
+    this.avatarAsset,
+    this.avatarFilePath,
+    required this.content,
+    required this.likes,
+    this.isMine = false,
+    this.reaction = _Reaction.none,
+    this.replies = const <_PostReply>[],
+  });
+
+  _FeedPost copyWith({
+    String? author,
+    int? minutesAgo,
+    String? avatarAsset,
+    String? avatarFilePath,
+    String? content,
+    int? likes,
+    bool? isMine,
+    _Reaction? reaction,
+    List<_PostReply>? replies,
+  }) {
+    return _FeedPost(
+      author: author ?? this.author,
+      minutesAgo: minutesAgo ?? this.minutesAgo,
+      avatarAsset: avatarAsset ?? this.avatarAsset,
+      avatarFilePath: avatarFilePath ?? this.avatarFilePath,
+      content: content ?? this.content,
+      likes: likes ?? this.likes,
+      isMine: isMine ?? this.isMine,
+      reaction: reaction ?? this.reaction,
+      replies: replies ?? this.replies,
+    );
+  }
+}
+
+class _PostReply {
+  final String author;
+  final int minutesAgo;
+  final String text;
+  final String? avatarFilePath;
+
+  const _PostReply({
+    required this.author,
+    required this.minutesAgo,
+    required this.text,
+    this.avatarFilePath,
   });
 }

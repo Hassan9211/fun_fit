@@ -65,7 +65,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
             : 14.0;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -119,7 +119,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                                   width: 140,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFD6D7DC),
+                                    color: const Color(0xFFF3F4F6),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),
@@ -145,7 +145,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                                                 ? FontWeight.w800
                                                 : FontWeight.w600,
                                             color: selected
-                                                ? const Color(0xFF1D3DBB)
+                                                ? Colors.black
                                                 : Colors.black45,
                                           ),
                                         ),
@@ -181,8 +181,8 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                         ),
                         width: double.infinity,
                         height: 48,
-                        backgroundColor: const Color(0xFF1D3DBB),
-                        borderRadius: 10,
+                        backgroundColor: Colors.black,
+                        borderRadius: 8,
                         fontSize: buttonFont,
                         fontWeight: FontWeight.w600,
                       ),

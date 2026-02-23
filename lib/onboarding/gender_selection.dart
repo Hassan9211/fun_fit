@@ -41,7 +41,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: paddingH),
             child: Column(
@@ -98,8 +98,8 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                       : () => Get.toNamed(Routes.goal),
                   width: double.infinity,
                   height: buttonHeight,
-                  backgroundColor: Colors.blue.shade900,
-                  borderRadius: 14,
+                  backgroundColor: Colors.black,
+                  borderRadius: 8,
                   fontSize: buttonFont,
                   fontWeight: FontWeight.bold,
                 ),
@@ -119,8 +119,8 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
     required double fontSize,
     required VoidCallback onTap,
   }) {
-    final bgColor = isSelected ? Colors.blue.shade900 : Colors.white;
-    final textColor = isSelected ? Colors.white : Colors.blue.shade900;
+    final bgColor = isSelected ? Colors.black : const Color(0xFFF3F4F6);
+    final textColor = isSelected ? Colors.white : Colors.black87;
 
     return InkWell(
       onTap: onTap,
@@ -131,7 +131,10 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
         decoration: BoxDecoration(
           color: bgColor,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.blue.shade900, width: 1.5),
+          border: Border.all(
+            color: isSelected ? Colors.black : const Color(0xFFE5E7EB),
+            width: 1.2,
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,

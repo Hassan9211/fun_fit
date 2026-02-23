@@ -1,7 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use, unused_local_variable
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,7 +17,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = false;
   bool obscurePassword = true;
   bool _isSubmitting = false;
-  final AuthApiService _authApiService = AuthApiService();
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
@@ -35,23 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
 
-    final result = await _authApiService.login(
-      email: emailController.text,
-      password: passwordController.text,
-    );
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    if (!result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
-      return;
-    }
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_email', emailController.text.trim());
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
     Get.toNamed(Routes.otpSignin);
   }
 
@@ -79,11 +64,15 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Login', style: TextStyle(color: Colors.white)),
+            title: const Text('Sign in', style: TextStyle(color: Colors.black87)),
             centerTitle: true,
-            backgroundColor: Colors.blue.shade900,
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0,
+            scrolledUnderElevation: 0,
           ),
           body: SingleChildScrollView(
             padding: EdgeInsets.symmetric(horizontal: paddingH),
@@ -114,17 +103,29 @@ class _LoginScreenState extends State<LoginScreen> {
                     validator: (value) {
                       if (value == null || value.trim().isEmpty)
                         return 'Email is required';
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
-                      ).hasMatch(value))
-                        return 'Enter a valid email';
                       return null;
                     },
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.email),
+                      prefixIcon: const Icon(Icons.email, color: Color(0xFF6B7280)),
                       hintText: 'Email',
+                      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                      filled: true,
+                      fillColor: const Color(0xFFF3F4F6),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 14,
+                        horizontal: 12,
+                      ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: Colors.black54),
                       ),
                     ),
                   ),
@@ -138,15 +139,29 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (value) {
                         if (value == null || value.trim().isEmpty)
                           return 'Password is required';
-                        if (value.length < 6)
-                          return 'Password must be at least 6 characters';
                         return null;
                       },
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock),
+                        prefixIcon: const Icon(Icons.lock, color: Color(0xFF6B7280)),
                         hintText: 'Password',
+                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                        filled: true,
+                        fillColor: const Color(0xFFF3F4F6),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 12,
+                        ),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: const BorderSide(color: Colors.black54),
                         ),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -174,7 +189,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             rememberMe = value ?? false;
                           });
                         },
-                        activeColor: Colors.blue.shade900,
+                        activeColor: Colors.black,
                       ),
                       const Text('Remember me'),
                       const Spacer(),
@@ -183,7 +198,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Colors.blue.shade900,
+                            color: Colors.black87,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -199,8 +214,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isSubmitting ? null : _login,
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.blue.shade900,
-                    borderRadius: 12,
+                    backgroundColor: Colors.black,
+                    borderRadius: 8,
                     fontSize: fontField,
                     fontWeight: FontWeight.bold,
                   ),
@@ -225,14 +240,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       _socialButton(
                         icon: Icons.telegram,
-                        color: Colors.blue,
+                        color: const Color(0xFF0EA5E9),
                         onTap: () {},
                       ),
                       const SizedBox(width: 20),
 
                       _socialButton(
                         icon: Icons.facebook,
-                        color: Colors.blue.shade900,
+                        color: const Color(0xFF1877F2),
                         onTap: () {},
                       ),
                       const SizedBox(width: 20),
@@ -257,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
-                            color: Colors.blue.shade900,
+                            color: Colors.black87,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -283,9 +298,14 @@ class _LoginScreenState extends State<LoginScreen> {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
-      child: CircleAvatar(
-        radius: 26,
-        backgroundColor: color.withOpacity(0.1),
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
         child: Icon(icon, color: color, size: 28),
       ),
     );

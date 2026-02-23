@@ -1,10 +1,8 @@
 // ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
-import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../widget/app_button.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -21,7 +19,6 @@ class _OtpScreenState extends State<OtpScreen> {
     4,
     (_) => TextEditingController(),
   );
-  final AuthApiService _authApiService = AuthApiService();
   bool _isVerifying = false;
 
   @override
@@ -54,21 +51,11 @@ class _OtpScreenState extends State<OtpScreen> {
     }
   }
 
-  String get _purposeKey {
-    switch (widget.purpose) {
-      case OtpPurpose.signup:
-        return 'signup';
-      case OtpPurpose.forgotPassword:
-        return 'forgotPassword';
-      case OtpPurpose.signin:
-        return 'signin';
-    }
-  }
-
   Future<void> _verifyOtp() async {
     final otp = _controllers.map((e) => e.text).join();
 
-    if (otp.length != 4) {
+    final requiresCompleteOtp = widget.purpose != OtpPurpose.forgotPassword;
+    if (requiresCompleteOtp && otp.length != 4) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Enter complete OTP')));
@@ -76,34 +63,9 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     setState(() => _isVerifying = true);
-
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('auth_email')?.trim() ?? '';
-
-    if (email.isEmpty) {
-      if (!mounted) return;
-      setState(() => _isVerifying = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email not found. Please try again.')),
-      );
-      return;
-    }
-
-    final result = await _authApiService.verifyOtp(
-      email: email,
-      otp: otp,
-      purpose: _purposeKey,
-    );
-
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
     setState(() => _isVerifying = false);
-
-    if (!result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
-      return;
-    }
 
     switch (widget.purpose) {
       case OtpPurpose.signup:
@@ -148,10 +110,16 @@ class _OtpScreenState extends State<OtpScreen> {
             : 26.0;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('OTP Verification'),
-            backgroundColor: Colors.blue.shade900,
+            title: const Text(
+              'Verification Code',
+              style: TextStyle(color: Colors.black87),
+            ),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0,
+            scrolledUnderElevation: 0,
             centerTitle: true,
           ),
           body: Center(
@@ -198,8 +166,25 @@ class _OtpScreenState extends State<OtpScreen> {
                             ),
                             decoration: InputDecoration(
                               counterText: '',
+                              filled: true,
+                              fillColor: const Color(0xFFF3F4F6),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE5E7EB),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFFE5E7EB),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                                borderSide: const BorderSide(
+                                  color: Colors.black54,
+                                ),
                               ),
                             ),
                             onChanged: (value) {
@@ -213,12 +198,12 @@ class _OtpScreenState extends State<OtpScreen> {
                     ),
                     const SizedBox(height: 40),
                     AppButton(
-                      label: _isVerifying ? 'Please wait...' : 'Verify OTP',
+                      label: _isVerifying ? 'Please wait...' : 'Continue',
                       onPressed: _isVerifying ? null : _verifyOtp,
                       width: double.infinity,
                       height: 50,
-                      backgroundColor: Colors.blue.shade900,
-                      borderRadius: 14,
+                      backgroundColor: Colors.black,
+                      borderRadius: 8,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),

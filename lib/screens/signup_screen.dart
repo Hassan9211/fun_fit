@@ -3,7 +3,6 @@
 import 'package:country_picker/country_picker.dart';
 import 'package:country_flags/country_flags.dart';
 import 'package:flutter/material.dart';
-import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +21,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _isSubmitting = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  final AuthApiService _authApiService = AuthApiService();
 
   final _formKey = GlobalKey<FormState>();
 
@@ -54,50 +52,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final result = await _authApiService.signup(
-      fullName: fullNameController.text,
-      email: emailController.text,
-      password: passwordController.text,
-      phoneNumber: phoneController.text,
-      countryCode: selectedCountry?.countryCode,
-      countryPhoneCode: selectedCountry?.phoneCode,
-    );
-
-    if (!mounted) return;
-    setState(() => _isSubmitting = false);
-
-    final isExistingEmail =
-        result.statusCode == 409 ||
-        result.message.toLowerCase().contains('already exists');
-
-    if (isExistingEmail) {
-      final otpResult = await _authApiService.requestOtp(
-        email: emailController.text,
-        purpose: 'signup',
-      );
-      if (!mounted) return;
-      if (!otpResult.success) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(otpResult.message)));
-        return;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('auth_email', emailController.text.trim());
-      Get.toNamed(Routes.otpSignup);
-      return;
-    }
-
-    if (!result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
-      return;
-    }
-
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('auth_email', emailController.text.trim());
+    if (!mounted) return;
+    setState(() => _isSubmitting = false);
     Get.toNamed(Routes.otpSignup);
   }
 
@@ -110,10 +68,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }) {
     return InputDecoration(
       hintText: hint,
-      prefixIcon: prefixIcon ?? Icon(icon),
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+      prefixIcon: prefixIcon ?? Icon(icon, color: const Color(0xFF6B7280)),
       prefixText: prefixText,
       suffixIcon: suffixIcon,
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      prefixIconConstraints: const BoxConstraints(minWidth: 48),
+      filled: true,
+      fillColor: const Color(0xFFF3F4F6),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: const BorderSide(color: Colors.black54),
+      ),
     );
   }
 
@@ -140,11 +113,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Sign Up', style: TextStyle(color: Colors.white)),
+            title: const Text('Sign up', style: TextStyle(color: Colors.black87)),
             centerTitle: true,
-            backgroundColor: Colors.blue.shade900,
+            automaticallyImplyLeading: false,
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            elevation: 0,
+            scrolledUnderElevation: 0,
           ),
           body: SingleChildScrollView(
             padding: EdgeInsets.symmetric(
@@ -269,7 +246,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       Checkbox(
                         value: agreeTerms,
-                        activeColor: Colors.blue.shade900,
+                        activeColor: Colors.black,
                         onChanged: (v) =>
                             setState(() => agreeTerms = v ?? false),
                       ),
@@ -286,8 +263,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     onPressed: _isSubmitting ? null : _submitSignup,
                     width: double.infinity,
                     height: 50,
-                    backgroundColor: Colors.blue.shade900,
-                    borderRadius: 12,
+                    backgroundColor: Colors.black,
+                    borderRadius: 8,
                     fontSize: fontSizeField,
                     fontWeight: FontWeight.bold,
                   ),
@@ -310,14 +287,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     children: [
                       _socialButton(
                         icon: Icons.telegram,
-                        color: Colors.blue,
+                        color: const Color(0xFF0EA5E9),
                         onTap: () {},
                       ),
                       const SizedBox(width: 20),
 
                       _socialButton(
                         icon: Icons.facebook,
-                        color: Colors.blue.shade900,
+                        color: const Color(0xFF1877F2),
                         onTap: () {},
                       ),
                       const SizedBox(width: 20),
@@ -340,7 +317,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         child: Text(
                           'Login',
                           style: TextStyle(
-                            color: Colors.blue.shade900,
+                            color: Colors.black87,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -364,9 +341,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
-      child: CircleAvatar(
-        radius: 26,
-        backgroundColor: color.withOpacity(0.1),
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white,
+          border: Border.all(color: const Color(0xFFE5E7EB)),
+        ),
         child: Icon(icon, color: color, size: 28),
       ),
     );

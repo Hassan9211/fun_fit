@@ -138,7 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
         return PopScope(
           canPop: false,
           child: Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
             child: const Padding(
               padding: EdgeInsets.fromLTRB(20, 24, 20, 20),
               child: Column(
@@ -184,7 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Selected: ${challenge.title} - ${challenge.durationLabel}')),
+      SnackBar(
+        content: Text(
+          'Selected: ${challenge.title} - ${challenge.durationLabel}',
+        ),
+      ),
     );
   }
 
@@ -196,7 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _startOrResumeChallengeTimer() {
-    if (_selectedChallenge == null || _isChallengeCompleted || _isChallengeRunning) {
+    if (_selectedChallenge == null ||
+        _isChallengeCompleted ||
+        _isChallengeRunning) {
       return;
     }
     if (_challengeRemaining <= Duration.zero) {
@@ -250,7 +258,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${challenge.title} completed. +${challenge.rewardPoints} pts')),
+      SnackBar(
+        content: Text(
+          '${challenge.title} completed. +${challenge.rewardPoints} pts',
+        ),
+      ),
     );
   }
 
@@ -337,7 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Material(
-                color: const Color(0xFFFCFDFF),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -359,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           margin: const EdgeInsets.only(bottom: 10),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF2F6FF),
+                            color: AppColors.surfaceMuted(context),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -431,7 +443,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ? 24.0
             : 22.0;
         final subtitleSize = isDesktop ? 14.0 : 13.0;
-        final headerRadius = isDesktop ? 26.0 : 22.0;
         final categoryCardWidth = isDesktop
             ? 160.0
             : isTablet
@@ -460,16 +471,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     AnimatedReveal(
                       child: Container(
+                        clipBehavior: Clip.antiAlias,
                         padding: EdgeInsets.fromLTRB(
                           hPadding,
                           36,
                           hPadding,
                           28,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
+                        decoration: const BoxDecoration(
+                          color: Colors.black,
                           borderRadius: BorderRadius.vertical(
-                            bottom: Radius.circular(headerRadius),
+                            bottom: Radius.circular(22),
                           ),
                         ),
                         child: Column(
@@ -531,216 +543,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                             ),
                             const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface(context),
-                                borderRadius: BorderRadius.circular(18),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x14000000),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          'Choose Random Challenge',
-                                          style: TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            color: AppColors.textSecondaryFor(
-                                              context,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      InkWell(
-                                        onTap: () => _showWorkoutPopup(context),
-                                        child: const Icon(
-                                          Icons.info_outline,
-                                          size: 18,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  AppButton(
-                                    label: _isSelectingChallenge
-                                        ? 'Selecting...'
-                                        : 'Start Random Challenge',
-                                    onPressed: _isSelectingChallenge
-                                        ? null
-                                        : _startRandomChallenge,
-                                    width: double.infinity,
-                                    height: 44,
-                                    backgroundColor: AppColors.primary,
-                                    borderRadius: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                  if (_selectedChallenge != null) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary.withOpacity(0.08),
-                                        borderRadius: BorderRadius.circular(10),
-                                        border: Border.all(
-                                          color: AppColors.primary.withOpacity(0.2),
-                                        ),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            _selectedChallenge!.title,
-                                            style: TextStyle(
-                                              color: AppColors.textPrimaryFor(context),
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            _selectedChallenge!.subtitle,
-                                            style: TextStyle(
-                                              color: AppColors.textSecondaryFor(context),
-                                              fontSize: 12,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Row(
-                                            children: [
-                                              const Icon(
-                                                Icons.timer_outlined,
-                                                color: AppColors.primary,
-                                                size: 16,
-                                              ),
-                                              const SizedBox(width: 6),
-                                              Text(
-                                                _isChallengeCompleted
-                                                    ? 'Completed'
-                                                    : _formatDuration(_challengeRemaining),
-                                                style: TextStyle(
-                                                  color: AppColors.textPrimaryFor(context),
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                              const Spacer(),
-                                              Text(
-                                                '+${_selectedChallenge!.rewardPoints} pts',
-                                                style: const TextStyle(
-                                                  color: AppColors.primary,
-                                                  fontWeight: FontWeight.w700,
-                                                  fontSize: 12,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 8),
-                                          Wrap(
-                                            spacing: 8,
-                                            runSpacing: 8,
-                                            children: [
-                                              if (!_isChallengeCompleted)
-                                                SizedBox(
-                                                  height: 34,
-                                                  child: ElevatedButton(
-                                                    onPressed: _isChallengeRunning
-                                                        ? _pauseChallengeTimer
-                                                        : _startOrResumeChallengeTimer,
-                                                    style: ElevatedButton.styleFrom(
-                                                      backgroundColor: AppColors.primary,
-                                                      foregroundColor: Colors.white,
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(10),
-                                                      ),
-                                                    ),
-                                                    child: Text(
-                                                      _isChallengeRunning
-                                                          ? 'Pause'
-                                                          : (_challengeRemaining ==
-                                                                  _challengeTotal
-                                                              ? 'Start'
-                                                              : 'Resume'),
-                                                    ),
-                                                  ),
-                                                ),
-                                              if (!_isChallengeCompleted)
-                                                SizedBox(
-                                                  height: 34,
-                                                  child: OutlinedButton(
-                                                    onPressed: _resetChallengeTimer,
-                                                    style: OutlinedButton.styleFrom(
-                                                      foregroundColor: AppColors.primary,
-                                                      side: const BorderSide(
-                                                        color: AppColors.primary,
-                                                      ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(10),
-                                                      ),
-                                                    ),
-                                                    child: const Text('Reset'),
-                                                  ),
-                                                ),
-                                              if (!_isChallengeCompleted)
-                                                SizedBox(
-                                                  height: 34,
-                                                  child: OutlinedButton(
-                                                    onPressed: _completeActiveChallenge,
-                                                    style: OutlinedButton.styleFrom(
-                                                      foregroundColor: AppColors.primary,
-                                                      side: const BorderSide(
-                                                        color: AppColors.primary,
-                                                      ),
-                                                      shape: RoundedRectangleBorder(
-                                                        borderRadius:
-                                                            BorderRadius.circular(10),
-                                                      ),
-                                                    ),
-                                                    child: const Text('Mark Complete'),
-                                                  ),
-                                                ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      children: [
-                                        Expanded(
-                                          child: _ChallengeMiniStat(
-                                            label: 'Completed',
-                                            value: '$_completedChallenges',
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: _ChallengeMiniStat(
-                                            label: 'Points',
-                                            value: '$_challengePoints',
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
+                            _buildRandomChallengePanel(context),
                           ],
                         ),
                       ),
@@ -864,7 +667,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           begin: Alignment.bottomLeft,
                                           end: Alignment.topRight,
                                           colors: [
-                                            Color(0xAA1D3DBB),
+                                            Color(0xAA111111),
                                             AppColors.transparentPrimary,
                                           ],
                                         ),
@@ -895,16 +698,219 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.primary,
-            onPressed: () {},
-            child: const Icon(Icons.add, color: Colors.white),
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              elevation: 2,
+              onPressed: () {},
+              child: const Icon(Icons.add, color: Colors.black, size: 20),
+            ),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Home'),
         );
       },
+    );
+  }
+}
+
+extension on _HomeScreenState {
+  Widget _buildRandomChallengePanel(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 10,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Choose Random Challenge',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textSecondaryFor(context),
+                  ),
+                ),
+              ),
+              InkWell(
+                onTap: () => _showWorkoutPopup(context),
+                child: const Icon(
+                  Icons.info_outline,
+                  size: 18,
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          AppButton(
+            label: _isSelectingChallenge
+                ? 'Selecting...'
+                : 'Start Random Challenge',
+            onPressed: _isSelectingChallenge ? null : _startRandomChallenge,
+            width: double.infinity,
+            height: 44,
+            backgroundColor: AppColors.primary,
+            borderRadius: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          if (_selectedChallenge != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _selectedChallenge!.title,
+                    style: TextStyle(
+                      color: AppColors.textPrimaryFor(context),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _selectedChallenge!.subtitle,
+                    style: TextStyle(
+                      color: AppColors.textSecondaryFor(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.timer_outlined,
+                        color: AppColors.primary,
+                        size: 16,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _isChallengeCompleted
+                            ? 'Completed'
+                            : _formatDuration(_challengeRemaining),
+                        style: TextStyle(
+                          color: AppColors.textPrimaryFor(context),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '+${_selectedChallenge!.rewardPoints} pts',
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (!_isChallengeCompleted)
+                        SizedBox(
+                          height: 34,
+                          child: ElevatedButton(
+                            onPressed: _isChallengeRunning
+                                ? _pauseChallengeTimer
+                                : _startOrResumeChallengeTimer,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: Text(
+                              _isChallengeRunning
+                                  ? 'Pause'
+                                  : (_challengeRemaining == _challengeTotal
+                                        ? 'Start'
+                                        : 'Resume'),
+                            ),
+                          ),
+                        ),
+                      if (!_isChallengeCompleted)
+                        SizedBox(
+                          height: 34,
+                          child: OutlinedButton(
+                            onPressed: _resetChallengeTimer,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('Reset'),
+                          ),
+                        ),
+                      if (!_isChallengeCompleted)
+                        SizedBox(
+                          height: 34,
+                          child: OutlinedButton(
+                            onPressed: _completeActiveChallenge,
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text('Mark Complete'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: _ChallengeMiniStat(
+                    label: 'Completed',
+                    value: '$_completedChallenges',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ChallengeMiniStat(
+                    label: 'Points',
+                    value: '$_challengePoints',
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -973,7 +979,7 @@ class _CategoryCard extends StatelessWidget {
             : null,
         gradient: imagePath == null
             ? const LinearGradient(
-                colors: [Color(0xFFBFD3FF), Color(0xFF82A5FF)],
+                colors: [Color(0xFFF3F4F6), Color(0xFFE5E7EB)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -1014,10 +1020,7 @@ class _ChallengeMiniStat extends StatelessWidget {
   final String label;
   final String value;
 
-  const _ChallengeMiniStat({
-    required this.label,
-    required this.value,
-  });
+  const _ChallengeMiniStat({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {

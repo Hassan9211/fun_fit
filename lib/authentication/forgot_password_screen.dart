@@ -1,10 +1,8 @@
-// ignore_for_file: curly_braces_in_flow_control_structures, deprecated_member_use
+// ignore_for_file: curly_braces_in_flow_control_structures
 
 import 'package:flutter/material.dart';
-import 'package:fun_fit/services/auth_api_service.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../widget/app_button.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -17,7 +15,6 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
-  final AuthApiService _authApiService = AuthApiService();
   bool _isSubmitting = false;
 
   @override
@@ -28,28 +25,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _submit() async {
     final args = Get.arguments;
-    final asChangePassword =
-        args is Map && args['asChangePassword'] == true;
+    final asChangePassword = args is Map && args['asChangePassword'] == true;
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
-    final result = await _authApiService.requestOtp(
-      email: emailController.text,
-      purpose: 'forgotPassword',
-    );
-
+    await Future<void>.delayed(const Duration(milliseconds: 250));
     if (!mounted) return;
     setState(() => _isSubmitting = false);
-
-    if (!result.success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(result.message)));
-      return;
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_email', emailController.text.trim());
 
     Get.toNamed(
       Routes.otpForgotPassword,
@@ -60,14 +42,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     final args = Get.arguments;
-    final asChangePassword =
-        args is Map && args['asChangePassword'] == true;
-    final screenTitle = asChangePassword
-        ? 'Change Password'
-        : 'Forgot Password';
-    final helperText = asChangePassword
-        ? 'Enter your mail address to receive a password reset link.'
-        : 'Enter your email address and we will send you a 4-digit OTP to reset your password.';
+    final asChangePassword = args is Map && args['asChangePassword'] == true;
+    final screenTitle = asChangePassword ? 'Change Password' : 'Forgot Password';
+    final helperText =
+        asChangePassword
+            ? 'Enter your mail address to receive a password reset link.'
+            : 'Enter your email address and we will send you a 4-digit OTP to reset your password.';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -79,7 +59,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         double fieldFontSize = width * 0.045;
         double buttonHeight = 50;
 
-        /// 🔥 Desktop specific padding fix
         EdgeInsets fieldPadding = const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 14,
@@ -90,29 +69,30 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           titleSize = width * 0.035;
           fieldFontSize = width * 0.022;
 
-          fieldPadding = const EdgeInsets.symmetric(
-            vertical: 12, // 👈 height control
-            horizontal: 14,
-          );
+          fieldPadding = const EdgeInsets.symmetric(vertical: 12, horizontal: 14);
         } else if (width >= 800) {
           paddingH = width * 0.15;
           titleSize = width * 0.045;
           fieldFontSize = width * 0.03;
 
-          fieldPadding = const EdgeInsets.symmetric(
-            vertical: 14,
-            horizontal: 14,
-          );
+          fieldPadding = const EdgeInsets.symmetric(vertical: 14, horizontal: 14);
         }
 
         double avatarRadius = (width * 0.08).clamp(35.0, 60.0);
         double iconSize = avatarRadius * 1.1;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           appBar: AppBar(
-            backgroundColor: Colors.blue.shade900,
-            title: Text(screenTitle, style: const TextStyle(color: Colors.white)),
+            backgroundColor: Colors.white,
+            foregroundColor: Colors.black87,
+            automaticallyImplyLeading: false,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: Text(
+              screenTitle,
+              style: const TextStyle(color: Colors.black87),
+            ),
             centerTitle: true,
           ),
           body: SingleChildScrollView(
@@ -122,21 +102,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               child: Column(
                 children: [
                   SizedBox(height: height * 0.08),
-
-                  /// Icon
                   CircleAvatar(
                     radius: avatarRadius,
-                    backgroundColor: Colors.blue.shade50,
+                    backgroundColor: Colors.black,
                     child: Icon(
                       Icons.lock_reset,
                       size: iconSize,
-                      color: Colors.blue.shade900,
+                      color: Colors.white,
                     ),
                   ),
-
                   SizedBox(height: height * 0.04),
-
-                  /// Title
                   Text(
                     'Reset Your Password',
                     style: TextStyle(
@@ -144,19 +119,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   SizedBox(height: height * 0.015),
-
-                  /// Description
                   Text(
                     helperText,
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 18, color: Colors.grey.shade700),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
                   ),
-
                   SizedBox(height: height * 0.04),
-
-                  /// Email Field (Width + Height FIXED)
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
@@ -164,55 +133,64 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         controller: emailController,
                         style: TextStyle(fontSize: fieldFontSize),
                         validator: (value) {
-                          if (value == null || value.trim().isEmpty)
+                          if (value == null || value.trim().isEmpty) {
                             return 'Email is required';
-                          if (!RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
-                          ).hasMatch(value))
+                          }
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$').hasMatch(value)) {
                             return 'Enter a valid email';
+                          }
                           return null;
                         },
                         decoration: InputDecoration(
-                          prefixIcon: const Icon(Icons.email),
+                          prefixIcon: const Icon(
+                            Icons.email,
+                            color: Color(0xFF6B7280),
+                          ),
                           hintText: 'Email',
-                          contentPadding: fieldPadding, // 👈 KEY FIX
+                          hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                          filled: true,
+                          fillColor: const Color(0xFFF3F4F6),
+                          contentPadding: fieldPadding,
                           border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: const BorderSide(color: Colors.black54),
                           ),
                         ),
                       ),
                     ),
                   ),
-
                   SizedBox(height: height * 0.04),
-
-                  /// Button
                   Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 500),
                       child: AppButton(
-                        label: _isSubmitting ? 'Please wait...' : 'Send OTP',
+                        label: _isSubmitting ? 'Please wait...' : 'Continue',
                         onPressed: _isSubmitting ? null : _submit,
                         width: double.infinity,
                         height: buttonHeight,
-                        backgroundColor: Colors.blue.shade900,
-                        borderRadius: 12,
+                        backgroundColor: Colors.black,
+                        borderRadius: 8,
                         fontSize: fieldFontSize,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-
                   SizedBox(height: height * 0.04),
-
-                  /// Back
                   GestureDetector(
                     onTap: () => Get.offAllNamed(Routes.login),
-                    child: Text(
+                    child: const Text(
                       'Back to Login',
                       style: TextStyle(
-                        fontSize: 18,
-                        color: Colors.blue.shade900,
+                        fontSize: 16,
+                        color: Colors.black87,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -226,4 +204,3 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
-

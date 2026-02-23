@@ -36,7 +36,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: Center(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: paddingH),
@@ -46,12 +46,8 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                   // Success icon
                   CircleAvatar(
                     radius: avatarRadius,
-                    backgroundColor: Colors.green.shade100,
-                    child: Icon(
-                      Icons.check_circle,
-                      color: Colors.green.shade700,
-                      size: iconSize,
-                    ),
+                    backgroundColor: Colors.black,
+                    child: Icon(Icons.check, color: Colors.white, size: iconSize),
                   ),
                   SizedBox(height: height * 0.03),
 
@@ -61,7 +57,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: textSizeTitle,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Colors.black,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -72,7 +68,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     'Your password has been updated. Please change your password regularly to avoid security issues.',
                     style: TextStyle(
                       fontSize: textSizeDesc,
-                      color: Colors.grey.shade700,
+                      color: Colors.grey.shade600,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -86,8 +82,8 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     ),
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.green.shade700,
-                    borderRadius: 12,
+                    backgroundColor: Colors.black,
+                    borderRadius: 8,
                     fontWeight: FontWeight.bold,
                   ),
 
@@ -101,7 +97,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                         'Back to Login',
                         style: TextStyle(
                           fontSize: textSizeDesc,
-                          color: Colors.blue.shade900,
+                          color: Colors.black87,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

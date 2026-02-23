@@ -25,7 +25,7 @@ class AppButton extends StatelessWidget {
     this.height,
     this.backgroundColor,
     this.textColor,
-    this.borderRadius = 12,
+    this.borderRadius = 8,
     this.fontSize,
     this.fontWeight = FontWeight.w600,
     super.key,
@@ -66,11 +66,13 @@ class AppButton extends StatelessWidget {
 
     final buttonStyle = ElevatedButton.styleFrom(
       backgroundColor: resolvedBackground,
+      foregroundColor: resolvedTextColor,
       disabledBackgroundColor: resolvedDisabledBackground,
+      disabledForegroundColor: resolvedTextColor.withValues(alpha: 0.7),
       elevation: isOutline ? 0 : null,
       side: isOutline ? const BorderSide(color: AppColors.primary) : null,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(borderRadius),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
       ),
     );
 

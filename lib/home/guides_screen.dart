@@ -1,260 +1,301 @@
 // ignore_for_file: deprecated_member_use
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 import '../widget/app_colors.dart';
 import '../widget/animated_reveal.dart';
+import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 
-class GuidesScreen extends StatelessWidget {
+class GuidesScreen extends StatefulWidget {
   const GuidesScreen({super.key});
 
   @override
+  State<GuidesScreen> createState() => _GuidesScreenState();
+}
+
+class _GuidesScreenState extends State<GuidesScreen> {
+  static const String _kProfileImagePath = 'profile_image_path';
+  String _profileImagePath = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfileImage();
+  }
+
+  Future<void> _loadProfileImage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final savedPath = (prefs.getString(_kProfileImagePath) ?? '').trim();
+    if (!mounted) return;
+    setState(() => _profileImagePath = savedPath);
+  }
+
+  void _goProfile() => Get.toNamed(Routes.profile);
+
+  @override
   Widget build(BuildContext context) {
+    final hasLocalProfileImage =
+        _profileImagePath.isNotEmpty && File(_profileImagePath).existsSync();
+    final ImageProvider headerAvatar = hasLocalProfileImage
+        ? FileImage(File(_profileImagePath))
+        : const AssetImage('assets/images/situp.jpg');
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
-        final hPadding = isDesktop
-            ? 36.0
-            : isTablet
-            ? 28.0
-            : 20.0;
         final contentMaxWidth = isDesktop
-            ? 1040.0
+            ? 460.0
             : isTablet
-            ? 900.0
-            : width;
+            ? 430.0
+            : 400.0;
         final mediaHeight = isDesktop
-            ? 190.0
-            : isTablet
             ? 175.0
-            : 160.0;
+            : isTablet
+            ? 165.0
+            : 155.0;
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-          body: SafeArea(top: false, bottom: false,
-            child: Center(
-              child: SizedBox(
-                width: contentMaxWidth,
-                child: Column(
-                  children: [
-                    const AnimatedReveal(
-                      child: _BlueHeader(
-                        title: 'Guides',
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.fromLTRB(hPadding, 20, hPadding, 24),
-                        children: [
-                  AnimatedReveal(
-                    delay: const Duration(milliseconds: 90),
-                    child: Column(
+          backgroundColor: Colors.black,
+          extendBody: true,
+          body: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                color: Colors.black,
+                padding: EdgeInsets.fromLTRB(
+                  10,
+                  MediaQuery.of(context).padding.top + 10,
+                  10,
+                  12,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Recommended Meal',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimaryFor(context),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              'View all',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textMutedFor(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        ClipRRect(
+                        InkWell(
+                          onTap: _goProfile,
                           borderRadius: BorderRadius.circular(18),
-                          child: Stack(
-                            children: [
-                              Image.asset(
-                                'assets/images/healthy bowl.jpg',
-                                height: mediaHeight,
-                                width: double.infinity,
-                                fit: BoxFit.cover,
-                              ),
-                              Positioned.fill(
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomLeft,
-                                      end: Alignment.topRight,
-                                      colors: [Color(0xAA0F172A), Color(0x000F172A)],
+                          child: CircleAvatar(
+                            radius: 12,
+                            backgroundImage: headerAvatar,
+                          ),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Guides',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 28),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      ),
+                      child: ListView(
+                        padding: const EdgeInsets.fromLTRB(14, 14, 14, 88),
+                        children: [
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 90),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Recommened Meal',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondaryFor(context),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        'View all',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textMutedFor(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: Stack(
+                                      children: [
+                                        Image.asset(
+                                          'assets/images/healthy bowl.jpg',
+                                          height: mediaHeight - 8,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        ),
+                                        Positioned.fill(
+                                          child: Container(
+                                            decoration: const BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.bottomLeft,
+                                                end: Alignment.topRight,
+                                                colors: [Color(0xB3000000), Color(0x20000000)],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const Positioned(
+                                          left: 12,
+                                          bottom: 12,
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Nut Butter Toast With Boiled Eggs',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                              SizedBox(height: 2),
+                                              Text(
+                                                '1648kcl',
+                                                style: TextStyle(
+                                                  color: Colors.white70,
+                                                  fontSize: 12,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
-                                ),
-                              ),
-                              const Positioned(
-                                left: 16,
-                                bottom: 16,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Nut Butter Toast With Boiled Eggs',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      '1648kcl',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 11,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  AnimatedReveal(
-                    delay: const Duration(milliseconds: 170),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Workout Videos',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimaryFor(context),
-                                ),
+                                ],
                               ),
                             ),
-                            Text(
-                              'View all',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppColors.textMutedFor(context),
+                            const SizedBox(height: 16),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 170),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          'Workout Videos',
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.textSecondaryFor(context),
+                                          ),
+                                        ),
+                                      ),
+                                      Text(
+                                        'View all',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                          color: AppColors.textMutedFor(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  SizedBox(
+                                    height: mediaHeight + 4,
+                                    child: ListView(
+                                      scrollDirection: Axis.horizontal,
+                                      children: const [
+                                        _AssetVideoCard(
+                                          title: 'Lower Body Training',
+                                          kcal: '500 Kcal',
+                                          minutes: '50 Min',
+                                          videoPath: 'assets/videos/LowerBodyTraning.mp4',
+                                        ),
+                                        _AssetVideoCard(
+                                          title: 'Hand Training',
+                                          kcal: '600 Kcal',
+                                          minutes: '40 Min',
+                                          videoPath: 'assets/videos/HandTraning.mp4',
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: mediaHeight,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: const [
-                              _AssetVideoCard(
-                                title: 'Lower Body Training',
-                                kcal: '500 Kcal',
-                                minutes: '50 Min',
-                                videoPath: 'assets/videos/LowerBodyTraning.mp4',
+                            const SizedBox(height: 16),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 250),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Challenge Tutorial Guide',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondaryFor(context),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  const _ChallengeVideoCard(
+                                    title: 'Challenge Tutorial',
+                                    videoPath: 'assets/videos/ChallangeTetorial.mp4',
+                                  ),
+                                ],
                               ),
-                              _AssetVideoCard(
-                                title: 'Hand Training',
-                                kcal: '600 Kcal',
-                                minutes: '40 Min',
-                                videoPath: 'assets/videos/HandTraning.mp4',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  AnimatedReveal(
-                    delay: Duration(milliseconds: 250),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Challenge Tutorial Guide',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimaryFor(context),
-                          ),
-                        ),
-                        SizedBox(height: 12),
-                        _ChallengeVideoCard(
-                          title: 'Challenge Tutorial',
-                          videoPath: 'assets/videos/ChallangeTetorial.mp4',
-                        ),
-                      ],
-                    ),
-                  ),
+                            ),
                         ],
                       ),
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: const Color(0xFF1D3DBB),
-            onPressed: () {},
-            child: const Icon(Icons.add, color: Colors.white),
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              elevation: 2,
+              onPressed: () {},
+              child: const Icon(Icons.add, color: Colors.black, size: 20),
+            ),
           ),
           floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Guides'),
         );
       },
-    );
-  }
-}
-
-class _BlueHeader extends StatelessWidget {
-  final String title;
-
-  const _BlueHeader({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 36, 16, 28),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1D3DBB),
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 34),
-          Expanded(
-            child: Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-              ),
-            ),
-          ),
-          const SizedBox(width: 34),
-        ],
-      ),
     );
   }
 }
@@ -275,13 +316,13 @@ class _AssetVideoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 170,
+      width: 195,
       margin: const EdgeInsets.only(right: 12),
       child: _GuidesInlineVideoPlayer(
         videoPath: videoPath,
         fullscreenTitle: title,
-        borderRadius: BorderRadius.circular(18),
-        gradientColors: const [Color(0xCC0F172A), Color(0x000F172A)],
+        borderRadius: BorderRadius.circular(12),
+        gradientColors: const [Color(0xB8000000), Color(0x12000000)],
         overlayBuilder: (bottomInset) {
           return Padding(
             padding: EdgeInsets.fromLTRB(12, 12, 12, bottomInset + 8),
@@ -292,15 +333,21 @@ class _AssetVideoCard extends StatelessWidget {
                   title,
                   style: const TextStyle(
                     color: Colors.white,
+                    fontSize: 17,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
                 const Spacer(),
                 Row(
                   children: [
-                    _Pill(label: kcal),
-                    const SizedBox(width: 6),
-                    _Pill(label: minutes),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _Pill(label: kcal, icon: Icons.local_fire_department_outlined),
+                        const SizedBox(height: 6),
+                        _Pill(label: minutes, icon: Icons.alarm_outlined),
+                      ],
+                    ),
                   ],
                 ),
               ],
@@ -326,8 +373,8 @@ class _ChallengeVideoCard extends StatelessWidget {
       child: _GuidesInlineVideoPlayer(
         videoPath: videoPath,
         fullscreenTitle: title,
-        borderRadius: BorderRadius.circular(18),
-        gradientColors: const [Color(0x770F172A), Color(0x000F172A)],
+        borderRadius: BorderRadius.circular(12),
+        gradientColors: const [Color(0x66000000), Color(0x08000000)],
         overlayBuilder: (bottomInset) {
           return Padding(
             padding: EdgeInsets.fromLTRB(14, 0, 14, bottomInset + 12),
@@ -436,35 +483,6 @@ class _GuidesInlineVideoPlayerState extends State<_GuidesInlineVideoPlayer> {
     _startAutoHideTimer();
   }
 
-  void _seekBy(int seconds) {
-    if (!_controller.value.isInitialized) return;
-    final duration = _controller.value.duration;
-    final position = _controller.value.position;
-    final target = position + Duration(seconds: seconds);
-    final clamped = target < Duration.zero
-        ? Duration.zero
-        : (target > duration ? duration : target);
-    _controller.seekTo(clamped);
-  }
-
-  void _seekToMilliseconds(double value) {
-    if (!_controller.value.isInitialized) return;
-    _controller.seekTo(Duration(milliseconds: value.round()));
-  }
-
-  Future<void> _openFullscreen() async {
-    if (!_controller.value.isInitialized) return;
-    setState(() => _showControls = true);
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => _GuidesFullscreenVideoScreen(
-          controller: _controller,
-          title: widget.fullscreenTitle,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
@@ -519,40 +537,16 @@ class _GuidesInlineVideoPlayerState extends State<_GuidesInlineVideoPlayer> {
                 ),
               ),
             ),
-          if (_showControls || !_controller.value.isPlaying)
+          if (_showControls)
             Positioned.fill(
-              child: Column(
-                children: [
-                  const Spacer(),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _ControlCircle(
-                        icon: Icons.replay_10,
-                        onTap: () => _seekBy(-10),
-                      ),
-                      const SizedBox(width: 10),
-                      _ControlCircle(
-                        icon: _controller.value.isPlaying
-                            ? Icons.pause
-                            : Icons.play_arrow,
-                        onTap: _togglePlayPause,
-                        size: 42,
-                      ),
-                      const SizedBox(width: 10),
-                      _ControlCircle(
-                        icon: Icons.forward_10,
-                        onTap: () => _seekBy(10),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  _VideoTimeline(
-                    controller: _controller,
-                    onSeek: _seekToMilliseconds,
-                    onFullscreen: _openFullscreen,
-                  ),
-                ],
+              child: Center(
+                child: _ControlCircle(
+                  icon: _controller.value.isPlaying
+                      ? Icons.pause
+                      : Icons.play_arrow,
+                  onTap: _togglePlayPause,
+                  size: 44,
+                ),
               ),
             ),
         ],
@@ -777,12 +771,10 @@ class _ControlCircle extends StatelessWidget {
 class _VideoTimeline extends StatelessWidget {
   final VideoPlayerController controller;
   final ValueChanged<double> onSeek;
-  final VoidCallback? onFullscreen;
 
   const _VideoTimeline({
     required this.controller,
     required this.onSeek,
-    this.onFullscreen,
   });
 
   @override
@@ -828,14 +820,6 @@ class _VideoTimeline extends StatelessWidget {
             _formatDuration(duration),
             style: const TextStyle(color: Colors.white, fontSize: 10),
           ),
-          if (onFullscreen != null)
-            IconButton(
-              iconSize: 18,
-              padding: const EdgeInsets.only(left: 2),
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              onPressed: onFullscreen,
-              icon: const Icon(Icons.fullscreen, color: Colors.white),
-            ),
         ],
       ),
     );
@@ -869,8 +853,9 @@ String _formatDuration(Duration duration) {
 
 class _Pill extends StatelessWidget {
   final String label;
+  final IconData? icon;
 
-  const _Pill({required this.label});
+  const _Pill({required this.label, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -880,13 +865,22 @@ class _Pill extends StatelessWidget {
         color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 10, color: Colors.white),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

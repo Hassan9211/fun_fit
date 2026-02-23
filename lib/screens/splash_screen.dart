@@ -38,7 +38,7 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.forward();
 
     Timer(const Duration(seconds: 3), () {
-      Get.offNamed(Routes.signup);
+      Get.offNamed(Routes.login);
     });
   }
 
@@ -60,19 +60,17 @@ class _SplashScreenState extends State<SplashScreen>
         double loaderSize = width * 0.05;
 
         if (width >= 1200) {
-          // Desktop
           logoSize = width * 0.08;
           textSize = width * 0.05;
           loaderSize = width * 0.03;
         } else if (width >= 800) {
-          // Tablet
           logoSize = width * 0.12;
           textSize = width * 0.06;
           loaderSize = width * 0.04;
         }
 
         return Scaffold(
-          backgroundColor: Colors.blue.shade900,
+          backgroundColor: Colors.black,
           body: Column(
             children: [
               Expanded(
@@ -91,7 +89,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                           SizedBox(height: height * 0.02),
                           Text(
-                            'FunFit',
+                            'ModivFit',
                             style: TextStyle(
                               fontSize: textSize,
                               fontWeight: FontWeight.bold,

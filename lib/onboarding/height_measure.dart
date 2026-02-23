@@ -112,7 +112,7 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
         final secondaryUnit = isCmSelected ? 'ft' : 'cm';
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor: Colors.white,
           body: SafeArea(
             child: Center(
               child: SizedBox(
@@ -191,8 +191,8 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                         onPressed: () => Get.toNamed(Routes.weight),
                         width: double.infinity,
                         height: 48,
-                        backgroundColor: const Color(0xFF1D3DBB),
-                        borderRadius: 10,
+                        backgroundColor: Colors.black,
+                        borderRadius: 8,
                         fontSize: buttonFont,
                         fontWeight: FontWeight.w600,
                       ),
@@ -226,7 +226,7 @@ class _HeightUnitSwitch extends StatelessWidget {
       height: 30,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFE6E9F8),
+        color: const Color(0xFFF3F4F6),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -266,7 +266,7 @@ class _HeightUnitChip extends StatelessWidget {
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF1D3DBB) : Colors.transparent,
+            color: selected ? Colors.black : Colors.transparent,
             borderRadius: BorderRadius.circular(16),
           ),
           alignment: Alignment.center,
@@ -296,7 +296,8 @@ class _HeightPill extends StatelessWidget {
       width: 126,
       height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xFFE7E7E7),
+        color: const Color(0xFFF3F4F6),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
         borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.center,
