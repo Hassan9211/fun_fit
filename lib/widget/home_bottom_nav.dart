@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+import 'app_shell_controller.dart';
 import 'getx.dart';
 
 class HomeBottomNav extends StatelessWidget {
@@ -13,6 +14,11 @@ class HomeBottomNav extends StatelessWidget {
 
   void _go(String tabLabel, String routeName) {
     if (selected == tabLabel) return;
+    final shellController = AppShellController.maybeFind();
+    if (shellController != null) {
+      shellController.selectByLabel(tabLabel);
+      return;
+    }
     Get.offNamed(routeName);
   }
 

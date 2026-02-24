@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,9 +13,11 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
+  static const String _kHasOpenedApp = 'has_opened_app';
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+  Timer? _navigationTimer;
 
   @override
   void initState() {
@@ -37,13 +40,26 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    Timer(const Duration(seconds: 3), () {
+    _navigationTimer = Timer(const Duration(seconds: 3), _navigateFromSplash);
+  }
+
+  Future<void> _navigateFromSplash() async {
+    final prefs = await SharedPreferences.getInstance();
+    final hasOpenedBefore = prefs.getBool(_kHasOpenedApp) ?? false;
+    if (!mounted) return;
+
+    if (hasOpenedBefore) {
       Get.offNamed(Routes.login);
-    });
+      return;
+    }
+
+    await prefs.setBool(_kHasOpenedApp, true);
+    Get.offNamed(Routes.signup);
   }
 
   @override
   void dispose() {
+    _navigationTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

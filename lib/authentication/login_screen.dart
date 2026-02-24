@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api_service.dart';
 import '../widget/app_button.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+  final AuthApiService _authApi = AuthApiService();
 
   @override
   void dispose() {
@@ -31,13 +33,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
     setState(() => _isSubmitting = true);
 
+    final email = emailController.text.trim();
+    final password = passwordController.text;
+    final result = await _authApi.login(email: email, password: password);
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_email', emailController.text.trim());
+    await prefs.setString('auth_email', email);
     if (!mounted) return;
     setState(() => _isSubmitting = false);
-    Get.toNamed(Routes.otpSignin);
+    Get.toNamed(Routes.otpSignin, arguments: {'email': email});
   }
 
   @override
@@ -66,7 +82,13 @@ class _LoginScreenState extends State<LoginScreen> {
         return Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Sign in', style: TextStyle(color: Colors.black87)),
+            title: const Text(
+              'Sign in',
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             centerTitle: true,
             automaticallyImplyLeading: false,
             backgroundColor: Colors.white,
@@ -106,7 +128,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(Icons.email, color: Color(0xFF6B7280)),
+                      prefixIcon: const Icon(
+                        Icons.email,
+                        color: Color(0xFF6B7280),
+                      ),
                       hintText: 'Email',
                       hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                       filled: true,
@@ -142,7 +167,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         return null;
                       },
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.lock, color: Color(0xFF6B7280)),
+                        prefixIcon: const Icon(
+                          Icons.lock,
+                          color: Color(0xFF6B7280),
+                        ),
                         hintText: 'Password',
                         hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
                         filled: true,
@@ -153,11 +181,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB),
+                          ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFE5E7EB),
+                          ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
@@ -311,6 +343,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-
-
-

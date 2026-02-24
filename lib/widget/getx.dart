@@ -11,17 +11,12 @@ import 'package:fun_fit/onboarding/goal_screen.dart';
 import 'package:fun_fit/onboarding/height_measure.dart';
 import 'package:fun_fit/onboarding/ready_screen.dart';
 import 'package:fun_fit/onboarding/waight_measure.dart';
-import 'package:fun_fit/home/food_logging_screen.dart';
-import 'package:fun_fit/home/challenges.dart';
-import 'package:fun_fit/home/home_screen.dart';
 import 'package:fun_fit/home/profile_screen.dart';
-import 'package:fun_fit/home/leaderboard_screen.dart';
-import 'package:fun_fit/home/guides_screen.dart';
 import 'package:fun_fit/settings/help_screen.dart';
-import 'package:fun_fit/settings/settings_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
+import 'package:fun_fit/widget/app_shell_screen.dart';
 
 class Routes {
   static const String splash = '/';
@@ -83,13 +78,13 @@ class Routes {
     GetPage(name: height, page: () => const HeightSelectionScreen()),
     GetPage(name: weight, page: () => const WeightSelectionScreen()),
     // Home route placeholder – you can point it to your real home screen later
-    GetPage(name: home, page: () => const HomeScreen()),
-    GetPage(name: foodLogging, page: () => const FoodLoggingScreen()),
-    GetPage(name: challenges, page: () => const ChallengesScreen()),
+    GetPage(name: home, page: () => const AppShellScreen(initialIndex: 0)),
+    GetPage(name: foodLogging, page: () => const AppShellScreen(initialIndex: 1)),
+    GetPage(name: challenges, page: () => const AppShellScreen(initialIndex: 2)),
     GetPage(name: profile, page: () => const ProfileScreen()),
-    GetPage(name: leaderboard, page: () => const LeaderboardScreen()),
-    GetPage(name: guides, page: () => const GuidesScreen()),
-    GetPage(name: settings, page: () => const SettingsScreen()),
+    GetPage(name: leaderboard, page: () => const AppShellScreen(initialIndex: 3)),
+    GetPage(name: guides, page: () => const AppShellScreen(initialIndex: 4)),
+    GetPage(name: settings, page: () => const AppShellScreen(initialIndex: 5)),
     GetPage(name: help, page: () => const HelpScreen()),
   ];
 }

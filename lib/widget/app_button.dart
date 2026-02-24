@@ -34,7 +34,7 @@ class AppButton extends StatelessWidget {
   Color _variantBackgroundColor() {
     switch (variant) {
       case AppButtonVariant.success:
-        return const Color(0xFF15803D);
+        return AppColors.success;
       case AppButtonVariant.danger:
         return AppColors.danger;
       case AppButtonVariant.outline:
@@ -71,8 +71,8 @@ class AppButton extends StatelessWidget {
       disabledForegroundColor: resolvedTextColor.withValues(alpha: 0.7),
       elevation: isOutline ? 0 : null,
       side: isOutline ? const BorderSide(color: AppColors.primary) : null,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(8)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
       ),
     );
 

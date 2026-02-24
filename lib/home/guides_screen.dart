@@ -50,13 +50,24 @@ class _GuidesScreenState extends State<GuidesScreen> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        final isCompact = width < 360;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
         final contentMaxWidth = isDesktop
-            ? 460.0
+            ? 520.0
             : isTablet
-            ? 430.0
+            ? 460.0
             : 400.0;
+        final headerTopPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final headerBottomPadding = isDesktop
+            ? 24.0
+            : isTablet
+            ? 27.0
+            : 30.0;
         final mediaHeight = isDesktop
             ? 175.0
             : isTablet
@@ -64,30 +75,39 @@ class _GuidesScreenState extends State<GuidesScreen> {
             : 155.0;
 
         return Scaffold(
-          backgroundColor: Colors.black,
+          backgroundColor: AppColors.appBackground,
           extendBody: true,
-          body: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                color: Colors.black,
-                padding: EdgeInsets.fromLTRB(
-                  10,
-                  MediaQuery.of(context).padding.top + 10,
-                  10,
-                  12,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
+          body: Center(
+            child: SizedBox(
+              width: contentMaxWidth,
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(22),
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      headerTopPadding,
+                      16,
+                      headerBottomPadding,
+                    ),
                     child: Row(
                       children: [
                         InkWell(
                           onTap: _goProfile,
                           borderRadius: BorderRadius.circular(18),
                           child: CircleAvatar(
-                            radius: 12,
-                            backgroundImage: headerAvatar,
+                            radius: 15,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 13,
+                              backgroundImage: headerAvatar,
+                            ),
                           ),
                         ),
                         const Expanded(
@@ -96,21 +116,16 @@ class _GuidesScreenState extends State<GuidesScreen> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 28),
+                        SizedBox(width: isCompact ? 20 : 28),
                       ],
                     ),
                   ),
-                ),
-              ),
-              Expanded(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                  Expanded(
                     child: Container(
                       width: double.infinity,
                       decoration: const BoxDecoration(
@@ -278,9 +293,9 @@ class _GuidesScreenState extends State<GuidesScreen> {
                       ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
           floatingActionButton: SizedBox(
             width: 42,
@@ -483,8 +498,45 @@ class _GuidesInlineVideoPlayerState extends State<_GuidesInlineVideoPlayer> {
     _startAutoHideTimer();
   }
 
+  void _seekBy(int seconds) {
+    if (!_controller.value.isInitialized) return;
+    final duration = _controller.value.duration;
+    final position = _controller.value.position;
+    final target = position + Duration(seconds: seconds);
+    final clamped = target < Duration.zero
+        ? Duration.zero
+        : (target > duration ? duration : target);
+    _controller.seekTo(clamped);
+  }
+
+  Future<void> _openFullscreen() async {
+    if (!_controller.value.isInitialized) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _GuidesFullscreenVideoScreen(
+          controller: _controller,
+          title: widget.fullscreenTitle,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _showControls = true);
+    if (_controller.value.isPlaying) _startAutoHideTimer();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final duration = _controller.value.duration;
+    final position = _controller.value.position > duration
+        ? duration
+        : _controller.value.position;
+    final maxMs = duration.inMilliseconds <= 0
+        ? 1.0
+        : duration.inMilliseconds.toDouble();
+    final currentMs = position.inMilliseconds
+        .clamp(0, maxMs.toInt())
+        .toDouble();
+
     return ClipRRect(
       borderRadius: widget.borderRadius,
       child: Stack(
@@ -532,11 +584,98 @@ class _GuidesInlineVideoPlayerState extends State<_GuidesInlineVideoPlayer> {
           if (widget.overlayBuilder != null)
             Positioned.fill(
               child: IgnorePointer(
-                child: widget.overlayBuilder!(
-                  (_showControls || !_controller.value.isPlaying) ? 38 : 8,
-                ),
+                child: widget.overlayBuilder!(60),
               ),
             ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(6, 2, 6, 2),
+              color: Colors.black.withOpacity(0.32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 18,
+                        onPressed: _controller.value.isInitialized
+                            ? () => _seekBy(-10)
+                            : null,
+                        icon: const Icon(
+                          Icons.replay_10,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 18,
+                        onPressed: _togglePlayPause,
+                        icon: Icon(
+                          _controller.value.isPlaying
+                              ? Icons.pause
+                              : Icons.play_arrow,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 18,
+                        onPressed: _controller.value.isInitialized
+                            ? () => _seekBy(10)
+                            : null,
+                        icon: const Icon(
+                          Icons.forward_10,
+                          color: Colors.white,
+                          size: 20,
+                        ),
+                      ),
+                      Expanded(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 2.2,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 4,
+                            ),
+                            overlayShape: const RoundSliderOverlayShape(
+                              overlayRadius: 10,
+                            ),
+                          ),
+                          child: Slider(
+                            activeColor: Colors.white,
+                            inactiveColor: Colors.white.withOpacity(0.35),
+                            value: currentMs,
+                            min: 0,
+                            max: maxMs,
+                            onChanged: (value) {
+                              _controller.seekTo(
+                                Duration(milliseconds: value.round()),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        splashRadius: 18,
+                        onPressed: _openFullscreen,
+                        icon: const Icon(
+                          Icons.fullscreen,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
           if (_showControls)
             Positioned.fill(
               child: Center(

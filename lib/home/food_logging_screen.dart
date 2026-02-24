@@ -4,8 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/getx.dart';
+import '../widget/app_shell_controller.dart';
+import '../widget/home_bottom_nav.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
   const FoodLoggingScreen({super.key});
@@ -142,6 +145,15 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
   List<_FeedPost> get _visiblePosts =>
       _selectedTab == _FeedTab.publicPosts ? _publicPosts : _myPosts;
 
+  void _goHome() {
+    final shellController = AppShellController.maybeFind();
+    if (shellController != null) {
+      shellController.setIndex(0);
+      return;
+    }
+    Get.offNamed(Routes.home);
+  }
+
   void _submitPost() {
     final text = _composerController.text.trim();
     if (text.isEmpty) return;
@@ -262,195 +274,258 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              color: Colors.black,
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: () => Get.offNamed(Routes.home),
-                          borderRadius: BorderRadius.circular(18),
-                          child: const CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.white,
-                            child: Icon(
-                              Icons.arrow_back_ios_new,
-                              size: 14,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'FoodLog',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 28),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isCompact = width < 360;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final contentMaxWidth = isDesktop
+            ? 520.0
+            : isTablet
+            ? 460.0
+            : 400.0;
+        final headerTopPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final headerBottomPadding = isDesktop
+            ? 24.0
+            : isTablet
+            ? 27.0
+            : 30.0;
+        final sideGap = isCompact ? 20.0 : 28.0;
+        final cardMargin = isCompact ? 6.0 : 8.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              elevation: 2,
+              onPressed: () {},
+              child: const Icon(Icons.add, color: Colors.black, size: 20),
             ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: const HomeBottomNav(selected: 'Food Log'),
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(22),
+                        ),
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          16,
+                          headerTopPadding,
+                          16,
+                          headerBottomPadding,
+                        ),
+                        child: Row(
+                          children: [
+                            InkWell(
+                              onTap: _goHome,
+                              borderRadius: BorderRadius.circular(18),
+                              child: const CircleAvatar(
+                                radius: 14,
+                                backgroundColor: Colors.white,
+                                child: Icon(
+                                  Icons.arrow_back_ios_new,
+                                  size: 14,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                            const Expanded(
+                              child: Text(
+                                'FoodLog',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 17,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: sideGap),
+                          ],
+                        ),
+                      ),
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
-                              borderRadius: BorderRadius.circular(9),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x14000000),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                _tabButton(
-                                  title: 'Public',
-                                  selected: _selectedTab == _FeedTab.publicPosts,
-                                  onTap: () => setState(
-                                    () => _selectedTab = _FeedTab.publicPosts,
-                                  ),
-                                ),
-                                _tabButton(
-                                  title: 'My Post',
-                                  selected: _selectedTab == _FeedTab.myPosts,
-                                  onTap: () => setState(
-                                    () => _selectedTab = _FeedTab.myPosts,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    Expanded(
+                      child: AnimatedReveal(
+                        delay: const Duration(milliseconds: 70),
+                        child: Container(
+                          margin: EdgeInsets.fromLTRB(
+                            cardMargin,
+                            cardMargin,
+                            cardMargin,
+                            10,
                           ),
-                        ),
-                        Expanded(
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
-                            itemCount: _visiblePosts.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final isPublic =
-                                  _selectedTab == _FeedTab.publicPosts;
-                              return _PostTile(
-                                post: _visiblePosts[index],
-                                onLike: isPublic ? () => _toggleLike(index) : null,
-                                onDislike: isPublic
-                                    ? () => _toggleDislike(index)
-                                    : null,
-                                onReply: () => _openReplyDialog(
-                                  isPublic: isPublic,
-                                  index: index,
-                                ),
-                              );
-                            },
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                          decoration: const BoxDecoration(
-                            border: Border(
-                              top: BorderSide(color: Color(0xFFE5E7EB)),
-                            ),
-                          ),
-                          child: Row(
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
                             children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _composerController,
-                                  decoration: InputDecoration(
-                                    hintText: "What's in your mind",
-                                    hintStyle: const TextStyle(fontSize: 13),
-                                    filled: true,
-                                    fillColor: AppColors.surfaceSoft,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 10,
+                              AnimatedReveal(
+                                delay: const Duration(milliseconds: 120),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                                      borderRadius: BorderRadius.circular(9),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x14000000),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                      borderSide: const BorderSide(
-                                        color: AppColors.borderLight,
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(6),
-                                      borderSide: const BorderSide(
-                                        color: AppColors.borderLight,
-                                      ),
+                                    child: Row(
+                                      children: [
+                                        _tabButton(
+                                          title: 'Public',
+                                          selected: _selectedTab == _FeedTab.publicPosts,
+                                          onTap: () => setState(
+                                            () => _selectedTab = _FeedTab.publicPosts,
+                                          ),
+                                        ),
+                                        _tabButton(
+                                          title: 'My Post',
+                                          selected: _selectedTab == _FeedTab.myPosts,
+                                          onTap: () => setState(
+                                            () => _selectedTab = _FeedTab.myPosts,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              SizedBox(
-                                height: 28,
-                                child: ElevatedButton(
-                                  onPressed: _submitPost,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: AppColors.primary,
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(6),
+                              Expanded(
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                                  itemCount: _visiblePosts.length,
+                                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                  itemBuilder: (context, index) {
+                                    final isPublic = _selectedTab == _FeedTab.publicPosts;
+                                    return AnimatedReveal(
+                                      delay: Duration(
+                                        milliseconds: 130 + ((index % 8) * 30),
+                                      ),
+                                      child: _PostTile(
+                                        post: _visiblePosts[index],
+                                        onLike: isPublic ? () => _toggleLike(index) : null,
+                                        onDislike: isPublic
+                                            ? () => _toggleDislike(index)
+                                            : null,
+                                        onReply: () => _openReplyDialog(
+                                          isPublic: isPublic,
+                                          index: index,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              AnimatedReveal(
+                                delay: const Duration(milliseconds: 180),
+                                child: Container(
+                                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                                  decoration: const BoxDecoration(
+                                    border: Border(
+                                      top: BorderSide(color: Color(0xFFE5E7EB)),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Post',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: TextField(
+                                          controller: _composerController,
+                                          decoration: InputDecoration(
+                                            hintText: "What's in your mind",
+                                            hintStyle: const TextStyle(fontSize: 13),
+                                            filled: true,
+                                            fillColor: AppColors.surfaceSoft,
+                                            contentPadding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(6),
+                                              borderSide: const BorderSide(
+                                                color: AppColors.borderLight,
+                                              ),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(6),
+                                              borderSide: const BorderSide(
+                                                color: AppColors.borderLight,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 28,
+                                        child: ElevatedButton(
+                                          onPressed: _submitPost,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: AppColors.primary,
+                                            foregroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                            ),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Post',
+                                            style: TextStyle(
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

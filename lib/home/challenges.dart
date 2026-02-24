@@ -5,8 +5,11 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/getx.dart';
+import '../widget/app_shell_controller.dart';
+import '../widget/home_bottom_nav.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -125,6 +128,11 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   }
 
   void _handleBack() {
+    final shellController = AppShellController.maybeFind();
+    if (shellController != null) {
+      shellController.setIndex(0);
+      return;
+    }
     Get.offNamed(Routes.home);
   }
 
@@ -281,119 +289,157 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _PageHeader(
-              title: 'Challenges',
-              onBack: _handleBack,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isCompact = width < 360;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final contentMaxWidth = isDesktop
+            ? 520.0
+            : isTablet
+            ? 460.0
+            : 400.0;
+        final headerTopPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final headerBottomPadding = isDesktop
+            ? 24.0
+            : isTablet
+            ? 27.0
+            : 30.0;
+        final cardMargin = isCompact ? 6.0 : 8.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor: Colors.black,
+              elevation: 2,
+              onPressed: _openAddChallenge,
+              child: const Icon(Icons.add, color: Colors.white, size: 20),
             ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+          ),
+          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    _PageHeader(
+                      title: 'Challenges',
+                      onBack: _handleBack,
+                      topPadding: headerTopPadding,
+                      bottomPadding: headerBottomPadding,
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: const Color(0xFFE5E7EB)),
-                              borderRadius: BorderRadius.circular(9),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x14000000),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              children: [
-                                _tabButton(
-                                  title: 'Public',
-                                  selected: _selectedTab == _ChallengesTab.publicPosts,
-                                  onTap: () => setState(
-                                    () => _selectedTab = _ChallengesTab.publicPosts,
-                                  ),
-                                ),
-                                _tabButton(
-                                  title: 'My Post',
-                                  selected: _selectedTab == _ChallengesTab.myPosts,
-                                  onTap: () => setState(
-                                    () => _selectedTab = _ChallengesTab.myPosts,
-                                  ),
-                                ),
-                              ],
-                            ),
+                    Expanded(
+                      child: AnimatedReveal(
+                        delay: const Duration(milliseconds: 70),
+                        child: Container(
+                          margin: EdgeInsets.fromLTRB(
+                            cardMargin,
+                            cardMargin,
+                            cardMargin,
+                            10,
                           ),
-                        ),
-                        Expanded(
-                          child: Stack(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
                             children: [
-                              ListView.separated(
-                                padding: const EdgeInsets.fromLTRB(12, 6, 12, 70),
-                                itemCount: _visiblePosts.length,
-                                separatorBuilder: (_, _) => const SizedBox(height: 12),
-                                itemBuilder: (context, index) {
-                                  final post = _visiblePosts[index];
-                                  final isPublic =
-                                      _selectedTab == _ChallengesTab.publicPosts;
-                                  return _ChallengePostTile(
-                                    post: post,
-                                    onLike: isPublic ? () => _toggleLike(post.id) : null,
-                                    onDislike: isPublic
-                                        ? () => _toggleDislike(post.id)
-                                        : null,
-                                    onReply: () => _openReplyDialog(post.id),
-                                    onAccept: () => _toggleAccept(post.id),
-                                  );
-                                },
-                              ),
-                              Positioned(
-                                right: 12,
-                                bottom: 12,
-                                child: InkWell(
-                                  onTap: _openAddChallenge,
-                                  borderRadius: BorderRadius.circular(20),
+                              AnimatedReveal(
+                                delay: const Duration(milliseconds: 120),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
                                   child: Container(
-                                    width: 34,
-                                    height: 34,
-                                    decoration: const BoxDecoration(
-                                      color: Colors.black,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.add,
+                                    padding: const EdgeInsets.all(3),
+                                    decoration: BoxDecoration(
                                       color: Colors.white,
-                                      size: 20,
+                                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                                      borderRadius: BorderRadius.circular(9),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Color(0x14000000),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        _tabButton(
+                                          title: 'Public',
+                                          selected: _selectedTab == _ChallengesTab.publicPosts,
+                                          onTap: () => setState(
+                                            () => _selectedTab = _ChallengesTab.publicPosts,
+                                          ),
+                                        ),
+                                        _tabButton(
+                                          title: 'My Post',
+                                          selected: _selectedTab == _ChallengesTab.myPosts,
+                                          onTap: () => setState(
+                                            () => _selectedTab = _ChallengesTab.myPosts,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Stack(
+                                  children: [
+                                    ListView.separated(
+                                      padding: const EdgeInsets.fromLTRB(12, 6, 12, 92),
+                                      itemCount: _visiblePosts.length,
+                                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                                      itemBuilder: (context, index) {
+                                        final post = _visiblePosts[index];
+                                        final isPublic =
+                                            _selectedTab == _ChallengesTab.publicPosts;
+                                        return AnimatedReveal(
+                                          delay: Duration(
+                                            milliseconds: 130 + ((index % 8) * 32),
+                                          ),
+                                          child: _ChallengePostTile(
+                                            post: post,
+                                            onLike: isPublic
+                                                ? () => _toggleLike(post.id)
+                                                : null,
+                                            onDislike: isPublic
+                                                ? () => _toggleDislike(post.id)
+                                                : null,
+                                            onReply: () => _openReplyDialog(post.id),
+                                            onAccept: () => _toggleAccept(post.id),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -607,146 +653,186 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _PageHeader(
-              title: 'Add Challenge',
-              onBack: () => Navigator.of(context).pop(),
-            ),
-            Expanded(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 400),
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(8, 8, 8, 10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isCompact = width < 360;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final contentMaxWidth = isDesktop
+            ? 520.0
+            : isTablet
+            ? 460.0
+            : 400.0;
+        final headerTopPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final headerBottomPadding = isDesktop
+            ? 24.0
+            : isTablet
+            ? 27.0
+            : 30.0;
+        final cardMargin = isCompact ? 6.0 : 8.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          body: SafeArea(
+            top: false,
+            bottom: false,
+            child: Center(
+              child: SizedBox(
+                width: contentMaxWidth,
+                child: Column(
+                  children: [
+                    _PageHeader(
+                      title: 'Add Challenge',
+                      onBack: () => Navigator.of(context).pop(),
+                      topPadding: headerTopPadding,
+                      bottomPadding: headerBottomPadding,
                     ),
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          TextField(
-                            controller: _nameController,
-                            decoration: _inputDecoration('Challenge Name'),
+                    Expanded(
+                      child: AnimatedReveal(
+                        delay: const Duration(milliseconds: 70),
+                        child: Container(
+                          margin: EdgeInsets.fromLTRB(
+                            cardMargin,
+                            cardMargin,
+                            cardMargin,
+                            10,
                           ),
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: _timeController,
-                            decoration: _inputDecoration('Time'),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                          const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedCategory,
-                            icon: const Icon(Icons.keyboard_arrow_down),
-                            decoration: _inputDecoration('Select Category'),
-                            items: _categories
-                                .map(
-                                  (value) => DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                            child: AnimatedReveal(
+                              delay: const Duration(milliseconds: 120),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  TextField(
+                                    controller: _nameController,
+                                    decoration: _inputDecoration('Challenge Name'),
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedCategory = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          DropdownButtonFormField<String>(
-                            initialValue: _selectedFitnessLevel,
-                            icon: const Icon(Icons.keyboard_arrow_down),
-                            decoration: _inputDecoration('Fitness Level'),
-                            items: _fitnessLevels
-                                .map(
-                                  (value) => DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                    controller: _timeController,
+                                    decoration: _inputDecoration('Time'),
                                   ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedFitnessLevel = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          OutlinedButton.icon(
-                            onPressed: _pickMedia,
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textSecondary,
-                              side: const BorderSide(color: AppColors.borderLight),
-                              minimumSize: const Size(double.infinity, 50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(7),
+                                  const SizedBox(height: 10),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _selectedCategory,
+                                    icon: const Icon(Icons.keyboard_arrow_down),
+                                    decoration: _inputDecoration('Select Category'),
+                                    items: _categories
+                                        .map(
+                                          (value) => DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedCategory = value;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  DropdownButtonFormField<String>(
+                                    initialValue: _selectedFitnessLevel,
+                                    icon: const Icon(Icons.keyboard_arrow_down),
+                                    decoration: _inputDecoration('Fitness Level'),
+                                    items: _fitnessLevels
+                                        .map(
+                                          (value) => DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          ),
+                                        )
+                                        .toList(),
+                                    onChanged: (value) {
+                                      setState(() {
+                                        _selectedFitnessLevel = value;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(height: 10),
+                                  OutlinedButton.icon(
+                                    onPressed: _pickMedia,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.textSecondary,
+                                      side: const BorderSide(color: AppColors.borderLight),
+                                      minimumSize: const Size(double.infinity, 50),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(7),
+                                      ),
+                                    ),
+                                    icon: const Icon(Icons.file_upload_outlined, size: 18),
+                                    label: Text(
+                                      _selectedMediaPath.isEmpty
+                                          ? 'Upload Image / Video'
+                                          : (_selectedMediaType == _MediaType.video
+                                              ? 'Video Selected'
+                                              : 'Image Selected'),
+                                    ),
+                                  ),
+                                  if (_selectedMediaPath.isNotEmpty) ...[
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _selectedMediaPath.split(RegExp(r'[\\/]')).last,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                  const SizedBox(height: 10),
+                                  TextField(
+                                    controller: _descriptionController,
+                                    maxLines: 4,
+                                    decoration: _inputDecoration('Discription'),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  SizedBox(
+                                    height: 40,
+                                    child: ElevatedButton(
+                                      onPressed: _submit,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primary,
+                                        foregroundColor: Colors.white,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Post',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            icon: const Icon(Icons.file_upload_outlined, size: 18),
-                            label: Text(
-                              _selectedMediaPath.isEmpty
-                                  ? 'Upload Image / Video'
-                                  : (_selectedMediaType == _MediaType.video
-                                      ? 'Video Selected'
-                                      : 'Image Selected'),
-                            ),
                           ),
-                          if (_selectedMediaPath.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Text(
-                              _selectedMediaPath.split(RegExp(r'[\\/]')).last,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-                          TextField(
-                            controller: _descriptionController,
-                            maxLines: 4,
-                            decoration: _inputDecoration('Discription'),
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            height: 40,
-                            child: ElevatedButton(
-                              onPressed: _submit,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                              ),
-                              child: const Text(
-                                'Post',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -754,52 +840,57 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
 class _PageHeader extends StatelessWidget {
   final String title;
   final VoidCallback onBack;
+  final double topPadding;
+  final double bottomPadding;
 
   const _PageHeader({
     required this.title,
     required this.onBack,
+    required this.topPadding,
+    required this.bottomPadding,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.of(context).size.width < 360;
     return Container(
       width: double.infinity,
-      color: Colors.black,
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
-            child: Row(
-              children: [
-                InkWell(
-                  onTap: onBack,
-                  borderRadius: BorderRadius.circular(18),
-                  child: const CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.arrow_back_ios_new,
-                      size: 14,
-                      color: Colors.black87,
-                    ),
-                  ),
+      decoration: const BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.vertical(
+          bottom: Radius.circular(22),
+        ),
+      ),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, topPadding, 16, bottomPadding),
+        child: Row(
+          children: [
+            InkWell(
+              onTap: onBack,
+              borderRadius: BorderRadius.circular(18),
+              child: const CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.white,
+                child: Icon(
+                  Icons.arrow_back_ios_new,
+                  size: 14,
+                  color: Colors.black87,
                 ),
-                Expanded(
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 22,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 28),
-              ],
+              ),
             ),
-          ),
+            Expanded(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: isCompact ? 17 : 17,
+                ),
+              ),
+            ),
+            SizedBox(width: isCompact ? 20 : 28),
+          ],
         ),
       ),
     );

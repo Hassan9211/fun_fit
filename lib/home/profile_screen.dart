@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
+import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/home_bottom_nav.dart';
 
@@ -416,154 +417,189 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
                       child: Column(
                         children: [
-                          const SizedBox(height: 4),
-                          GestureDetector(
-                            onTap: _showProfileImageOptions,
-                            child: Stack(
+                          AnimatedReveal(
+                            delay: const Duration(milliseconds: 70),
+                            child: Column(
                               children: [
-                                CircleAvatar(radius: avatarRadius, backgroundImage: avatar),
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primary,
-                                      borderRadius: BorderRadius.circular(14),
-                                    ),
-                                    child: const Icon(
-                                      Icons.edit,
-                                      color: Colors.white,
-                                      size: 14,
+                                const SizedBox(height: 4),
+                                GestureDetector(
+                                  onTap: _showProfileImageOptions,
+                                  child: Stack(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: avatarRadius,
+                                        backgroundImage: avatar,
+                                      ),
+                                      Positioned(
+                                        right: 0,
+                                        bottom: 0,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary,
+                                            borderRadius: BorderRadius.circular(14),
+                                          ),
+                                          child: const Icon(
+                                            Icons.edit,
+                                            color: Colors.white,
+                                            size: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                GestureDetector(
+                                  onTap: _editProfile,
+                                  child: Text(
+                                    _displayName,
+                                    style: TextStyle(
+                                      color: AppColors.textTitleFor(context),
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: nameSize,
                                     ),
                                   ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  _displayUsername,
+                                  style: TextStyle(
+                                    color: AppColors.textSecondaryFor(context),
+                                    fontSize: isDesktop ? 14 : 12,
+                                  ),
+                                ),
+                                if (_bio.isNotEmpty) ...[
+                                  const SizedBox(height: 6),
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: isDesktop ? 52 : 24,
+                                    ),
+                                    child: Text(
+                                      _bio,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: AppColors.textPrimaryFor(context),
+                                        fontSize: isDesktop ? 13 : 12,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (_socialLink.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _socialLink,
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: isDesktop ? 13 : 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 14),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Center(
+                                        child: _StatItem(
+                                          label: 'Posts',
+                                          value: posts.toString(),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: statSpacing * 0.35),
+                                    Expanded(
+                                      child: Center(
+                                        child: _StatItem(
+                                          label: 'Followers',
+                                          value: _followers.toString(),
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: statSpacing * 0.35),
+                                    Expanded(
+                                      child: Center(
+                                        child: _StatItem(
+                                          label: 'Likes',
+                                          value: likes.toString(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: _editProfile,
+                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  label: const Text('Edit profile'),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.textPrimary,
+                                    side: BorderSide(
+                                      color: AppColors.borderLightFor(context),
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                Divider(
+                                  color: AppColors.borderLightFor(context),
+                                  height: 1,
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: _editProfile,
-                            child: Text(
-                              _displayName,
-                              style: TextStyle(
-                                color: AppColors.textTitleFor(context),
-                                fontWeight: FontWeight.w700,
-                                fontSize: nameSize,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _displayUsername,
-                            style: TextStyle(
-                              color: AppColors.textSecondaryFor(context),
-                              fontSize: isDesktop ? 14 : 12,
-                            ),
-                          ),
-                          if (_bio.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isDesktop ? 52 : 24,
-                              ),
-                              child: Text(
-                                _bio,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: AppColors.textPrimaryFor(context),
-                                  fontSize: isDesktop ? 13 : 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (_socialLink.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              _socialLink,
-                              style: TextStyle(
-                                color: AppColors.primary,
-                                fontSize: isDesktop ? 13 : 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              _StatItem(label: 'Posts', value: posts.toString()),
-                              SizedBox(width: statSpacing),
-                              _StatItem(
-                                label: 'Followers',
-                                value: _followers.toString(),
-                              ),
-                              SizedBox(width: statSpacing),
-                              _StatItem(label: 'Likes', value: likes.toString()),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          OutlinedButton.icon(
-                            onPressed: _editProfile,
-                            icon: const Icon(Icons.edit_outlined, size: 16),
-                            label: const Text('Edit profile'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppColors.textPrimary,
-                              side: BorderSide(color: AppColors.borderLightFor(context)),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Divider(color: AppColors.borderLightFor(context), height: 1),
                           Expanded(
-                            child: _media.isEmpty
-                                ? Center(
-                                    child: Text(
-                                      'No captured media yet.\nTap + to shoot photo/video.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: AppColors.textSecondaryFor(context),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  )
-                                : GridView.builder(
-                                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
-                                    itemCount: _media.length,
-                                    gridDelegate:
-                                        SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: gridCount,
-                                          crossAxisSpacing: 4,
-                                          mainAxisSpacing: 4,
+                            child: AnimatedReveal(
+                              delay: const Duration(milliseconds: 140),
+                              child: _media.isEmpty
+                                  ? Center(
+                                      child: Text(
+                                        'No captured media yet.\nTap + to shoot photo/video.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: AppColors.textSecondaryFor(context),
+                                          fontSize: 13,
                                         ),
-                                    itemBuilder: (context, index) {
-                                      final item = _media[index];
-                                      return GestureDetector(
-                                        onTap: () => _openMedia(item),
-                                        onLongPress: () => _confirmDeleteMedia(index),
-                                        child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(8),
-                                          child: item.type == 'image'
-                                              ? Image.file(
-                                                  File(item.path),
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : Container(
-                                                  color: Colors.black87,
-                                                  child: const Center(
-                                                    child: Icon(
-                                                      Icons.play_circle_fill,
-                                                      color: Colors.white,
-                                                      size: 34,
+                                      ),
+                                    )
+                                  : GridView.builder(
+                                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
+                                      itemCount: _media.length,
+                                      gridDelegate:
+                                          SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: gridCount,
+                                            crossAxisSpacing: 4,
+                                            mainAxisSpacing: 4,
+                                          ),
+                                      itemBuilder: (context, index) {
+                                        final item = _media[index];
+                                        return GestureDetector(
+                                          onTap: () => _openMedia(item),
+                                          onLongPress: () => _confirmDeleteMedia(index),
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(8),
+                                            child: item.type == 'image'
+                                                ? Image.file(
+                                                    File(item.path),
+                                                    fit: BoxFit.cover,
+                                                  )
+                                                : Container(
+                                                    color: Colors.black87,
+                                                    child: const Center(
+                                                      child: Icon(
+                                                        Icons.play_circle_fill,
+                                                        color: Colors.white,
+                                                        size: 34,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
                           ),
                         ],
                       ),

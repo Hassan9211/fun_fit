@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
@@ -131,144 +132,196 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
         ? FileImage(File(_profileImagePath))
         : const AssetImage('assets/images/situp.jpg');
 
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBody: true,
-      floatingActionButton: SizedBox(
-        width: 42,
-        height: 42,
-        child: FloatingActionButton(
-          backgroundColor: Colors.white,
-          elevation: 2,
-          onPressed: () {},
-          child: const Icon(Icons.add, color: Colors.black, size: 20),
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: const HomeBottomNav(selected: 'Leaderboard'),
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: Colors.black,
-            padding: EdgeInsets.fromLTRB(
-              10,
-              MediaQuery.of(context).padding.top + 10,
-              10,
-              12,
-            ),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Row(
-                  children: [
-                    InkWell(
-                      onTap: _goProfile,
-                      borderRadius: BorderRadius.circular(18),
-                      child: CircleAvatar(
-                        radius: 12,
-                        backgroundImage: headerAvatar,
-                      ),
-                    ),
-                    const Expanded(
-                      child: Text(
-                        'Leaderboard',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 28),
-                  ],
-                ),
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isCompact = width < 360;
+        final isDesktop = width >= 1100;
+        final isTablet = width >= 700 && width < 1100;
+        final contentMaxWidth = isDesktop
+            ? 520.0
+            : isTablet
+            ? 460.0
+            : 420.0;
+        final sideGap = isCompact ? 20.0 : 28.0;
+        final headerTopPadding = isDesktop
+            ? 30.0
+            : isTablet
+            ? 34.0
+            : 36.0;
+        final headerBottomPadding = isDesktop
+            ? 24.0
+            : isTablet
+            ? 27.0
+            : 30.0;
+
+        return Scaffold(
+          backgroundColor: AppColors.appBackground,
+          extendBody: true,
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor: Colors.white,
+              elevation: 2,
+              onPressed: () {},
+              child: const Icon(Icons.add, color: Colors.black, size: 20),
             ),
           ),
-          Expanded(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
-                child: Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(top: 8),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                  ),
-                  child: Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            children: [
-                              _tabButton(0, 'All'),
-                              _tabButton(1, 'Men'),
-                              _tabButton(2, 'Women'),
-                            ],
+          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          bottomNavigationBar: const HomeBottomNav(selected: 'Leaderboard'),
+          body: Center(
+            child: SizedBox(
+              width: contentMaxWidth,
+              child: Column(
+                children: [
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(22),
+                      ),
+                    ),
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      headerTopPadding,
+                      16,
+                      headerBottomPadding,
+                    ),
+                    child: Row(
+                      children: [
+                        InkWell(
+                          onTap: _goProfile,
+                          borderRadius: BorderRadius.circular(18),
+                          child: CircleAvatar(
+                            radius: 15,
+                            backgroundColor: Colors.white,
+                            child: CircleAvatar(
+                              radius: 13,
+                              backgroundImage: headerAvatar,
+                            ),
                           ),
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        const Expanded(
+                          child: Text(
+                            'Leaderboard',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        SizedBox(width: sideGap),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: AnimatedReveal(
+                      delay: const Duration(milliseconds: 70),
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: const BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+                        ),
+                        child: Column(
                           children: [
-                            _TopCard(
-                              leader: top2,
-                              rank: 2,
-                              avatarRadius: 21,
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 120),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      _tabButton(0, 'All'),
+                                      _tabButton(1, 'Men'),
+                                      _tabButton(2, 'Women'),
+                                    ],
+                                  ),
+                                ),
+                              ),
                             ),
-                            _TopCard(
-                              leader: top1,
-                              rank: 1,
-                              avatarRadius: 26,
-                              isFirst: true,
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 170),
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+                                child: SizedBox(
+                                  width: double.infinity,
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.center,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        _TopCard(
+                                          leader: top2,
+                                          rank: 2,
+                                          avatarRadius: 21,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        _TopCard(
+                                          leader: top1,
+                                          rank: 1,
+                                          avatarRadius: 26,
+                                          isFirst: true,
+                                        ),
+                                        const SizedBox(width: 10),
+                                        _TopCard(
+                                          leader: top3,
+                                          rank: 3,
+                                          avatarRadius: 21,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                            _TopCard(
-                              leader: top3,
-                              rank: 3,
-                              avatarRadius: 21,
+                            Expanded(
+                              child: Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF1F3EA),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 78),
+                                  itemCount: rest.length,
+                                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                                  itemBuilder: (context, index) {
+                                    final leader = rest[index];
+                                    final rank = index + 4;
+                                    return AnimatedReveal(
+                                      delay: Duration(
+                                        milliseconds: 120 + ((index % 7) * 30),
+                                      ),
+                                      child: _RankRow(leader: leader, rank: rank),
+                                    );
+                                  },
+                                ),
+                              ),
                             ),
                           ],
                         ),
                       ),
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F3EA),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: ListView.separated(
-                            padding: const EdgeInsets.fromLTRB(8, 0, 8, 78),
-                            itemCount: rest.length,
-                            separatorBuilder: (_, _) => const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final leader = rest[index];
-                              final rank = index + 4;
-                              return _RankRow(leader: leader, rank: rank);
-                            },
-                          ),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

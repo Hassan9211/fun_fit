@@ -8,10 +8,6 @@ class PasswordResetSuccessScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args = Get.arguments;
-    final asChangePassword =
-        args is Map && args['asChangePassword'] == true;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -77,9 +73,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                   // Continue button
                   AppButton(
                     label: 'Continue',
-                    onPressed: () => Get.offAllNamed(
-                      asChangePassword ? Routes.login : Routes.home,
-                    ),
+                    onPressed: () => Get.offAllNamed(Routes.login),
                     width: double.infinity,
                     height: buttonHeight,
                     backgroundColor: Colors.black,
@@ -87,22 +81,20 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
 
-                  if (!asChangePassword) ...[
-                    SizedBox(height: height * 0.02),
+                  SizedBox(height: height * 0.02),
 
-                    // Back to Login
-                    GestureDetector(
-                      onTap: () => Get.offAllNamed(Routes.login),
-                      child: Text(
-                        'Back to Login',
-                        style: TextStyle(
-                          fontSize: textSizeDesc,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  // Back to Login
+                  GestureDetector(
+                    onTap: () => Get.offAllNamed(Routes.login),
+                    child: Text(
+                      'Back to Login',
+                      style: TextStyle(
+                        fontSize: textSizeDesc,
+                        color: Colors.black87,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
-                  ],
+                  ),
                 ],
               ),
             ),

@@ -519,8 +519,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                   borderRadius: BorderRadius.circular(22),
                                   child: CircleAvatar(
-                                    backgroundImage: avatarImage,
-                                    radius: isDesktop ? 20 : 18,
+                                    radius: (isDesktop ? 20 : 18) + 1.5,
+                                    backgroundColor: Colors.white,
+                                    child: CircleAvatar(
+                                      backgroundImage: avatarImage,
+                                      radius: isDesktop ? 20 : 18,
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),

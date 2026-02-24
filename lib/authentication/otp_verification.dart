@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api_service.dart';
 import '../widget/app_button.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class _OtpScreenState extends State<OtpScreen> {
     4,
     (_) => TextEditingController(),
   );
+  final AuthApiService _authApi = AuthApiService();
   bool _isVerifying = false;
 
   @override
@@ -52,10 +55,8 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _verifyOtp() async {
-    final otp = _controllers.map((e) => e.text).join();
-
-    final requiresCompleteOtp = widget.purpose != OtpPurpose.forgotPassword;
-    if (requiresCompleteOtp && otp.length != 4) {
+    final otp = _controllers.map((e) => e.text.trim()).join();
+    if (otp.length != 4 || !RegExp(r'^\d{4}$').hasMatch(otp)) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Enter complete OTP')));
@@ -63,8 +64,44 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     setState(() => _isVerifying = true);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final args = Get.arguments;
+    String email = '';
+    if (args is Map) {
+      email = (args['email'] ?? '').toString().trim();
+    }
+    if (email.isEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      email = (prefs.getString('auth_email') ?? '').trim();
+    }
+    if (email.isEmpty) {
+      if (!mounted) return;
+      setState(() => _isVerifying = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Session expired. Please try again.')),
+      );
+      return;
+    }
+
+    final purposeValue = switch (widget.purpose) {
+      OtpPurpose.signup => 'signup',
+      OtpPurpose.forgotPassword => 'forgotPassword',
+      OtpPurpose.signin => 'signin',
+    };
+    final result = await _authApi.verifyOtp(
+      email: email,
+      otp: otp,
+      purpose: purposeValue,
+    );
     if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => _isVerifying = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
     setState(() => _isVerifying = false);
 
     switch (widget.purpose) {

@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api_service.dart';
 import '../widget/app_button.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -15,6 +17,7 @@ class ForgotPasswordScreen extends StatefulWidget {
 class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
+  final AuthApiService _authApi = AuthApiService();
   bool _isSubmitting = false;
 
   @override
@@ -27,15 +30,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final args = Get.arguments;
     final asChangePassword = args is Map && args['asChangePassword'] == true;
     if (!_formKey.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
 
     setState(() => _isSubmitting = true);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
+    final email = emailController.text.trim();
+    final result = await _authApi.requestOtp(
+      email: email,
+      purpose: 'forgotPassword',
+    );
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('auth_email', email);
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 
     Get.toNamed(
       Routes.otpForgotPassword,
-      arguments: {'asChangePassword': asChangePassword},
+      arguments: {'asChangePassword': asChangePassword, 'email': email},
     );
   }
 

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/auth_api_service.dart';
 import '../widget/app_button.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -23,6 +24,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscureConfirmPassword = true;
 
   final _formKey = GlobalKey<FormState>();
+  final AuthApiService _authApi = AuthApiService();
 
   final TextEditingController fullNameController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
@@ -49,14 +51,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
       return;
     }
+    if (selectedCountry == null) return;
 
+    FocusScope.of(context).unfocus();
     setState(() => _isSubmitting = true);
 
+    final email = emailController.text.trim();
+    final result = await _authApi.signup(
+      fullName: fullNameController.text.trim(),
+      email: email,
+      password: passwordController.text,
+      phoneNumber: phoneController.text.trim(),
+      countryCode: selectedCountry!.countryCode,
+      countryPhoneCode: selectedCountry!.phoneCode,
+    );
+    if (!mounted) return;
+
+    if (!result.success) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_email', emailController.text.trim());
+    await prefs.setString('auth_email', email);
     if (!mounted) return;
     setState(() => _isSubmitting = false);
-    Get.toNamed(Routes.otpSignup);
+    Get.toNamed(Routes.otpSignup, arguments: {'email': email});
   }
 
   InputDecoration _loginStyleDecoration({
@@ -115,7 +138,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return Scaffold(
           backgroundColor: Colors.white,
           appBar: AppBar(
-            title: const Text('Sign up', style: TextStyle(color: Colors.black87)),
+            title: const Text(
+              'Sign up',
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             centerTitle: true,
             automaticallyImplyLeading: false,
             backgroundColor: Colors.white,
