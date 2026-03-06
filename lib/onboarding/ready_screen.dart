@@ -6,8 +6,17 @@ import '../widget/app_button.dart';
 class AreYouReadyScreen extends StatelessWidget {
   const AreYouReadyScreen({super.key});
 
+  Map<String, dynamic> _readArgs() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final onboardingData = _readArgs();
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -58,7 +67,8 @@ class AreYouReadyScreen extends StatelessWidget {
                   /// Button
                   AppButton(
                     label: "I'm Ready",
-                    onPressed: () => Get.toNamed(Routes.gender),
+                    onPressed: () =>
+                        Get.toNamed(Routes.gender, arguments: onboardingData),
                     width: double.infinity,
                     height: buttonHeight,
                     backgroundColor: Colors.black,

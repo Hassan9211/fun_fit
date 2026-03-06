@@ -1,9 +1,11 @@
+import 'package:fun_fit/authentication/change_password_screen.dart';
 import 'package:get/get.dart';
 import 'package:fun_fit/authentication/forgot_password_screen.dart';
 import 'package:fun_fit/authentication/login_screen.dart';
 import 'package:fun_fit/authentication/login_success.dart';
-import 'package:fun_fit/authentication/otp_verification.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
+import 'package:fun_fit/authentication/otp_verification.dart';
+import 'package:fun_fit/home/profile_screen.dart';
 import 'package:fun_fit/onboarding/age_selection_screen.dart';
 import 'package:fun_fit/onboarding/fitness_lvl.dart';
 import 'package:fun_fit/onboarding/gender_selection.dart';
@@ -11,11 +13,10 @@ import 'package:fun_fit/onboarding/goal_screen.dart';
 import 'package:fun_fit/onboarding/height_measure.dart';
 import 'package:fun_fit/onboarding/ready_screen.dart';
 import 'package:fun_fit/onboarding/waight_measure.dart';
-import 'package:fun_fit/home/profile_screen.dart';
-import 'package:fun_fit/settings/help_screen.dart';
 import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
+import 'package:fun_fit/settings/help_screen.dart';
 import 'package:fun_fit/widget/app_shell_screen.dart';
 
 class Routes {
@@ -23,6 +24,7 @@ class Routes {
   static const String signup = '/signup';
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
+  static const String changePassword = '/change-password';
   static const String otpSignup = '/otp-signup';
   static const String otpForgotPassword = '/otp-forgot-password';
   static const String otpSignin = '/otp-signin';
@@ -49,7 +51,8 @@ class Routes {
     GetPage(name: signup, page: () => const SignUpScreen()),
     GetPage(name: login, page: () => const LoginScreen()),
     GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
-    // We reuse OtpScreen but differentiate by route name + purpose
+    GetPage(name: changePassword, page: () => const ChangePasswordScreen()),
+    // Reuse OtpScreen while varying route name and purpose.
     GetPage(
       name: otpSignup,
       page: () => const OtpScreen(purpose: OtpPurpose.signup),
@@ -77,12 +80,21 @@ class Routes {
     GetPage(name: age, page: () => const AgeSelectionScreen()),
     GetPage(name: height, page: () => const HeightSelectionScreen()),
     GetPage(name: weight, page: () => const WeightSelectionScreen()),
-    // Home route placeholder – you can point it to your real home screen later
+    // App shell entry points by tab index.
     GetPage(name: home, page: () => const AppShellScreen(initialIndex: 0)),
-    GetPage(name: foodLogging, page: () => const AppShellScreen(initialIndex: 1)),
-    GetPage(name: challenges, page: () => const AppShellScreen(initialIndex: 2)),
+    GetPage(
+      name: foodLogging,
+      page: () => const AppShellScreen(initialIndex: 1),
+    ),
+    GetPage(
+      name: challenges,
+      page: () => const AppShellScreen(initialIndex: 2),
+    ),
     GetPage(name: profile, page: () => const ProfileScreen()),
-    GetPage(name: leaderboard, page: () => const AppShellScreen(initialIndex: 3)),
+    GetPage(
+      name: leaderboard,
+      page: () => const AppShellScreen(initialIndex: 3),
+    ),
     GetPage(name: guides, page: () => const AppShellScreen(initialIndex: 4)),
     GetPage(name: settings, page: () => const AppShellScreen(initialIndex: 5)),
     GetPage(name: help, page: () => const HelpScreen()),

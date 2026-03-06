@@ -7,9 +7,14 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/profile_avatar_resolver.dart';
+import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
+import '../widget/file_video_preview.dart';
 import '../widget/home_bottom_nav.dart';
+
+enum _ProfileVisibilityTab { publicItems, privateItems }
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -41,6 +46,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _profileImagePath = '';
   int _followers = 0;
   List<_ProfileMediaItem> _media = <_ProfileMediaItem>[];
+  _ProfileVisibilityTab _selectedVisibilityTab =
+      _ProfileVisibilityTab.publicItems;
 
   @override
   void initState() {
@@ -88,11 +95,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final prefs = await SharedPreferences.getInstance();
     final encoded = _media.map((e) => jsonEncode(e.toStorageMap())).toList();
     await prefs.setStringList(_kProfileMedia, encoded);
+    ProfileSyncService.notifyChanged();
   }
 
   Future<void> _saveProfileImagePath(String path) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_kProfileImagePath, path);
+    ProfileSyncService.notifyChanged();
   }
 
   String get _displayName => _name.isEmpty ? _defaultName : _name;
@@ -101,6 +110,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final value = _username.isNotEmpty ? _username : _usernameFromName(_displayName);
     return value.startsWith('@') ? value : '@$value';
   }
+
+  List<_ProfileMediaItem> get _visibleMedia => _media
+      .where(
+        (item) => _selectedVisibilityTab == _ProfileVisibilityTab.publicItems
+            ? item.visibility == _ProfileMediaVisibility.public
+            : item.visibility == _ProfileMediaVisibility.private,
+      )
+      .toList(growable: false);
 
   String _usernameFromName(String name) =>
       name.trim().toLowerCase().replaceAll(' ', '_');
@@ -166,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         : await _picker.pickImage(source: ImageSource.camera);
     if (file == null || !mounted) return;
 
-    final item = _ProfileMediaItem(
+    final draft = _ProfileMediaItem(
       path: file.path,
       type: isVideo ? 'video' : 'image',
       likes: 0,
@@ -177,9 +194,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isDisliked: false,
       uploaderName: _displayName,
       uploaderUsername: _displayUsername,
+      visibility: _ProfileMediaVisibility.public,
     );
 
-    setState(() => _media.insert(0, item));
+    final reviewed = await Navigator.of(context).push<_ProfileMediaItem>(
+      MaterialPageRoute(
+        builder: (_) => _CapturedMediaReviewScreen(item: draft),
+      ),
+    );
+    if (reviewed == null || !mounted) return;
+
+    setState(() {
+      _media.insert(0, reviewed);
+      _selectedVisibilityTab =
+          reviewed.visibility == _ProfileMediaVisibility.private
+              ? _ProfileVisibilityTab.privateItems
+              : _ProfileVisibilityTab.publicItems;
+    });
     await _saveMedia();
   }
 
@@ -237,6 +268,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 minScale: 0.8,
                 maxScale: 4,
                 child: Image.file(file, fit: BoxFit.contain),
+              ),
+              Positioned(
+                left: 12,
+                top: 12,
+                child: _VisibilityBadge(visibility: item.visibility),
               ),
               Positioned(
                 right: 8,
@@ -361,6 +397,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.setString(_kProfileUsername, result['username'] ?? '');
     await prefs.setString(_kProfileBio, result['bio'] ?? '');
     await prefs.setString(_kProfileSocial, result['social'] ?? '');
+    ProfileSyncService.notifyChanged();
 
     if (!mounted) return;
     setState(() {
@@ -375,9 +412,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final posts = _media.length;
     final likes = _media.fold<int>(0, (sum, item) => sum + item.likes);
-    final ImageProvider avatar = _profileImagePath.isNotEmpty
-        ? FileImage(File(_profileImagePath))
-        : const NetworkImage(_defaultImageUrl);
+    final visibleMedia = _visibleMedia;
+    final ImageProvider avatar = ProfileAvatarResolver.resolve(
+      _profileImagePath,
+      fallback: const NetworkImage(_defaultImageUrl),
+    );
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -547,16 +586,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: AppColors.borderLightFor(context),
                                   height: 1,
                                 ),
+                                const SizedBox(height: 12),
+                                _VisibilityTabs(
+                                  selected: _selectedVisibilityTab,
+                                  onChanged: (tab) =>
+                                      setState(() => _selectedVisibilityTab = tab),
+                                ),
                               ],
                             ),
                           ),
                           Expanded(
                             child: AnimatedReveal(
                               delay: const Duration(milliseconds: 140),
-                              child: _media.isEmpty
+                              child: visibleMedia.isEmpty
                                   ? Center(
                                       child: Text(
-                                        'No captured media yet.\nTap + to shoot photo/video.',
+                                        _selectedVisibilityTab ==
+                                                _ProfileVisibilityTab.publicItems
+                                            ? 'No public media yet.\nTap + to shoot photo/video.'
+                                            : 'No private media yet.\nTap + to shoot photo/video.',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
                                           color: AppColors.textSecondaryFor(context),
@@ -566,7 +614,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     )
                                   : GridView.builder(
                                       padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
-                                      itemCount: _media.length,
+                                      itemCount: visibleMedia.length,
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
                                             crossAxisCount: gridCount,
@@ -574,27 +622,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                             mainAxisSpacing: 4,
                                           ),
                                       itemBuilder: (context, index) {
-                                        final item = _media[index];
+                                        final item = visibleMedia[index];
                                         return GestureDetector(
                                           onTap: () => _openMedia(item),
-                                          onLongPress: () => _confirmDeleteMedia(index),
+                                          onLongPress: () {
+                                            final mediaIndex = _media.indexOf(item);
+                                            if (mediaIndex < 0) return;
+                                            _confirmDeleteMedia(mediaIndex);
+                                          },
                                           child: ClipRRect(
                                             borderRadius: BorderRadius.circular(8),
-                                            child: item.type == 'image'
-                                                ? Image.file(
-                                                    File(item.path),
-                                                    fit: BoxFit.cover,
-                                                  )
-                                                : Container(
-                                                    color: Colors.black87,
-                                                    child: const Center(
-                                                      child: Icon(
-                                                        Icons.play_circle_fill,
-                                                        color: Colors.white,
-                                                        size: 34,
+                                            child: Stack(
+                                              fit: StackFit.expand,
+                                              children: [
+                                                item.type == 'image'
+                                                    ? Image.file(
+                                                        File(item.path),
+                                                        fit: BoxFit.cover,
+                                                      )
+                                                    : FileVideoPreview(
+                                                        path: item.path,
+                                                        fit: BoxFit.cover,
+                                                        playIconSize: 26,
                                                       ),
-                                                    ),
+                                                Positioned(
+                                                  left: 6,
+                                                  bottom: 6,
+                                                  child: _VisibilityBadge(
+                                                    visibility: item.visibility,
                                                   ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         );
                                       },
@@ -642,6 +701,131 @@ class _ProfileInput extends StatelessWidget {
   }
 }
 
+class _VisibilityTabs extends StatelessWidget {
+  final _ProfileVisibilityTab selected;
+  final ValueChanged<_ProfileVisibilityTab> onChanged;
+
+  const _VisibilityTabs({
+    required this.selected,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: AppColors.surface(context),
+        border: Border.all(color: AppColors.borderLightFor(context)),
+        borderRadius: BorderRadius.circular(10),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          _VisibilityTabButton(
+            title: 'Public',
+            selected: selected == _ProfileVisibilityTab.publicItems,
+            onTap: () => onChanged(_ProfileVisibilityTab.publicItems),
+          ),
+          _VisibilityTabButton(
+            title: 'Private',
+            selected: selected == _ProfileVisibilityTab.privateItems,
+            onTap: () => onChanged(_ProfileVisibilityTab.privateItems),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VisibilityTabButton extends StatelessWidget {
+  final String title;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _VisibilityTabButton({
+    required this.title,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: selected
+                ? (isDark ? Colors.white : Colors.black)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: selected
+                  ? (isDark ? Colors.black : Colors.white)
+                  : AppColors.textPrimaryFor(context),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VisibilityBadge extends StatelessWidget {
+  final String visibility;
+
+  const _VisibilityBadge({required this.visibility});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPrivate = visibility == _ProfileMediaVisibility.private;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: isPrivate
+            ? const Color(0xCC7C2D12)
+            : const Color(0xCC166534),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isPrivate ? 'Private' : 'Public',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+abstract class _ProfileMediaVisibility {
+  static const String public = 'public';
+  static const String private = 'private';
+
+  static String normalize(String value) {
+    return value == private ? private : public;
+  }
+}
+
 class _ProfileMediaItem {
   final String path;
   final String type;
@@ -653,6 +837,7 @@ class _ProfileMediaItem {
   final bool isDisliked;
   final String uploaderName;
   final String uploaderUsername;
+  final String visibility;
 
   const _ProfileMediaItem({
     required this.path,
@@ -665,6 +850,7 @@ class _ProfileMediaItem {
     required this.isDisliked,
     required this.uploaderName,
     required this.uploaderUsername,
+    required this.visibility,
   });
 
   factory _ProfileMediaItem.fromStorage(Map<String, dynamic> json) {
@@ -679,6 +865,9 @@ class _ProfileMediaItem {
       isDisliked: (json['is_disliked'] as bool?) ?? false,
       uploaderName: (json['uploader_name'] ?? '').toString(),
       uploaderUsername: (json['uploader_username'] ?? '').toString(),
+      visibility: _ProfileMediaVisibility.normalize(
+        (json['visibility'] ?? '').toString(),
+      ),
     );
   }
 
@@ -694,6 +883,7 @@ class _ProfileMediaItem {
       'is_disliked': isDisliked,
       'uploader_name': uploaderName,
       'uploader_username': uploaderUsername,
+      'visibility': visibility,
     };
   }
 
@@ -708,6 +898,7 @@ class _ProfileMediaItem {
     bool? isDisliked,
     String? uploaderName,
     String? uploaderUsername,
+    String? visibility,
   }) {
     return _ProfileMediaItem(
       path: path ?? this.path,
@@ -720,6 +911,231 @@ class _ProfileMediaItem {
       isDisliked: isDisliked ?? this.isDisliked,
       uploaderName: uploaderName ?? this.uploaderName,
       uploaderUsername: uploaderUsername ?? this.uploaderUsername,
+      visibility:
+          _ProfileMediaVisibility.normalize(visibility ?? this.visibility),
+    );
+  }
+}
+
+class _CapturedMediaReviewScreen extends StatefulWidget {
+  final _ProfileMediaItem item;
+
+  const _CapturedMediaReviewScreen({required this.item});
+
+  @override
+  State<_CapturedMediaReviewScreen> createState() =>
+      _CapturedMediaReviewScreenState();
+}
+
+class _CapturedMediaReviewScreenState extends State<_CapturedMediaReviewScreen> {
+  VideoPlayerController? _controller;
+  late _ProfileMediaItem _item;
+  bool _loadingVideo = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _item = widget.item;
+    if (_item.type == 'video') {
+      _initVideo();
+    }
+  }
+
+  Future<void> _initVideo() async {
+    final controller = VideoPlayerController.file(File(_item.path));
+    setState(() => _loadingVideo = true);
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _controller = controller;
+        _loadingVideo = false;
+      });
+    } catch (_) {
+      await controller.dispose();
+      if (!mounted) return;
+      setState(() => _loadingVideo = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayback() {
+    final controller = _controller;
+    if (controller == null) return;
+    if (controller.value.isPlaying) {
+      controller.pause();
+    } else {
+      controller.play();
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    final selectedTab = _item.visibility == _ProfileMediaVisibility.private
+        ? _ProfileVisibilityTab.privateItems
+        : _ProfileVisibilityTab.publicItems;
+
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        title: Text(
+          'Review Upload',
+          style: TextStyle(
+            color: AppColors.textTitleFor(context),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: Container(
+                        color: isDark
+                            ? const Color(0xFF111111)
+                            : const Color(0xFFF2F2F2),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            if (_item.type == 'image')
+                              Image.file(
+                                File(_item.path),
+                                fit: BoxFit.contain,
+                              )
+                            else if (_controller != null &&
+                                _controller!.value.isInitialized)
+                              GestureDetector(
+                                onTap: _togglePlayback,
+                                child: FittedBox(
+                                  fit: BoxFit.contain,
+                                  child: SizedBox(
+                                    width: _controller!.value.size.width,
+                                    height: _controller!.value.size.height,
+                                    child: VideoPlayer(_controller!),
+                                  ),
+                                ),
+                              )
+                            else if (_loadingVideo)
+                              const Center(child: CircularProgressIndicator())
+                            else
+                              Center(
+                                child: Text(
+                                  'Unable to preview video',
+                                  style: TextStyle(
+                                    color: AppColors.textSecondaryFor(context),
+                                  ),
+                                ),
+                              ),
+                            Positioned(
+                              left: 12,
+                              top: 12,
+                              child: _VisibilityBadge(visibility: _item.visibility),
+                            ),
+                            if (_item.type == 'video' && _controller != null)
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: Container(
+                                  width: 42,
+                                  height: 42,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.6),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: IconButton(
+                                    padding: EdgeInsets.zero,
+                                    onPressed: _togglePlayback,
+                                    icon: Icon(
+                                      _controller!.value.isPlaying
+                                          ? Icons.pause_rounded
+                                          : Icons.play_arrow_rounded,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Who can see this media?',
+                    style: TextStyle(
+                      color: AppColors.textTitleFor(context),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Select visibility before uploading this photo or video.',
+                    style: TextStyle(
+                      color: AppColors.textSecondaryFor(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _VisibilityTabs(
+                    selected: selectedTab,
+                    onChanged: (tab) {
+                      setState(() {
+                        _item = _item.copyWith(
+                          visibility: tab == _ProfileVisibilityTab.privateItems
+                              ? _ProfileMediaVisibility.private
+                              : _ProfileMediaVisibility.public,
+                        );
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).pop(_item),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.file_upload_outlined),
+                      label: const Text(
+                        'Upload',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -968,6 +1384,8 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _VisibilityBadge(visibility: _item.visibility),
+                  const SizedBox(height: 8),
                   Text(
                     _item.uploaderName,
                     style: const TextStyle(

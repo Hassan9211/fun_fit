@@ -3,6 +3,8 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../widget/app_button.dart';
 
 class WeightSelectionScreen extends StatefulWidget {
@@ -15,8 +17,53 @@ class WeightSelectionScreen extends StatefulWidget {
 class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
   double selectedWeightKg = 57;
   bool isKgSelected = false;
+  bool _isSaving = false;
+  final AuthApiService _authApi = AuthApiService();
 
   double get selectedWeightLb => selectedWeightKg * 2.20462;
+
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
+  Future<void> _submitOnboarding() async {
+    setState(() => _isSaving = true);
+
+    final onboardingData = _readOnboardingData();
+    onboardingData['weightKg'] = double.parse(
+      selectedWeightKg.toStringAsFixed(1),
+    );
+    onboardingData['weightLb'] = double.parse(
+      selectedWeightLb.toStringAsFixed(1),
+    );
+    onboardingData['weightUnit'] = isKgSelected ? 'kg' : 'lb';
+
+    final email = (onboardingData['email'] ?? '').toString().trim();
+    var token = (onboardingData['authToken'] ?? '').toString().trim();
+    if (token.isEmpty) {
+      token = await AuthSessionStorage.readToken();
+    }
+    final result = await _authApi.saveOnboardingProfile(
+      onboardingData: onboardingData,
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    if (!mounted) return;
+
+    setState(() => _isSaving = false);
+    if (!result.success) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
+      return;
+    }
+
+    Get.offAllNamed(Routes.home);
+  }
 
   Future<void> _showWeightInputDialog() async {
     final currentValue = isKgSelected
@@ -169,8 +216,8 @@ class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
                       child: AppButton(
-                        label: 'Next',
-                        onPressed: () => Get.toNamed(Routes.home),
+                        label: _isSaving ? 'Please wait...' : 'Next',
+                        onPressed: _isSaving ? null : _submitOnboarding,
                         width: double.infinity,
                         height: 48,
                         backgroundColor: Colors.black,

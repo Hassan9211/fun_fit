@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,11 +7,13 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/profile_avatar_resolver.dart';
+import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
-import '../widget/getx.dart';
-import '../widget/app_shell_controller.dart';
+import '../widget/app_section_header.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/getx.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -21,7 +25,9 @@ class ChallengesScreen extends StatelessWidget {
 }
 
 enum _ChallengesTab { publicPosts, myPosts }
+
 enum _Reaction { none, like, dislike }
+
 enum _MediaType { none, image, video }
 
 class _ChallengesFeed extends StatefulWidget {
@@ -94,7 +100,14 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   @override
   void initState() {
     super.initState();
+    ProfileSyncService.changes.addListener(_loadProfileData);
     _loadProfileData();
+  }
+
+  @override
+  void dispose() {
+    ProfileSyncService.changes.removeListener(_loadProfileData);
+    super.dispose();
   }
 
   String get _profileDisplayName {
@@ -127,13 +140,9 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     });
   }
 
-  void _handleBack() {
-    final shellController = AppShellController.maybeFind();
-    if (shellController != null) {
-      shellController.setIndex(0);
-      return;
-    }
-    Get.offNamed(Routes.home);
+  Future<void> _openProfile() async {
+    await Get.toNamed(Routes.profile);
+    await _loadProfileData();
   }
 
   void _updatePostById(
@@ -169,10 +178,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     setState(() {
       _updatePostById(
         id,
-        (oldPost) => oldPost.copyWith(
-          likes: likes,
-          reaction: nextReaction,
-        ),
+        (oldPost) => oldPost.copyWith(likes: likes, reaction: nextReaction),
       );
     });
   }
@@ -194,10 +200,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     setState(() {
       _updatePostById(
         id,
-        (oldPost) => oldPost.copyWith(
-          likes: likes,
-          reaction: nextReaction,
-        ),
+        (oldPost) => oldPost.copyWith(likes: likes, reaction: nextReaction),
       );
     });
   }
@@ -246,15 +249,15 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       author: _profileDisplayName,
       minutesAgo: 0,
       text: text,
-      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
     );
 
     setState(() {
       _updatePostById(
         id,
-        (post) => post.copyWith(
-          replies: <_PostReply>[...post.replies, reply],
-        ),
+        (post) => post.copyWith(replies: <_PostReply>[...post.replies, reply]),
       );
     });
   }
@@ -269,7 +272,9 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: _profileDisplayName,
       minutesAgo: 0,
-      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
       title: draft.name,
       category: draft.category,
       fitnessLevel: draft.fitnessLevel,
@@ -292,7 +297,6 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isCompact = width < 360;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
         final contentMaxWidth = isDesktop
@@ -300,59 +304,53 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
             : isTablet
             ? 460.0
             : 400.0;
-        final headerTopPadding = isDesktop
-            ? 30.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final headerBottomPadding = isDesktop
-            ? 24.0
-            : isTablet
-            ? 27.0
-            : 30.0;
-        final cardMargin = isCompact ? 6.0 : 8.0;
-
+        final colorScheme = Theme.of(context).colorScheme;
+        final isDark = AppColors.isDark(context);
+        final panelColor = isDark
+            ? const Color(0xFF171717)
+            : const Color(0xFFF2F2F2);
+        final avatarProvider = ProfileAvatarResolver.resolve(
+          _profileImagePath,
+          fallback: const AssetImage('assets/images/alina.jpg'),
+        );
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: const Color(0xFF080808),
+          extendBody: true,
           floatingActionButton: SizedBox(
             width: 42,
             height: 42,
             child: FloatingActionButton(
-              backgroundColor: Colors.black,
+              backgroundColor: Colors.white,
               elevation: 2,
               onPressed: _openAddChallenge,
-              child: const Icon(Icons.add, color: Colors.white, size: 20),
+              child: const Icon(Icons.add, color: Colors.black, size: 20),
             ),
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
           body: SafeArea(
-            top: false,
             bottom: false,
             child: Center(
-              child: SizedBox(
-                width: contentMaxWidth,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
                 child: Column(
                   children: [
-                    _PageHeader(
+                    AppSectionHeader(
                       title: 'Challenges',
-                      onBack: _handleBack,
-                      topPadding: headerTopPadding,
-                      bottomPadding: headerBottomPadding,
+                      avatarProvider: avatarProvider,
+                      onTapProfile: _openProfile,
+                      showAvatar: false,
                     ),
                     Expanded(
                       child: AnimatedReveal(
                         delay: const Duration(milliseconds: 70),
                         child: Container(
-                          margin: EdgeInsets.fromLTRB(
-                            cardMargin,
-                            cardMargin,
-                            cardMargin,
-                            10,
-                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            color: panelColor,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(14),
+                            ),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Column(
@@ -360,18 +358,29 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
                               AnimatedReveal(
                                 delay: const Duration(milliseconds: 120),
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    12,
+                                    12,
+                                    8,
+                                  ),
                                   child: Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                                      color: AppColors.surface(context),
+                                      border: Border.all(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
                                       borderRadius: BorderRadius.circular(9),
-                                      boxShadow: const [
+                                      boxShadow: [
                                         BoxShadow(
-                                          color: Color(0x14000000),
+                                          color: Colors.black.withValues(
+                                            alpha: isDark ? 0.24 : 0.08,
+                                          ),
                                           blurRadius: 8,
-                                          offset: Offset(0, 2),
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
@@ -379,16 +388,22 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
                                       children: [
                                         _tabButton(
                                           title: 'Public',
-                                          selected: _selectedTab == _ChallengesTab.publicPosts,
+                                          selected:
+                                              _selectedTab ==
+                                              _ChallengesTab.publicPosts,
                                           onTap: () => setState(
-                                            () => _selectedTab = _ChallengesTab.publicPosts,
+                                            () => _selectedTab =
+                                                _ChallengesTab.publicPosts,
                                           ),
                                         ),
                                         _tabButton(
                                           title: 'My Post',
-                                          selected: _selectedTab == _ChallengesTab.myPosts,
+                                          selected:
+                                              _selectedTab ==
+                                              _ChallengesTab.myPosts,
                                           onTap: () => setState(
-                                            () => _selectedTab = _ChallengesTab.myPosts,
+                                            () => _selectedTab =
+                                                _ChallengesTab.myPosts,
                                           ),
                                         ),
                                       ],
@@ -400,16 +415,24 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
                                 child: Stack(
                                   children: [
                                     ListView.separated(
-                                      padding: const EdgeInsets.fromLTRB(12, 6, 12, 92),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        6,
+                                        12,
+                                        92,
+                                      ),
                                       itemCount: _visiblePosts.length,
-                                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                                      separatorBuilder: (_, _) =>
+                                          const SizedBox(height: 12),
                                       itemBuilder: (context, index) {
                                         final post = _visiblePosts[index];
                                         final isPublic =
-                                            _selectedTab == _ChallengesTab.publicPosts;
+                                            _selectedTab ==
+                                            _ChallengesTab.publicPosts;
                                         return AnimatedReveal(
                                           delay: Duration(
-                                            milliseconds: 130 + ((index % 8) * 32),
+                                            milliseconds:
+                                                130 + ((index % 8) * 32),
                                           ),
                                           child: _ChallengePostTile(
                                             post: post,
@@ -419,8 +442,10 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
                                             onDislike: isPublic
                                                 ? () => _toggleDislike(post.id)
                                                 : null,
-                                            onReply: () => _openReplyDialog(post.id),
-                                            onAccept: () => _toggleAccept(post.id),
+                                            onReply: () =>
+                                                _openReplyDialog(post.id),
+                                            onAccept: () =>
+                                                _toggleAccept(post.id),
                                           ),
                                         );
                                       },
@@ -448,6 +473,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     required bool selected,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -455,13 +481,15 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
           height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? Colors.black : Colors.transparent,
+            color: selected ? colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             title,
             style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF4B5563),
+              color: selected
+                  ? colorScheme.onPrimary
+                  : AppColors.textSecondaryFor(context),
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -574,7 +602,9 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
         const SnackBar(content: Text('Camera access failed.')),
       );
     }
@@ -595,7 +625,9 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
       });
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(
         const SnackBar(content: Text('Gallery access failed.')),
       );
     }
@@ -632,21 +664,24 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
+  InputDecoration _inputDecoration(BuildContext context, String hint) {
+    final colorScheme = Theme.of(context).colorScheme;
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
-        color: AppColors.textMuted,
+      hintStyle: TextStyle(
+        color: AppColors.textMutedFor(context),
         fontSize: 13,
       ),
+      filled: true,
+      fillColor: AppColors.surfaceMuted(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(7),
-        borderSide: const BorderSide(color: AppColors.borderLight),
+        borderSide: BorderSide(color: AppColors.borderLightFor(context)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(7),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.1),
+        borderSide: BorderSide(color: colorScheme.primary, width: 1.1),
       ),
     );
   }
@@ -676,8 +711,9 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
             : 30.0;
         final cardMargin = isCompact ? 6.0 : 8.0;
 
+        final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: SafeArea(
             top: false,
             bottom: false,
@@ -703,7 +739,7 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                             10,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: AppColors.surface(context),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: SingleChildScrollView(
@@ -715,18 +751,27 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                                 children: [
                                   TextField(
                                     controller: _nameController,
-                                    decoration: _inputDecoration('Challenge Name'),
+                                    decoration: _inputDecoration(
+                                      context,
+                                      'Challenge Name',
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   TextField(
                                     controller: _timeController,
-                                    decoration: _inputDecoration('Time'),
+                                    decoration: _inputDecoration(
+                                      context,
+                                      'Time',
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   DropdownButtonFormField<String>(
                                     initialValue: _selectedCategory,
                                     icon: const Icon(Icons.keyboard_arrow_down),
-                                    decoration: _inputDecoration('Select Category'),
+                                    decoration: _inputDecoration(
+                                      context,
+                                      'Select Category',
+                                    ),
                                     items: _categories
                                         .map(
                                           (value) => DropdownMenuItem<String>(
@@ -745,7 +790,10 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                                   DropdownButtonFormField<String>(
                                     initialValue: _selectedFitnessLevel,
                                     icon: const Icon(Icons.keyboard_arrow_down),
-                                    decoration: _inputDecoration('Fitness Level'),
+                                    decoration: _inputDecoration(
+                                      context,
+                                      'Fitness Level',
+                                    ),
                                     items: _fitnessLevels
                                         .map(
                                           (value) => DropdownMenuItem<String>(
@@ -764,31 +812,47 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                                   OutlinedButton.icon(
                                     onPressed: _pickMedia,
                                     style: OutlinedButton.styleFrom(
-                                      foregroundColor: AppColors.textSecondary,
-                                      side: const BorderSide(color: AppColors.borderLight),
-                                      minimumSize: const Size(double.infinity, 50),
+                                      foregroundColor:
+                                          AppColors.textSecondaryFor(context),
+                                      side: BorderSide(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
+                                      minimumSize: const Size(
+                                        double.infinity,
+                                        50,
+                                      ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(7),
                                       ),
                                     ),
-                                    icon: const Icon(Icons.file_upload_outlined, size: 18),
+                                    icon: const Icon(
+                                      Icons.file_upload_outlined,
+                                      size: 18,
+                                    ),
                                     label: Text(
                                       _selectedMediaPath.isEmpty
                                           ? 'Upload Image / Video'
-                                          : (_selectedMediaType == _MediaType.video
-                                              ? 'Video Selected'
-                                              : 'Image Selected'),
+                                          : (_selectedMediaType ==
+                                                    _MediaType.video
+                                                ? 'Video Selected'
+                                                : 'Image Selected'),
                                     ),
                                   ),
                                   if (_selectedMediaPath.isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Text(
-                                      _selectedMediaPath.split(RegExp(r'[\\/]')).last,
+                                      _selectedMediaPath
+                                          .split(RegExp(r'[\\/]'))
+                                          .last,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 11,
-                                        color: AppColors.textSecondary,
+                                        color: AppColors.textSecondaryFor(
+                                          context,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -796,7 +860,10 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                                   TextField(
                                     controller: _descriptionController,
                                     maxLines: 4,
-                                    decoration: _inputDecoration('Discription'),
+                                    decoration: _inputDecoration(
+                                      context,
+                                      'Discription',
+                                    ),
                                   ),
                                   const SizedBox(height: 14),
                                   SizedBox(
@@ -804,10 +871,12 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
                                     child: ElevatedButton(
                                       onPressed: _submit,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: AppColors.primary,
-                                        foregroundColor: Colors.white,
+                                        backgroundColor: colorScheme.primary,
+                                        foregroundColor: colorScheme.onPrimary,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(6),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
                                         ),
                                       ),
                                       child: const Text(
@@ -857,9 +926,7 @@ class _PageHeader extends StatelessWidget {
       width: double.infinity,
       decoration: const BoxDecoration(
         color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(
-          bottom: Radius.circular(22),
-        ),
+        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: Padding(
         padding: EdgeInsets.fromLTRB(16, topPadding, 16, bottomPadding),
@@ -868,13 +935,13 @@ class _PageHeader extends StatelessWidget {
             InkWell(
               onTap: onBack,
               borderRadius: BorderRadius.circular(18),
-              child: const CircleAvatar(
+              child: CircleAvatar(
                 radius: 14,
-                backgroundColor: Colors.white,
+                backgroundColor: AppColors.surface(context),
                 child: Icon(
                   Icons.arrow_back_ios_new,
                   size: 14,
-                  color: Colors.black87,
+                  color: AppColors.textPrimaryFor(context),
                 ),
               ),
             ),
@@ -917,11 +984,10 @@ class _ChallengePostTile extends StatelessWidget {
     final initials = post.author.trim().isEmpty ? 'U' : post.author[0];
     final timeText = post.minutesAgo == 0 ? 'now' : '${post.minutesAgo} min';
     final likeLabel = post.likes == 1 ? '1 Like' : '${post.likes} Likes';
-    final filePath = post.avatarFilePath?.trim() ?? '';
-    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
-    final ImageProvider? avatarImage = hasLocalAvatar
-        ? FileImage(File(filePath))
-        : (post.avatarAsset != null ? AssetImage(post.avatarAsset!) : null);
+    final colorScheme = Theme.of(context).colorScheme;
+    final ImageProvider? avatarImage =
+        ProfileAvatarResolver.resolveNullable(post.avatarFilePath) ??
+        (post.avatarAsset != null ? AssetImage(post.avatarAsset!) : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -935,8 +1001,8 @@ class _ChallengePostTile extends StatelessWidget {
               child: avatarImage == null
                   ? Text(
                       initials,
-                      style: const TextStyle(
-                        color: Colors.black87,
+                      style: TextStyle(
+                        color: AppColors.textPrimaryFor(context),
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
@@ -946,7 +1012,8 @@ class _ChallengePostTile extends StatelessWidget {
             const SizedBox(width: 7),
             Text(
               post.author,
-              style: const TextStyle(
+              style: TextStyle(
+                color: AppColors.textPrimaryFor(context),
                 fontWeight: FontWeight.w700,
                 fontSize: 11.5,
               ),
@@ -954,8 +1021,8 @@ class _ChallengePostTile extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               timeText,
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: AppColors.textMutedFor(context),
                 fontSize: 10.5,
               ),
             ),
@@ -964,8 +1031,8 @@ class _ChallengePostTile extends StatelessWidget {
         const SizedBox(height: 7),
         Text(
           post.title,
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: AppColors.textPrimaryFor(context),
             fontWeight: FontWeight.w700,
             fontSize: 28,
             height: 1.1,
@@ -983,8 +1050,8 @@ class _ChallengePostTile extends StatelessWidget {
         const SizedBox(height: 7),
         Text(
           post.description,
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: AppColors.textPrimaryFor(context),
             height: 1.32,
             fontSize: 13,
           ),
@@ -1001,8 +1068,8 @@ class _ChallengePostTile extends StatelessWidget {
           children: [
             Text(
               likeLabel,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -1011,12 +1078,12 @@ class _ChallengePostTile extends StatelessWidget {
             InkWell(
               onTap: onReply,
               borderRadius: BorderRadius.circular(8),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                 child: Text(
                   'Reply',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: AppColors.textSecondaryFor(context),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1032,7 +1099,9 @@ class _ChallengePostTile extends StatelessWidget {
                 child: Text(
                   post.isAccepted ? 'Accepted' : 'Accept',
                   style: TextStyle(
-                    color: post.isAccepted ? AppColors.primary : AppColors.textSecondary,
+                    color: post.isAccepted
+                        ? colorScheme.primary
+                        : AppColors.textSecondaryFor(context),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -1049,8 +1118,8 @@ class _ChallengePostTile extends StatelessWidget {
                   Icons.thumb_up_alt_outlined,
                   size: 14,
                   color: post.reaction == _Reaction.like
-                      ? Colors.black
-                      : Colors.grey[500],
+                      ? colorScheme.primary
+                      : AppColors.textMutedFor(context),
                 ),
               ),
             ),
@@ -1064,8 +1133,8 @@ class _ChallengePostTile extends StatelessWidget {
                   Icons.thumb_down_alt_outlined,
                   size: 14,
                   color: post.reaction == _Reaction.dislike
-                      ? Colors.black
-                      : Colors.grey[500],
+                      ? colorScheme.primary
+                      : AppColors.textMutedFor(context),
                 ),
               ),
             ),
@@ -1114,10 +1183,7 @@ class _AttachedMediaView extends StatelessWidget {
   final String mediaPath;
   final _MediaType mediaType;
 
-  const _AttachedMediaView({
-    required this.mediaPath,
-    required this.mediaType,
-  });
+  const _AttachedMediaView({required this.mediaPath, required this.mediaType});
 
   @override
   Widget build(BuildContext context) {
@@ -1134,7 +1200,7 @@ class _AttachedMediaView extends StatelessWidget {
           ),
         );
       }
-      return _missingMediaLabel();
+      return _missingMediaLabel(context);
     }
 
     if (mediaType == _MediaType.video) {
@@ -1143,16 +1209,16 @@ class _AttachedMediaView extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: AppColors.surfaceSoft,
+          color: AppColors.surfaceMuted(context),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.borderLight),
+          border: Border.all(color: AppColors.borderLightFor(context)),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.play_circle_outline_rounded,
               size: 24,
-              color: AppColors.textSecondary,
+              color: AppColors.textSecondaryFor(context),
             ),
             const SizedBox(width: 8),
             Expanded(
@@ -1160,9 +1226,9 @@ class _AttachedMediaView extends StatelessWidget {
                 fileName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: AppColors.textSecondary,
+                  color: AppColors.textSecondaryFor(context),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1175,20 +1241,20 @@ class _AttachedMediaView extends StatelessWidget {
     return const SizedBox.shrink();
   }
 
-  Widget _missingMediaLabel() {
+  Widget _missingMediaLabel(BuildContext context) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceSoft,
+        color: AppColors.surfaceMuted(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.borderLightFor(context)),
       ),
-      child: const Text(
+      child: Text(
         'Media attached',
         style: TextStyle(
           fontSize: 12,
-          color: AppColors.textSecondary,
+          color: AppColors.textSecondaryFor(context),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -1203,9 +1269,9 @@ class _ReplyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filePath = reply.avatarFilePath?.trim() ?? '';
-    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
-    final ImageProvider? avatar = hasLocalAvatar ? FileImage(File(filePath)) : null;
+    final ImageProvider? avatar = ProfileAvatarResolver.resolveNullable(
+      reply.avatarFilePath,
+    );
     final initials = reply.author.trim().isEmpty ? 'U' : reply.author[0];
     final timeText = reply.minutesAgo == 0 ? 'now' : '${reply.minutesAgo} min';
 
@@ -1214,15 +1280,15 @@ class _ReplyTile extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 9,
-          backgroundColor: const Color(0xFFF3F4F6),
+          backgroundColor: AppColors.surfaceMuted(context),
           backgroundImage: avatar,
           child: avatar == null
               ? Text(
                   initials,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.textPrimaryFor(context),
                   ),
                 )
               : null,
@@ -1236,7 +1302,8 @@ class _ReplyTile extends StatelessWidget {
                 children: [
                   Text(
                     reply.author,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: AppColors.textPrimaryFor(context),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1244,8 +1311,8 @@ class _ReplyTile extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     timeText,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+                    style: TextStyle(
+                      color: AppColors.textMutedFor(context),
                       fontSize: 9.5,
                     ),
                   ),
@@ -1254,9 +1321,9 @@ class _ReplyTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 reply.text,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: Colors.black87,
+                  color: AppColors.textPrimaryFor(context),
                   height: 1.25,
                 ),
               ),

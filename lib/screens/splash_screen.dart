@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:fun_fit/services/auth_session_storage.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -44,6 +45,13 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Future<void> _navigateFromSplash() async {
+    final alreadyLoggedIn = await AuthSessionStorage.isLoggedIn();
+    if (!mounted) return;
+    if (alreadyLoggedIn) {
+      Get.offNamed(Routes.home);
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
     final hasOpenedBefore = prefs.getBool(_kHasOpenedApp) ?? false;
     if (!mounted) return;

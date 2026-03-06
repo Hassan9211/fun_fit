@@ -3,9 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/password_strength_checklist.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +20,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = false;
   bool obscurePassword = true;
   bool _isSubmitting = false;
+  late final FocusNode _passwordFocusNode;
 
   final _formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
@@ -25,7 +28,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final AuthApiService _authApi = AuthApiService();
 
   @override
+  void initState() {
+    super.initState();
+    _passwordFocusNode = FocusNode()..addListener(_onPasswordFocusChanged);
+  }
+
+  void _onPasswordFocusChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
   void dispose() {
+    _passwordFocusNode.removeListener(_onPasswordFocusChanged);
+    _passwordFocusNode.dispose();
     emailController.dispose();
     passwordController.dispose();
     super.dispose();
@@ -49,11 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('auth_email', email);
+    await AuthSessionStorage.markLoggedIn(
+      email: email,
+      responseData: result.data,
+    );
     if (!mounted) return;
     setState(() => _isSubmitting = false);
-    Get.toNamed(Routes.otpSignin, arguments: {'email': email});
+    Get.offAllNamed(Routes.home);
   }
 
   @override
@@ -80,19 +98,19 @@ class _LoginScreenState extends State<LoginScreen> {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: const Text(
+            title: Text(
               'Sign in',
               style: TextStyle(
-                color: Colors.black87,
+                color: AppColors.textTitleFor(context),
                 fontWeight: FontWeight.bold,
               ),
             ),
             centerTitle: true,
             automaticallyImplyLeading: false,
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
             elevation: 0,
             scrolledUnderElevation: 0,
           ),
@@ -128,29 +146,39 @@ class _LoginScreenState extends State<LoginScreen> {
                       return null;
                     },
                     decoration: InputDecoration(
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.email,
-                        color: Color(0xFF6B7280),
+                        color: AppColors.textSecondaryFor(context),
                       ),
                       hintText: 'Email',
-                      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                      hintStyle: TextStyle(
+                        color: AppColors.textMutedFor(context),
+                      ),
                       filled: true,
-                      fillColor: const Color(0xFFF3F4F6),
+                      fillColor: AppColors.surfaceMuted(context),
                       contentPadding: const EdgeInsets.symmetric(
                         vertical: 14,
                         horizontal: 12,
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: BorderSide(
+                          color: AppColors.borderLightFor(context),
+                        ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: BorderSide(
+                          color: AppColors.borderLightFor(context),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Colors.black54),
+                        borderSide: BorderSide(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: 0.7),
+                        ),
                       ),
                     ),
                   ),
@@ -160,40 +188,48 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.only(top: 16, bottom: 16),
                     child: TextFormField(
                       controller: passwordController,
+                      focusNode: _passwordFocusNode,
                       obscureText: obscurePassword,
+                      onChanged: (_) => setState(() {}),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty)
                           return 'Password is required';
                         return null;
                       },
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(
+                        prefixIcon: Icon(
                           Icons.lock,
-                          color: Color(0xFF6B7280),
+                          color: AppColors.textSecondaryFor(context),
                         ),
                         hintText: 'Password',
-                        hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                        hintStyle: TextStyle(
+                          color: AppColors.textMutedFor(context),
+                        ),
                         filled: true,
-                        fillColor: const Color(0xFFF3F4F6),
+                        fillColor: AppColors.surfaceMuted(context),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 14,
                           horizontal: 12,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE5E7EB),
+                          borderSide: BorderSide(
+                            color: AppColors.borderLightFor(context),
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(
-                            color: Color(0xFFE5E7EB),
+                          borderSide: BorderSide(
+                            color: AppColors.borderLightFor(context),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(10),
-                          borderSide: const BorderSide(color: Colors.black54),
+                          borderSide: BorderSide(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.7),
+                          ),
                         ),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -210,6 +246,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
+                  if (_passwordFocusNode.hasFocus)
+                    PasswordStrengthChecklist(
+                      password: passwordController.text,
+                      title: 'Password format suggestion',
+                    ),
 
                   /// Remember / Forgot
                   Row(
@@ -230,7 +271,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Forgot Password?',
                           style: TextStyle(
-                            color: Colors.black87,
+                            color: AppColors.textTitleFor(context),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -246,7 +287,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     onPressed: _isSubmitting ? null : _login,
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.black,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    textColor: Theme.of(context).colorScheme.onPrimary,
                     borderRadius: 8,
                     fontSize: fontField,
                     fontWeight: FontWeight.bold,
@@ -274,6 +316,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.telegram,
                         color: const Color(0xFF0EA5E9),
                         onTap: () {},
+                        context: context,
                       ),
                       const SizedBox(width: 20),
 
@@ -281,13 +324,15 @@ class _LoginScreenState extends State<LoginScreen> {
                         icon: Icons.facebook,
                         color: const Color(0xFF1877F2),
                         onTap: () {},
+                        context: context,
                       ),
                       const SizedBox(width: 20),
 
                       _socialButton(
                         icon: Icons.apple,
-                        color: Colors.black,
+                        color: AppColors.textPrimaryFor(context),
                         onTap: () {},
+                        context: context,
                       ),
                     ],
                   ),
@@ -304,7 +349,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
-                            color: Colors.black87,
+                            color: AppColors.textTitleFor(context),
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -326,7 +371,9 @@ class _LoginScreenState extends State<LoginScreen> {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    BuildContext? context,
   }) {
+    final ctx = context;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(30),
@@ -335,8 +382,12 @@ class _LoginScreenState extends State<LoginScreen> {
         height: 52,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.white,
-          border: Border.all(color: const Color(0xFFE5E7EB)),
+          color: ctx == null ? Colors.white : AppColors.surface(ctx),
+          border: Border.all(
+            color: ctx == null
+                ? const Color(0xFFE5E7EB)
+                : AppColors.borderLightFor(ctx),
+          ),
         ),
         child: Icon(icon, color: color, size: 28),
       ),

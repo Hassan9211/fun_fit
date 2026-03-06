@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 
 class OtpScreen extends StatefulWidget {
@@ -70,8 +71,7 @@ class _OtpScreenState extends State<OtpScreen> {
       email = (args['email'] ?? '').toString().trim();
     }
     if (email.isEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      email = (prefs.getString('auth_email') ?? '').trim();
+      email = await AuthSessionStorage.readEmail();
     }
     if (email.isEmpty) {
       if (!mounted) return;
@@ -113,11 +113,22 @@ class _OtpScreenState extends State<OtpScreen> {
         final asChangePassword =
             args is Map && args['asChangePassword'] == true;
         Get.offNamed(
-          Routes.passwordResetSuccess,
-          arguments: {'asChangePassword': asChangePassword},
+          Routes.changePassword,
+          arguments: {
+            'asResetFlow': true,
+            'asChangePassword': asChangePassword,
+            'email': email,
+            'otp': otp,
+            'verifyData': result.data,
+          },
         );
         break;
       case OtpPurpose.signin:
+        await AuthSessionStorage.markLoggedIn(
+          email: email,
+          responseData: result.data,
+        );
+        if (!mounted) return;
         Get.offNamed(Routes.home);
         break;
     }
@@ -147,14 +158,14 @@ class _OtpScreenState extends State<OtpScreen> {
             : 26.0;
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           appBar: AppBar(
-            title: const Text(
+            title: Text(
               'Verification Code',
-              style: TextStyle(color: Colors.black87),
+              style: TextStyle(color: AppColors.textTitleFor(context)),
             ),
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black87,
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
+            foregroundColor: Theme.of(context).appBarTheme.foregroundColor,
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: true,
@@ -184,7 +195,9 @@ class _OtpScreenState extends State<OtpScreen> {
                     Text(
                       subtitle,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: AppColors.textSecondaryFor(context),
+                      ),
                     ),
                     const SizedBox(height: 32),
                     Row(
@@ -204,23 +217,25 @@ class _OtpScreenState extends State<OtpScreen> {
                             decoration: InputDecoration(
                               counterText: '',
                               filled: true,
-                              fillColor: const Color(0xFFF3F4F6),
+                              fillColor: AppColors.surfaceMuted(context),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFFE5E7EB),
+                                borderSide: BorderSide(
+                                  color: AppColors.borderLightFor(context),
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: Color(0xFFE5E7EB),
+                                borderSide: BorderSide(
+                                  color: AppColors.borderLightFor(context),
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(10),
-                                borderSide: const BorderSide(
-                                  color: Colors.black54,
+                                borderSide: BorderSide(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.primary.withValues(alpha: 0.7),
                                 ),
                               ),
                             ),
@@ -239,7 +254,8 @@ class _OtpScreenState extends State<OtpScreen> {
                       onPressed: _isVerifying ? null : _verifyOtp,
                       width: double.infinity,
                       height: 50,
-                      backgroundColor: Colors.black,
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      textColor: Theme.of(context).colorScheme.onPrimary,
                       borderRadius: 8,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,

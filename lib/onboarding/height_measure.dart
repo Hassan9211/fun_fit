@@ -16,6 +16,14 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
   double selectedHeightCm = 180;
   bool isCmSelected = false;
 
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   String get _feetInchesText {
     final totalInches = selectedHeightCm / 2.54;
     var feet = totalInches ~/ 12;
@@ -188,7 +196,16 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
                       child: AppButton(
                         label: 'Next',
-                        onPressed: () => Get.toNamed(Routes.weight),
+                        onPressed: () {
+                          final onboardingData = _readOnboardingData();
+                          onboardingData['heightCm'] = double.parse(
+                            selectedHeightCm.toStringAsFixed(1),
+                          );
+                          onboardingData['heightFt'] = _feetInchesText;
+                          onboardingData['heightUnit'] =
+                              isCmSelected ? 'cm' : 'ft';
+                          Get.toNamed(Routes.weight, arguments: onboardingData);
+                        },
                         width: double.infinity,
                         height: 48,
                         backgroundColor: Colors.black,

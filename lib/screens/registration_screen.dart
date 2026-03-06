@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+
 import '../widget/app_button.dart';
+import '../widget/app_colors.dart';
 
 class RegistrationSuccessScreen extends StatefulWidget {
   const RegistrationSuccessScreen({super.key});
@@ -65,7 +67,7 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Padding(
             padding: EdgeInsets.symmetric(horizontal: width * 0.1),
             child: Column(
@@ -77,8 +79,12 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                     scale: _scaleAnimation,
                     child: CircleAvatar(
                       radius: avatarSize / 2,
-                      backgroundColor: Colors.black,
-                      child: Icon(Icons.check, color: Colors.white, size: avatarSize * 0.45),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      child: Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: avatarSize * 0.45,
+                      ),
                     ),
                   ),
                 ),
@@ -88,24 +94,21 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                   style: TextStyle(
                     fontSize: textSize,
                     fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                    color: AppColors.textTitleFor(context),
                   ),
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: height * 0.015),
-
                 Text(
                   'Your account is awaiting admin approval.\n'
                   'You will receive a notification once your profile is activated.',
                   style: TextStyle(
                     fontSize: textSize * 0.5,
-                    color: Colors.grey.shade700,
+                    color: AppColors.textSecondaryFor(context),
                     height: 1.4,
                   ),
                   textAlign: TextAlign.center,
                 ),
-
-                // ✅ Continue Button
                 Padding(
                   padding: const EdgeInsets.all(40.0),
                   child: AppButton(
@@ -113,7 +116,8 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
                     onPressed: () => Get.offAllNamed(Routes.ready),
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.black,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    textColor: Theme.of(context).colorScheme.onPrimary,
                     borderRadius: 8,
                     fontSize: textSize * 0.6,
                     fontWeight: FontWeight.bold,
@@ -127,4 +131,3 @@ class _RegistrationSuccessScreenState extends State<RegistrationSuccessScreen>
     );
   }
 }
-

@@ -1,11 +1,12 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/profile_avatar_resolver.dart';
+import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
+import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 
@@ -92,7 +93,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   @override
   void initState() {
     super.initState();
+    ProfileSyncService.changes.addListener(_loadProfileImage);
     _loadProfileImage();
+  }
+
+  @override
+  void dispose() {
+    ProfileSyncService.changes.removeListener(_loadProfileImage);
+    super.dispose();
   }
 
   List<_Leader> get _current {
@@ -112,7 +120,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     setState(() => _profileImagePath = savedPath);
   }
 
-  void _goProfile() => Get.toNamed(Routes.profile);
+  Future<void> _goProfile() async {
+    await Get.toNamed(Routes.profile);
+    await _loadProfileImage();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -126,16 +137,14 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final top3 = data[2];
     final rest = data.skip(3).toList();
 
-    final hasLocalProfileImage =
-        _profileImagePath.isNotEmpty && File(_profileImagePath).existsSync();
-    final ImageProvider headerAvatar = hasLocalProfileImage
-        ? FileImage(File(_profileImagePath))
-        : const AssetImage('assets/images/situp.jpg');
+    final ImageProvider headerAvatar = ProfileAvatarResolver.resolve(
+      _profileImagePath,
+      fallback: const AssetImage('assets/images/situp.jpg'),
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isCompact = width < 360;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
         final contentMaxWidth = isDesktop
@@ -143,20 +152,11 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             : isTablet
             ? 460.0
             : 420.0;
-        final sideGap = isCompact ? 20.0 : 28.0;
-        final headerTopPadding = isDesktop
-            ? 30.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final headerBottomPadding = isDesktop
-            ? 24.0
-            : isTablet
-            ? 27.0
-            : 30.0;
-
+        final panelColor = AppColors.isDark(context)
+            ? const Color(0xFF171717)
+            : const Color(0xFFF2F2F2);
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: const Color(0xFF080808),
           extendBody: true,
           floatingActionButton: SizedBox(
             width: 42,
@@ -168,155 +168,154 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               child: const Icon(Icons.add, color: Colors.black, size: 20),
             ),
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Leaderboard'),
-          body: Center(
-            child: SizedBox(
-              width: contentMaxWidth,
-              child: Column(
-                children: [
-                  Container(
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(22),
-                      ),
+          body: SafeArea(
+            bottom: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                child: Column(
+                  children: [
+                    AppSectionHeader(
+                      title: 'Leaderboard',
+                      avatarProvider: headerAvatar,
+                      onTapProfile: _goProfile,
                     ),
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      headerTopPadding,
-                      16,
-                      headerBottomPadding,
-                    ),
-                    child: Row(
-                      children: [
-                        InkWell(
-                          onTap: _goProfile,
-                          borderRadius: BorderRadius.circular(18),
-                          child: CircleAvatar(
-                            radius: 15,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 13,
-                              backgroundImage: headerAvatar,
+                    Expanded(
+                      child: AnimatedReveal(
+                        delay: const Duration(milliseconds: 70),
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: panelColor,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(14),
                             ),
                           ),
-                        ),
-                        const Expanded(
-                          child: Text(
-                            'Leaderboard',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                        ),
-                        SizedBox(width: sideGap),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: AnimatedReveal(
-                      delay: const Duration(milliseconds: 70),
-                      child: Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(top: 8),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                        ),
-                        child: Column(
-                          children: [
-                            AnimatedReveal(
-                              delay: const Duration(milliseconds: 120),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: const Color(0xFFE5E7EB)),
-                                    borderRadius: BorderRadius.circular(8),
+                          child: Column(
+                            children: [
+                              AnimatedReveal(
+                                delay: const Duration(milliseconds: 120),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    12,
+                                    12,
+                                    8,
                                   ),
-                                  child: Row(
-                                    children: [
-                                      _tabButton(0, 'All'),
-                                      _tabButton(1, 'Men'),
-                                      _tabButton(2, 'Women'),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            AnimatedReveal(
-                              delay: const Duration(milliseconds: 170),
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.center,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
                                     child: Row(
-                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        _TopCard(
-                                          leader: top2,
-                                          rank: 2,
-                                          avatarRadius: 21,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        _TopCard(
-                                          leader: top1,
-                                          rank: 1,
-                                          avatarRadius: 26,
-                                          isFirst: true,
-                                        ),
-                                        const SizedBox(width: 10),
-                                        _TopCard(
-                                          leader: top3,
-                                          rank: 3,
-                                          avatarRadius: 21,
-                                        ),
+                                        _tabButton(0, 'All'),
+                                        _tabButton(1, 'Men'),
+                                        _tabButton(2, 'Women'),
                                       ],
                                     ),
                                   ),
                                 ),
                               ),
-                            ),
-                            Expanded(
-                              child: Container(
-                                width: double.infinity,
-                                margin: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F3EA),
-                                  borderRadius: BorderRadius.circular(16),
-                                ),
-                                child: ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 78),
-                                  itemCount: rest.length,
-                                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                                  itemBuilder: (context, index) {
-                                    final leader = rest[index];
-                                    final rank = index + 4;
-                                    return AnimatedReveal(
-                                      delay: Duration(
-                                        milliseconds: 120 + ((index % 7) * 30),
+                              AnimatedReveal(
+                                delay: const Duration(milliseconds: 170),
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    10,
+                                    14,
+                                    8,
+                                  ),
+                                  child: SizedBox(
+                                    width: double.infinity,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.center,
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          _TopCard(
+                                            leader: top2,
+                                            rank: 2,
+                                            avatarRadius: 21,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          _TopCard(
+                                            leader: top1,
+                                            rank: 1,
+                                            avatarRadius: 26,
+                                            isFirst: true,
+                                          ),
+                                          const SizedBox(width: 10),
+                                          _TopCard(
+                                            leader: top3,
+                                            rank: 3,
+                                            avatarRadius: 21,
+                                          ),
+                                        ],
                                       ),
-                                      child: _RankRow(leader: leader, rank: rank),
-                                    );
-                                  },
+                                    ),
+                                  ),
                                 ),
                               ),
-                            ),
-                          ],
+                              Expanded(
+                                child: Container(
+                                  width: double.infinity,
+                                  margin: const EdgeInsets.fromLTRB(
+                                    10,
+                                    8,
+                                    10,
+                                    10,
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceMuted(context),
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: ListView.separated(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      8,
+                                      0,
+                                      8,
+                                      78,
+                                    ),
+                                    itemCount: rest.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(height: 8),
+                                    itemBuilder: (context, index) {
+                                      final leader = rest[index];
+                                      final rank = index + 4;
+                                      return AnimatedReveal(
+                                        delay: Duration(
+                                          milliseconds:
+                                              120 + ((index % 7) * 30),
+                                        ),
+                                        child: _RankRow(
+                                          leader: leader,
+                                          rank: rank,
+                                          currentUserAvatar: headerAvatar,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -327,6 +326,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Widget _tabButton(int index, String label) {
     final selected = _tab == index;
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _tab = index),
@@ -334,13 +334,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
           height: 36,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? Colors.black : Colors.transparent,
+            color: selected ? colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.textPrimary,
+              color: selected
+                  ? colorScheme.onPrimary
+                  : AppColors.textPrimaryFor(context),
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -366,6 +368,7 @@ class _TopCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
       width: isFirst ? 108 : 92,
       child: Column(
@@ -377,7 +380,10 @@ class _TopCard extends StatelessWidget {
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.black, width: 2),
+                  border: Border.all(
+                    color: AppColors.textPrimaryFor(context),
+                    width: 2,
+                  ),
                 ),
                 child: CircleAvatar(
                   radius: avatarRadius,
@@ -391,11 +397,11 @@ class _TopCard extends StatelessWidget {
                 child: Center(
                   child: CircleAvatar(
                     radius: 11,
-                    backgroundColor: Colors.black,
+                    backgroundColor: colorScheme.primary,
                     child: Text(
                       '$rank',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: colorScheme.onPrimary,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -414,10 +420,10 @@ class _TopCard extends StatelessWidget {
                   leader.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.textPrimaryFor(context),
                   ),
                 ),
               ),
@@ -443,10 +449,10 @@ class _TopCard extends StatelessWidget {
               const SizedBox(width: 2),
               Text(
                 '${leader.points} pts',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF6B7280),
+                  color: AppColors.textSecondaryFor(context),
                 ),
               ),
             ],
@@ -496,19 +502,22 @@ class _TopCard extends StatelessWidget {
 class _RankRow extends StatelessWidget {
   final _Leader leader;
   final int rank;
+  final ImageProvider currentUserAvatar;
 
   const _RankRow({
     required this.leader,
     required this.rank,
+    required this.currentUserAvatar,
   });
 
   @override
   Widget build(BuildContext context) {
     final selected = leader.me;
+    final colorScheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: selected ? Colors.black : Colors.white,
+        color: selected ? colorScheme.primary : AppColors.surface(context),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
@@ -518,7 +527,9 @@ class _RankRow extends StatelessWidget {
             child: Text(
               '$rank',
               style: TextStyle(
-                color: selected ? Colors.white : AppColors.textSecondary,
+                color: selected
+                    ? colorScheme.onPrimary
+                    : AppColors.textSecondaryFor(context),
                 fontWeight: FontWeight.w600,
                 fontSize: 11,
               ),
@@ -526,7 +537,9 @@ class _RankRow extends StatelessWidget {
           ),
           CircleAvatar(
             radius: 12,
-            backgroundImage: AssetImage(leader.image),
+            backgroundImage: leader.me
+                ? currentUserAvatar
+                : AssetImage(leader.image),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -535,7 +548,9 @@ class _RankRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: selected ? Colors.white : AppColors.textSecondary,
+                color: selected
+                    ? colorScheme.onPrimary
+                    : AppColors.textSecondaryFor(context),
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
               ),
@@ -545,14 +560,18 @@ class _RankRow extends StatelessWidget {
             Icon(
               _badgeIcon(leader.badge),
               size: 11,
-              color: selected ? Colors.white : _badgeColor(leader.badge),
+              color: selected
+                  ? colorScheme.onPrimary
+                  : _badgeColor(leader.badge),
             ),
             const SizedBox(width: 6),
           ],
           Text(
             '${leader.points} pts',
             style: TextStyle(
-              color: selected ? Colors.white : AppColors.textSecondary,
+              color: selected
+                  ? colorScheme.onPrimary
+                  : AppColors.textSecondaryFor(context),
               fontWeight: FontWeight.w700,
               fontSize: 13,
             ),
@@ -600,6 +619,7 @@ class _RankRow extends StatelessWidget {
 }
 
 enum _Gender { men, women }
+
 enum _Badge { none, star, medal, diamond, sword, spark, cloud }
 
 class _Leader {

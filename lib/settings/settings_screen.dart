@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fun_fit/settings/help_screen.dart';
 import 'package:fun_fit/settings/language_preferences_screen.dart';
 import 'package:fun_fit/settings/subscription_screen.dart';
 
+import '../services/auth_session_storage.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/getx.dart';
@@ -69,8 +69,7 @@ class SettingsScreen extends StatelessWidget {
   }
 
   Future<void> _showLogoutDialog(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEmail = (prefs.getString('auth_email') ?? '').trim();
+    final savedEmail = await AuthSessionStorage.readEmail();
     final displayEmail = savedEmail.isEmpty ? 'No email found' : savedEmail;
 
     if (!context.mounted) return;
@@ -87,7 +86,7 @@ class SettingsScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () async {
-                await prefs.remove('auth_email');
+                await AuthSessionStorage.clear();
                 if (!dialogContext.mounted) return;
                 Navigator.of(dialogContext).pop();
                 Get.offAllNamed(Routes.login);
@@ -152,7 +151,8 @@ class SettingsScreen extends StatelessWidget {
                             child: _SettingsActionTile(
                               label: 'Subscription',
                               icon: Icons.edit_outlined,
-                              onTap: () => Get.to(() => const SubscriptionScreen()),
+                              onTap: () =>
+                                  Get.to(() => const SubscriptionScreen()),
                             ),
                           ),
                           const SizedBox(height: 12),
@@ -180,8 +180,9 @@ class SettingsScreen extends StatelessWidget {
                             child: _SettingsActionTile(
                               label: 'Language Preferences',
                               icon: Icons.edit_outlined,
-                              onTap: () =>
-                                  Get.to(() => const LanguagePreferencesScreen()),
+                              onTap: () => Get.to(
+                                () => const LanguagePreferencesScreen(),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 12),

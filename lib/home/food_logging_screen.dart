@@ -1,14 +1,19 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:video_player/video_player.dart';
 
+import '../services/profile_avatar_resolver.dart';
+import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
-import '../widget/getx.dart';
-import '../widget/app_shell_controller.dart';
+import '../widget/app_section_header.dart';
+import '../widget/file_video_preview.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/getx.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
   const FoodLoggingScreen({super.key});
@@ -29,7 +34,13 @@ class AddMealScreen extends StatelessWidget {
 }
 
 enum _FeedTab { publicPosts, myPosts }
+
 enum _Reaction { none, like, dislike }
+
+abstract class _FeedMediaType {
+  static const String none = 'none';
+  static const String image = 'image';
+}
 
 class _FoodLogFeed extends StatefulWidget {
   const _FoodLogFeed();
@@ -41,6 +52,7 @@ class _FoodLogFeed extends StatefulWidget {
 class _FoodLogFeedState extends State<_FoodLogFeed> {
   static const String _kProfileName = 'profile_name';
   static const String _kProfileImagePath = 'profile_image_path';
+  static const String _kProfileMedia = 'profile_media_items';
   static const String _defaultProfileName = 'Jacob West';
   final TextEditingController _composerController = TextEditingController();
   _FeedTab _selectedTab = _FeedTab.publicPosts;
@@ -107,11 +119,13 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
   @override
   void initState() {
     super.initState();
+    ProfileSyncService.changes.addListener(_loadProfileData);
     _loadProfileData();
   }
 
   @override
   void dispose() {
+    ProfileSyncService.changes.removeListener(_loadProfileData);
     _composerController.dispose();
     super.dispose();
   }
@@ -129,9 +143,15 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
     final resolvedName = savedName.isEmpty ? _defaultProfileName : savedName;
     final resolvedImagePath = savedImagePath.isEmpty ? null : savedImagePath;
+    final mediaPosts = _readPublicMediaPosts(
+      prefs.getStringList(_kProfileMedia) ?? <String>[],
+      author: resolvedName,
+      avatarFilePath: resolvedImagePath,
+    );
     setState(() {
       _profileName = resolvedName;
       _profileImagePath = savedImagePath;
+      _syncProfileMediaPosts(mediaPosts);
       for (var i = 0; i < _myPosts.length; i++) {
         final post = _myPosts[i];
         _myPosts[i] = post.copyWith(
@@ -142,16 +162,105 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     });
   }
 
+  List<_FeedPost> _readPublicMediaPosts(
+    List<String> raw, {
+    required String author,
+    required String? avatarFilePath,
+  }) {
+    return raw
+        .map((item) {
+          try {
+            final decoded = jsonDecode(item);
+            if (decoded is! Map<String, dynamic>) return null;
+            final visibility = (decoded['visibility'] ?? 'public').toString();
+            if (visibility == 'private') return null;
+            final path = (decoded['path'] ?? '').toString().trim();
+            if (path.isEmpty || !File(path).existsSync()) return null;
+            final type = (decoded['type'] ?? '').toString();
+            if (type != _FeedMediaType.image) return null;
+            final isLiked = (decoded['is_liked'] as bool?) ?? false;
+            final isDisliked = (decoded['is_disliked'] as bool?) ?? false;
+
+            return _FeedPost(
+              author: author,
+              minutesAgo: 0,
+              avatarFilePath: avatarFilePath,
+              content: 'Shared a workout photo from profile.',
+              likes: (decoded['likes'] as num?)?.toInt() ?? 0,
+              isMine: true,
+              reaction: isLiked
+                  ? _Reaction.like
+                  : isDisliked
+                  ? _Reaction.dislike
+                  : _Reaction.none,
+              mediaPath: path,
+              mediaType: _FeedMediaType.image,
+              isProfileMedia: true,
+            );
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<_FeedPost>()
+        .toList(growable: false);
+  }
+
+  void _syncProfileMediaPosts(List<_FeedPost> mediaPosts) {
+    final existingPublic = <String, _FeedPost>{};
+    final existingMine = <String, _FeedPost>{};
+    for (final post in _publicPosts.where((post) => post.isProfileMedia)) {
+      if (post.mediaPath != null) existingPublic[post.mediaPath!] = post;
+    }
+    for (final post in _myPosts.where((post) => post.isProfileMedia)) {
+      if (post.mediaPath != null) existingMine[post.mediaPath!] = post;
+    }
+
+    _publicPosts.removeWhere((post) => post.isProfileMedia);
+    _myPosts.removeWhere((post) => post.isProfileMedia);
+
+    final nextPublic = mediaPosts
+        .map((post) {
+          final previous = post.mediaPath == null
+              ? null
+              : existingPublic[post.mediaPath!];
+          return previous == null
+              ? post
+              : post.copyWith(
+                  likes: previous.likes,
+                  reaction: previous.reaction,
+                  replies: previous.replies,
+                );
+        })
+        .toList(growable: false);
+
+    final nextMine = mediaPosts
+        .map((post) {
+          final previous = post.mediaPath == null
+              ? null
+              : (existingMine[post.mediaPath!] ??
+                    existingPublic[post.mediaPath!]);
+          final base = previous == null
+              ? post.copyWith(isMine: true)
+              : post.copyWith(
+                  likes: previous.likes,
+                  reaction: previous.reaction,
+                  replies: previous.replies,
+                  isMine: true,
+                );
+          return base;
+        })
+        .toList(growable: false);
+
+    _publicPosts.insertAll(0, nextPublic);
+    _myPosts.insertAll(0, nextMine);
+  }
+
   List<_FeedPost> get _visiblePosts =>
       _selectedTab == _FeedTab.publicPosts ? _publicPosts : _myPosts;
 
-  void _goHome() {
-    final shellController = AppShellController.maybeFind();
-    if (shellController != null) {
-      shellController.setIndex(0);
-      return;
-    }
-    Get.offNamed(Routes.home);
+  Future<void> _openProfile() async {
+    await Get.toNamed(Routes.profile);
+    await _loadProfileData();
   }
 
   void _submitPost() {
@@ -161,7 +270,9 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     final newPost = _FeedPost(
       author: _profileDisplayName,
       minutesAgo: 0,
-      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
       content: text,
       likes: 0,
       isMine: true,
@@ -188,10 +299,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     }
 
     setState(() {
-      _publicPosts[index] = post.copyWith(
-        likes: likes,
-        reaction: nextReaction,
-      );
+      _publicPosts[index] = post.copyWith(likes: likes, reaction: nextReaction);
     });
   }
 
@@ -207,10 +315,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     }
 
     setState(() {
-      _publicPosts[index] = post.copyWith(
-        likes: likes,
-        reaction: nextReaction,
-      );
+      _publicPosts[index] = post.copyWith(likes: likes, reaction: nextReaction);
     });
   }
 
@@ -228,9 +333,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
             controller: controller,
             autofocus: true,
             maxLines: 3,
-            decoration: const InputDecoration(
-              hintText: 'Write your reply',
-            ),
+            decoration: const InputDecoration(hintText: 'Write your reply'),
           ),
           actions: [
             TextButton(
@@ -254,7 +357,9 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       author: _profileDisplayName,
       minutesAgo: 0,
       text: text,
-      avatarFilePath: _profileImagePath.trim().isEmpty ? null : _profileImagePath,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
     );
 
     setState(() {
@@ -277,7 +382,6 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        final isCompact = width < 360;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
         final contentMaxWidth = isDesktop
@@ -285,21 +389,18 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
             : isTablet
             ? 460.0
             : 400.0;
-        final headerTopPadding = isDesktop
-            ? 30.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final headerBottomPadding = isDesktop
-            ? 24.0
-            : isTablet
-            ? 27.0
-            : 30.0;
-        final sideGap = isCompact ? 20.0 : 28.0;
-        final cardMargin = isCompact ? 6.0 : 8.0;
-
+        final colorScheme = Theme.of(context).colorScheme;
+        final isDark = AppColors.isDark(context);
+        final panelColor = isDark
+            ? const Color(0xFF171717)
+            : const Color(0xFFF2F2F2);
+        final avatarProvider = ProfileAvatarResolver.resolve(
+          _profileImagePath,
+          fallback: const AssetImage('assets/images/alina.jpg'),
+        );
         return Scaffold(
-          backgroundColor: AppColors.appBackground,
+          backgroundColor: const Color(0xFF080808),
+          extendBody: true,
           floatingActionButton: SizedBox(
             width: 42,
             height: 42,
@@ -310,75 +411,31 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
               child: const Icon(Icons.add, color: Colors.black, size: 20),
             ),
           ),
-          floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Food Log'),
           body: SafeArea(
-            top: false,
             bottom: false,
             child: Center(
-              child: SizedBox(
-                width: contentMaxWidth,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
                 child: Column(
                   children: [
-                    Container(
-                      width: double.infinity,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(22),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          16,
-                          headerTopPadding,
-                          16,
-                          headerBottomPadding,
-                        ),
-                        child: Row(
-                          children: [
-                            InkWell(
-                              onTap: _goHome,
-                              borderRadius: BorderRadius.circular(18),
-                              child: const CircleAvatar(
-                                radius: 14,
-                                backgroundColor: Colors.white,
-                                child: Icon(
-                                  Icons.arrow_back_ios_new,
-                                  size: 14,
-                                  color: Colors.black87,
-                                ),
-                              ),
-                            ),
-                            const Expanded(
-                              child: Text(
-                                'FoodLog',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 17,
-                                ),
-                              ),
-                            ),
-                            SizedBox(width: sideGap),
-                          ],
-                        ),
-                      ),
+                    AppSectionHeader(
+                      title: 'Food Log',
+                      avatarProvider: avatarProvider,
+                      onTapProfile: _openProfile,
+                      showAvatar: false,
                     ),
                     Expanded(
                       child: AnimatedReveal(
                         delay: const Duration(milliseconds: 70),
                         child: Container(
-                          margin: EdgeInsets.fromLTRB(
-                            cardMargin,
-                            cardMargin,
-                            cardMargin,
-                            10,
-                          ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
+                            color: panelColor,
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(14),
+                            ),
                           ),
                           clipBehavior: Clip.antiAlias,
                           child: Column(
@@ -386,18 +443,29 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                               AnimatedReveal(
                                 delay: const Duration(milliseconds: 120),
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    12,
+                                    12,
+                                    8,
+                                  ),
                                   child: Container(
                                     padding: const EdgeInsets.all(3),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      border: Border.all(color: const Color(0xFFE5E7EB)),
+                                      color: AppColors.surface(context),
+                                      border: Border.all(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
                                       borderRadius: BorderRadius.circular(9),
-                                      boxShadow: const [
+                                      boxShadow: [
                                         BoxShadow(
-                                          color: Color(0x14000000),
+                                          color: Colors.black.withValues(
+                                            alpha: isDark ? 0.24 : 0.08,
+                                          ),
                                           blurRadius: 8,
-                                          offset: Offset(0, 2),
+                                          offset: const Offset(0, 2),
                                         ),
                                       ],
                                     ),
@@ -405,16 +473,21 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                                       children: [
                                         _tabButton(
                                           title: 'Public',
-                                          selected: _selectedTab == _FeedTab.publicPosts,
+                                          selected:
+                                              _selectedTab ==
+                                              _FeedTab.publicPosts,
                                           onTap: () => setState(
-                                            () => _selectedTab = _FeedTab.publicPosts,
+                                            () => _selectedTab =
+                                                _FeedTab.publicPosts,
                                           ),
                                         ),
                                         _tabButton(
                                           title: 'My Post',
-                                          selected: _selectedTab == _FeedTab.myPosts,
+                                          selected:
+                                              _selectedTab == _FeedTab.myPosts,
                                           onTap: () => setState(
-                                            () => _selectedTab = _FeedTab.myPosts,
+                                            () =>
+                                                _selectedTab = _FeedTab.myPosts,
                                           ),
                                         ),
                                       ],
@@ -424,18 +497,27 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                               ),
                               Expanded(
                                 child: ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 10),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    12,
+                                    4,
+                                    12,
+                                    10,
+                                  ),
                                   itemCount: _visiblePosts.length,
-                                  separatorBuilder: (_, _) => const SizedBox(height: 10),
+                                  separatorBuilder: (_, _) =>
+                                      const SizedBox(height: 10),
                                   itemBuilder: (context, index) {
-                                    final isPublic = _selectedTab == _FeedTab.publicPosts;
+                                    final isPublic =
+                                        _selectedTab == _FeedTab.publicPosts;
                                     return AnimatedReveal(
                                       delay: Duration(
                                         milliseconds: 130 + ((index % 8) * 30),
                                       ),
                                       child: _PostTile(
                                         post: _visiblePosts[index],
-                                        onLike: isPublic ? () => _toggleLike(index) : null,
+                                        onLike: isPublic
+                                            ? () => _toggleLike(index)
+                                            : null,
                                         onDislike: isPublic
                                             ? () => _toggleDislike(index)
                                             : null,
@@ -451,10 +533,19 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                               AnimatedReveal(
                                 delay: const Duration(milliseconds: 180),
                                 child: Container(
-                                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                                  decoration: const BoxDecoration(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    10,
+                                    8,
+                                    10,
+                                    10,
+                                  ),
+                                  decoration: BoxDecoration(
                                     border: Border(
-                                      top: BorderSide(color: Color(0xFFE5E7EB)),
+                                      top: BorderSide(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                   child: Row(
@@ -464,23 +555,34 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                                           controller: _composerController,
                                           decoration: InputDecoration(
                                             hintText: "What's in your mind",
-                                            hintStyle: const TextStyle(fontSize: 13),
-                                            filled: true,
-                                            fillColor: AppColors.surfaceSoft,
-                                            contentPadding: const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 10,
+                                            hintStyle: const TextStyle(
+                                              fontSize: 13,
                                             ),
+                                            filled: true,
+                                            fillColor: AppColors.surfaceMuted(
+                                              context,
+                                            ),
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  horizontal: 12,
+                                                  vertical: 10,
+                                                ),
                                             border: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(6),
-                                              borderSide: const BorderSide(
-                                                color: AppColors.borderLight,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: BorderSide(
+                                                color: AppColors.borderLightFor(
+                                                  context,
+                                                ),
                                               ),
                                             ),
                                             enabledBorder: OutlineInputBorder(
-                                              borderRadius: BorderRadius.circular(6),
-                                              borderSide: const BorderSide(
-                                                color: AppColors.borderLight,
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
+                                              borderSide: BorderSide(
+                                                color: AppColors.borderLightFor(
+                                                  context,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -492,13 +594,16 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                                         child: ElevatedButton(
                                           onPressed: _submitPost,
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: AppColors.primary,
-                                            foregroundColor: Colors.white,
+                                            backgroundColor:
+                                                colorScheme.primary,
+                                            foregroundColor:
+                                                colorScheme.onPrimary,
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 12,
                                             ),
                                             shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(6),
+                                              borderRadius:
+                                                  BorderRadius.circular(6),
                                             ),
                                           ),
                                           child: const Text(
@@ -534,6 +639,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     required bool selected,
     required VoidCallback onTap,
   }) {
+    final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
@@ -541,13 +647,15 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
           height: 34,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? Colors.black : Colors.transparent,
+            color: selected ? colorScheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             title,
             style: TextStyle(
-              color: selected ? Colors.white : const Color(0xFF4B5563),
+              color: selected
+                  ? colorScheme.onPrimary
+                  : AppColors.textSecondaryFor(context),
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -576,11 +684,10 @@ class _PostTile extends StatelessWidget {
     final initials = post.author.trim().isEmpty ? 'U' : post.author[0];
     final timeText = post.minutesAgo == 0 ? 'now' : '${post.minutesAgo} min';
     final likeLabel = post.likes == 1 ? '1 Like' : '${post.likes} Likes';
-    final filePath = post.avatarFilePath?.trim() ?? '';
-    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
-    final ImageProvider? avatarImage = hasLocalAvatar
-        ? FileImage(File(filePath))
-        : (post.avatarAsset != null ? AssetImage(post.avatarAsset!) : null);
+    final colorScheme = Theme.of(context).colorScheme;
+    final ImageProvider? avatarImage =
+        ProfileAvatarResolver.resolveNullable(post.avatarFilePath) ??
+        (post.avatarAsset != null ? AssetImage(post.avatarAsset!) : null);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -594,8 +701,8 @@ class _PostTile extends StatelessWidget {
               child: avatarImage == null
                   ? Text(
                       initials,
-                      style: const TextStyle(
-                        color: Colors.black87,
+                      style: TextStyle(
+                        color: AppColors.textPrimaryFor(context),
                         fontWeight: FontWeight.w700,
                         fontSize: 11,
                       ),
@@ -605,7 +712,8 @@ class _PostTile extends StatelessWidget {
             const SizedBox(width: 7),
             Text(
               post.author,
-              style: const TextStyle(
+              style: TextStyle(
+                color: AppColors.textPrimaryFor(context),
                 fontWeight: FontWeight.w700,
                 fontSize: 11.5,
               ),
@@ -613,8 +721,8 @@ class _PostTile extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               timeText,
-              style: const TextStyle(
-                color: AppColors.textMuted,
+              style: TextStyle(
+                color: AppColors.textMutedFor(context),
                 fontSize: 10.5,
               ),
             ),
@@ -623,28 +731,35 @@ class _PostTile extends StatelessWidget {
         const SizedBox(height: 7),
         Text(
           post.content,
-          style: const TextStyle(
-            color: Colors.black87,
+          style: TextStyle(
+            color: AppColors.textPrimaryFor(context),
             height: 1.32,
             fontSize: 13,
           ),
         ),
+        if (post.mediaPath != null && post.mediaPath!.trim().isNotEmpty) ...[
+          const SizedBox(height: 10),
+          _FeedMediaAttachment(
+            mediaPath: post.mediaPath!,
+            mediaType: post.mediaType,
+          ),
+        ],
         const SizedBox(height: 6),
         Row(
           children: [
             Text(
               likeLabel,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
+            Text(
               '>',
               style: TextStyle(
-                color: AppColors.textSecondary,
+                color: AppColors.textSecondaryFor(context),
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -653,12 +768,12 @@ class _PostTile extends StatelessWidget {
             InkWell(
               onTap: onReply,
               borderRadius: BorderRadius.circular(8),
-              child: const Padding(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 2, vertical: 1),
                 child: Text(
                   'Reply',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: AppColors.textSecondaryFor(context),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -675,8 +790,8 @@ class _PostTile extends StatelessWidget {
                   Icons.thumb_up_alt_outlined,
                   size: 14,
                   color: post.reaction == _Reaction.like
-                      ? Colors.black
-                      : Colors.grey[500],
+                      ? colorScheme.primary
+                      : AppColors.textMutedFor(context),
                 ),
               ),
             ),
@@ -690,8 +805,8 @@ class _PostTile extends StatelessWidget {
                   Icons.thumb_down_alt_outlined,
                   size: 14,
                   color: post.reaction == _Reaction.dislike
-                      ? Colors.black
-                      : Colors.grey[500],
+                      ? colorScheme.primary
+                      : AppColors.textMutedFor(context),
                 ),
               ),
             ),
@@ -718,9 +833,9 @@ class _ReplyTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filePath = reply.avatarFilePath?.trim() ?? '';
-    final hasLocalAvatar = filePath.isNotEmpty && File(filePath).existsSync();
-    final ImageProvider? avatar = hasLocalAvatar ? FileImage(File(filePath)) : null;
+    final ImageProvider? avatar = ProfileAvatarResolver.resolveNullable(
+      reply.avatarFilePath,
+    );
     final initials = reply.author.trim().isEmpty ? 'U' : reply.author[0];
     final timeText = reply.minutesAgo == 0 ? 'now' : '${reply.minutesAgo} min';
 
@@ -729,15 +844,15 @@ class _ReplyTile extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 9,
-          backgroundColor: const Color(0xFFF3F4F6),
+          backgroundColor: AppColors.surfaceMuted(context),
           backgroundImage: avatar,
           child: avatar == null
               ? Text(
                   initials,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.textPrimaryFor(context),
                   ),
                 )
               : null,
@@ -751,7 +866,8 @@ class _ReplyTile extends StatelessWidget {
                 children: [
                   Text(
                     reply.author,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: AppColors.textPrimaryFor(context),
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -759,8 +875,8 @@ class _ReplyTile extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     timeText,
-                    style: const TextStyle(
-                      color: AppColors.textMuted,
+                    style: TextStyle(
+                      color: AppColors.textMutedFor(context),
                       fontSize: 9.5,
                     ),
                   ),
@@ -769,9 +885,9 @@ class _ReplyTile extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 reply.text,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
-                  color: Colors.black87,
+                  color: AppColors.textPrimaryFor(context),
                   height: 1.25,
                 ),
               ),
@@ -779,6 +895,214 @@ class _ReplyTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _FeedMediaAttachment extends StatelessWidget {
+  final String mediaPath;
+  final String mediaType;
+
+  const _FeedMediaAttachment({
+    required this.mediaPath,
+    required this.mediaType,
+  });
+
+  Future<void> _openImage(BuildContext context) async {
+    final file = File(mediaPath);
+    if (!file.existsSync()) return;
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(14),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: Image.file(file, fit: BoxFit.contain),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openVideo(BuildContext context) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FeedVideoPreviewScreen(mediaPath: mediaPath),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (mediaType == _FeedMediaType.image) {
+      final file = File(mediaPath);
+      if (!file.existsSync()) return const SizedBox.shrink();
+      return InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openImage(context),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox(
+            height: 180,
+            width: double.infinity,
+            child: Image.file(file, fit: BoxFit.cover),
+          ),
+        ),
+      );
+    }
+
+    final fileName = mediaPath.split(RegExp(r'[\\/]')).last;
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => _openVideo(context),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 158,
+          width: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              FileVideoPreview(
+                path: mediaPath,
+                fit: BoxFit.cover,
+                playIconSize: 34,
+              ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.7),
+                        Colors.black.withValues(alpha: 0.1),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 12,
+                right: 12,
+                bottom: 10,
+                child: Text(
+                  fileName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedVideoPreviewScreen extends StatefulWidget {
+  final String mediaPath;
+
+  const _FeedVideoPreviewScreen({required this.mediaPath});
+
+  @override
+  State<_FeedVideoPreviewScreen> createState() =>
+      _FeedVideoPreviewScreenState();
+}
+
+class _FeedVideoPreviewScreenState extends State<_FeedVideoPreviewScreen> {
+  VideoPlayerController? _controller;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
+
+  Future<void> _init() async {
+    final controller = VideoPlayerController.file(File(widget.mediaPath));
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _controller = controller;
+        _loading = false;
+      });
+    } catch (_) {
+      await controller.dispose();
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _togglePlayback() {
+    final controller = _controller;
+    if (controller == null) return;
+    if (controller.value.isPlaying) {
+      controller.pause();
+    } else {
+      controller.play();
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        foregroundColor: Colors.white,
+      ),
+      body: Center(
+        child: _loading
+            ? const CircularProgressIndicator()
+            : _controller == null
+            ? const Text(
+                'Unable to open video',
+                style: TextStyle(color: Colors.white),
+              )
+            : GestureDetector(
+                onTap: _togglePlayback,
+                child: FittedBox(
+                  fit: BoxFit.contain,
+                  child: SizedBox(
+                    width: _controller!.value.size.width,
+                    height: _controller!.value.size.height,
+                    child: VideoPlayer(_controller!),
+                  ),
+                ),
+              ),
+      ),
     );
   }
 }
@@ -793,6 +1117,9 @@ class _FeedPost {
   final bool isMine;
   final _Reaction reaction;
   final List<_PostReply> replies;
+  final String? mediaPath;
+  final String mediaType;
+  final bool isProfileMedia;
 
   const _FeedPost({
     required this.author,
@@ -804,6 +1131,9 @@ class _FeedPost {
     this.isMine = false,
     this.reaction = _Reaction.none,
     this.replies = const <_PostReply>[],
+    this.mediaPath,
+    this.mediaType = _FeedMediaType.none,
+    this.isProfileMedia = false,
   });
 
   _FeedPost copyWith({
@@ -816,6 +1146,9 @@ class _FeedPost {
     bool? isMine,
     _Reaction? reaction,
     List<_PostReply>? replies,
+    String? mediaPath,
+    String? mediaType,
+    bool? isProfileMedia,
   }) {
     return _FeedPost(
       author: author ?? this.author,
@@ -827,6 +1160,9 @@ class _FeedPost {
       isMine: isMine ?? this.isMine,
       reaction: reaction ?? this.reaction,
       replies: replies ?? this.replies,
+      mediaPath: mediaPath ?? this.mediaPath,
+      mediaType: mediaType ?? this.mediaType,
+      isProfileMedia: isProfileMedia ?? this.isProfileMedia,
     );
   }
 }

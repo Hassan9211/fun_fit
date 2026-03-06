@@ -6,7 +6,12 @@ import 'package:get/get.dart';
 import '../widget/app_button.dart';
 
 class FitnessLevelScreen extends StatefulWidget {
-  const FitnessLevelScreen({super.key});
+  final bool returnSelection;
+
+  const FitnessLevelScreen({
+    super.key,
+    this.returnSelection = false,
+  });
 
   @override
   State<FitnessLevelScreen> createState() => _FitnessLevelScreenState();
@@ -14,6 +19,35 @@ class FitnessLevelScreen extends StatefulWidget {
 
 class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
   String? selectedLevel;
+
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
+  bool get _isHomeSelectionMode {
+    if (widget.returnSelection) return true;
+    final args = Get.arguments;
+    if (args is! Map) return false;
+    final mode = args['selectionMode']?.toString().trim().toLowerCase();
+    return mode == 'home';
+  }
+
+  String _displayLabel(String value) {
+    switch (value) {
+      case 'beginner':
+        return 'Beginner';
+      case 'intermediate':
+        return 'Intermediate';
+      case 'advanced':
+        return 'Advanced';
+      default:
+        return value;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +141,17 @@ class _FitnessLevelScreenState extends State<FitnessLevelScreen> {
                   label: 'Next',
                   onPressed: selectedLevel == null
                       ? null
-                      : () => Get.toNamed(Routes.age),
+                      : () {
+                          if (_isHomeSelectionMode) {
+                            Navigator.of(
+                              context,
+                            ).pop<String>(_displayLabel(selectedLevel!));
+                            return;
+                          }
+                          final onboardingData = _readOnboardingData();
+                          onboardingData['fitnessLevel'] = selectedLevel;
+                          Get.toNamed(Routes.age, arguments: onboardingData);
+                        },
                   width: double.infinity,
                   height: buttonHeight,
                   backgroundColor: Colors.black,

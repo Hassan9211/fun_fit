@@ -33,28 +33,6 @@ class _LanguagePreferencesScreenState extends State<LanguagePreferencesScreen> {
     'Urdu',
   ];
 
-  static const Map<String, String> _flags = <String, String>{
-    'Arabic': '🇸🇦',
-    'Bengali': '🇧🇩',
-    'English': '🇬🇧',
-    'French': '🇫🇷',
-    'German': '🇩🇪',
-    'Hindi': '🇮🇳',
-    'Italian': '🇮🇹',
-    'Japanese': '🇯🇵',
-    'Javanese': '🇮🇩',
-    'Korean': '🇰🇷',
-    'Marathi': '🇮🇳',
-    'Portuguese': '🇵🇹',
-    'Russian': '🇷🇺',
-    'Spanish': '🇪🇸',
-    'Swahili': '🇰🇪',
-    'Tamil': '🇮🇳',
-    'Telugu': '🇮🇳',
-    'Turkish': '🇹🇷',
-    'Urdu': '🇵🇰',
-  };
-
   String? _selectedLanguage;
 
   @override
@@ -103,7 +81,7 @@ class _LanguagePreferencesScreenState extends State<LanguagePreferencesScreen> {
                     .map(
                       (language) => DropdownMenuItem<String>(
                         value: language,
-                        child: Text('${_flags[language] ?? ''} $language'),
+                        child: Text(language),
                       ),
                     )
                     .toList(),

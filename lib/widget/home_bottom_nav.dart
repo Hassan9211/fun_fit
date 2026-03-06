@@ -7,10 +7,7 @@ import 'getx.dart';
 class HomeBottomNav extends StatelessWidget {
   final String selected;
 
-  const HomeBottomNav({
-    required this.selected,
-    super.key,
-  });
+  const HomeBottomNav({required this.selected, super.key});
 
   void _go(String tabLabel, String routeName) {
     if (selected == tabLabel) return;
@@ -24,8 +21,9 @@ class HomeBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     return BottomAppBar(
-      color: Colors.white,
+      color: colorScheme.surface,
       shape: const CircularNotchedRectangle(),
       notchMargin: 7,
       child: SizedBox(
@@ -103,7 +101,8 @@ class _BottomItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? Colors.black : const Color(0xFFB0B3B8);
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    final color = selected ? onSurface : onSurface.withValues(alpha: 0.55);
     return InkWell(
       onTap: onTap,
       child: Padding(

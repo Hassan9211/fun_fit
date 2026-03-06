@@ -15,6 +15,14 @@ class GenderSelectionScreen extends StatefulWidget {
 class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
   String? selectedGender;
 
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -95,7 +103,11 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
                   label: 'Next',
                   onPressed: selectedGender == null
                       ? null
-                      : () => Get.toNamed(Routes.goal),
+                      : () {
+                          final onboardingData = _readOnboardingData();
+                          onboardingData['gender'] = selectedGender;
+                          Get.toNamed(Routes.goal, arguments: onboardingData);
+                        },
                   width: double.infinity,
                   height: buttonHeight,
                   backgroundColor: Colors.black,

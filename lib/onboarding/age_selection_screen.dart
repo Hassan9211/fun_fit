@@ -17,6 +17,14 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
   late final FixedExtentScrollController _yearController;
   late int _selectedBirthYear;
 
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   int get _currentYear => DateTime.now().year;
   int get _selectedAge => _currentYear - _selectedBirthYear;
 
@@ -172,13 +180,12 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                       padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
                       child: AppButton(
                         label: 'Next',
-                        onPressed: () => Get.toNamed(
-                          Routes.height,
-                          arguments: {
-                            'birthYear': _selectedBirthYear,
-                            'age': _selectedAge,
-                          },
-                        ),
+                        onPressed: () {
+                          final onboardingData = _readOnboardingData();
+                          onboardingData['birthYear'] = _selectedBirthYear;
+                          onboardingData['age'] = _selectedAge;
+                          Get.toNamed(Routes.height, arguments: onboardingData);
+                        },
                         width: double.infinity,
                         height: 48,
                         backgroundColor: Colors.black,

@@ -15,6 +15,14 @@ class GoalSelectionScreen extends StatefulWidget {
 class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
   String? selectedGoal;
 
+  Map<String, dynamic> _readOnboardingData() {
+    final args = Get.arguments;
+    if (args is! Map) return <String, dynamic>{};
+    return args.map(
+      (key, value) => MapEntry(key.toString(), value),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -104,7 +112,14 @@ class _GoalSelectionScreenState extends State<GoalSelectionScreen> {
                   label: 'Next',
                   onPressed: selectedGoal == null
                       ? null
-                      : () => Get.toNamed(Routes.fitnessLevel),
+                      : () {
+                          final onboardingData = _readOnboardingData();
+                          onboardingData['goal'] = selectedGoal;
+                          Get.toNamed(
+                            Routes.fitnessLevel,
+                            arguments: onboardingData,
+                          );
+                        },
                   width: double.infinity,
                   height: buttonHeight,
                   backgroundColor: Colors.black,

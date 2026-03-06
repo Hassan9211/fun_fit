@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 
 class PasswordResetSuccessScreen extends StatelessWidget {
@@ -32,7 +33,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
           body: Center(
             child: Padding(
               padding: EdgeInsets.symmetric(horizontal: paddingH),
@@ -42,8 +43,12 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                   // Success icon
                   CircleAvatar(
                     radius: avatarRadius,
-                    backgroundColor: Colors.black,
-                    child: Icon(Icons.check, color: Colors.white, size: iconSize),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    child: Icon(
+                      Icons.check,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: iconSize,
+                    ),
                   ),
                   SizedBox(height: height * 0.03),
 
@@ -53,7 +58,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     style: TextStyle(
                       fontSize: textSizeTitle,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black,
+                      color: AppColors.textTitleFor(context),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -64,7 +69,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     'Your password has been updated. Please change your password regularly to avoid security issues.',
                     style: TextStyle(
                       fontSize: textSizeDesc,
-                      color: Colors.grey.shade600,
+                      color: AppColors.textSecondaryFor(context),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -76,7 +81,8 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                     onPressed: () => Get.offAllNamed(Routes.login),
                     width: double.infinity,
                     height: buttonHeight,
-                    backgroundColor: Colors.black,
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    textColor: Theme.of(context).colorScheme.onPrimary,
                     borderRadius: 8,
                     fontWeight: FontWeight.bold,
                   ),
@@ -90,7 +96,7 @@ class PasswordResetSuccessScreen extends StatelessWidget {
                       'Back to Login',
                       style: TextStyle(
                         fontSize: textSizeDesc,
-                        color: Colors.black87,
+                        color: AppColors.textTitleFor(context),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -104,4 +110,3 @@ class PasswordResetSuccessScreen extends StatelessWidget {
     );
   }
 }
-

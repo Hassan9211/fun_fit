@@ -11,6 +11,8 @@ Future<void> main() async {
   stdout.writeln('POST /auth/login');
   stdout.writeln('POST /auth/request-otp');
   stdout.writeln('POST /auth/verify-otp');
+  stdout.writeln('POST /auth/change-password');
+  stdout.writeln('POST /api/onboarding');
   stdout.writeln('GET  /health');
 
   await for (final request in server) {
@@ -47,6 +49,17 @@ Future<void> main() async {
       continue;
     }
 
+    if (request.method == 'POST' &&
+        request.uri.path == '/auth/change-password') {
+      await _handleChangePassword(request, usersByEmail);
+      continue;
+    }
+
+    if (request.method == 'POST' && request.uri.path == '/api/onboarding') {
+      await _handleSaveOnboarding(request, usersByEmail);
+      continue;
+    }
+
     request.response.statusCode = HttpStatus.notFound;
     request.response.write(
       jsonEncode({
@@ -68,48 +81,42 @@ Future<void> _handleSignup(
     final json = await _readJsonBody(request);
     if (json == null) return _badJson(request.response);
 
-    final fullName =
-        (json['name'] ?? json['full_name'] ?? '').toString().trim();
+    final fullName = (json['name'] ?? json['full_name'] ?? '')
+        .toString()
+        .trim();
     final email = (json['email'] ?? '').toString().trim().toLowerCase();
     final password = (json['password'] ?? '').toString();
     final phone = (json['phone'] ?? json['phone_number'] ?? '').toString();
 
-    if (fullName.isEmpty || email.isEmpty || password.isEmpty || phone.isEmpty) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {
-          'message': 'name/email/password/phone are required',
-          'required': ['name', 'email', 'password', 'phone'],
-        },
-      );
+    if (fullName.isEmpty ||
+        email.isEmpty ||
+        password.isEmpty ||
+        phone.isEmpty) {
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'name/email/password/phone are required',
+        'required': ['name', 'email', 'password', 'phone'],
+      });
       return;
     }
 
     if (!email.contains('@')) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'message': 'Invalid email format'},
-      );
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'Invalid email format',
+      });
       return;
     }
 
     if (password.length < 6) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'message': 'Password must be at least 6 characters'},
-      );
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'Password must be at least 6 characters',
+      });
       return;
     }
 
     if (usersByEmail.containsKey(email)) {
-      _sendJson(
-        request.response,
-        HttpStatus.conflict,
-        {'message': 'Email already exists'},
-      );
+      _sendJson(request.response, HttpStatus.conflict, {
+        'message': 'Email already exists',
+      });
       return;
     }
 
@@ -125,22 +132,18 @@ Future<void> _handleSignup(
     const otp = '1234';
     pendingOtps[_otpKey('signup', email)] = otp;
 
-    _sendJson(
-      request.response,
-      HttpStatus.created,
-      {
-        'success': true,
-        'message': 'Signup successful. OTP sent.',
-        'user': {
-          'id': usersByEmail[email]!['id'],
-          'name': fullName,
-          'email': email,
-          'phone': phone,
-        },
-        'otp': otp,
-        'purpose': 'signup',
+    _sendJson(request.response, HttpStatus.created, {
+      'success': true,
+      'message': 'Signup successful. OTP sent.',
+      'user': {
+        'id': usersByEmail[email]!['id'],
+        'name': fullName,
+        'email': email,
+        'phone': phone,
       },
-    );
+      'otp': otp,
+      'purpose': 'signup',
+    });
   } catch (_) {
     _badJson(request.response);
   }
@@ -159,21 +162,17 @@ Future<void> _handleLogin(
     final password = (json['password'] ?? '').toString();
 
     if (email.isEmpty || password.isEmpty) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'message': 'email and password are required'},
-      );
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'email and password are required',
+      });
       return;
     }
 
     final user = usersByEmail[email];
     if (user == null || user['password'] != password) {
-      _sendJson(
-        request.response,
-        HttpStatus.unauthorized,
-        {'message': 'Invalid email or password'},
-      );
+      _sendJson(request.response, HttpStatus.unauthorized, {
+        'message': 'Invalid email or password',
+      });
       return;
     }
 
@@ -204,20 +203,16 @@ Future<void> _handleRequestOtp(
     final purpose = _normalizePurpose(purposeRaw);
 
     if (email.isEmpty) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'message': 'email is required'},
-      );
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'email is required',
+      });
       return;
     }
 
     if (!usersByEmail.containsKey(email)) {
-      _sendJson(
-        request.response,
-        HttpStatus.notFound,
-        {'message': 'User not found'},
-      );
+      _sendJson(request.response, HttpStatus.notFound, {
+        'message': 'User not found',
+      });
       return;
     }
 
@@ -249,21 +244,17 @@ Future<void> _handleVerifyOtp(
     final purpose = _normalizePurpose(purposeRaw);
 
     if (email.isEmpty || otp.isEmpty || purpose.isEmpty) {
-      _sendJson(
-        request.response,
-        HttpStatus.badRequest,
-        {'message': 'email, otp, purpose are required'},
-      );
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'email, otp, purpose are required',
+      });
       return;
     }
 
     final key = _otpKey(purpose, email);
     if (pendingOtps[key] != otp) {
-      _sendJson(
-        request.response,
-        HttpStatus.unauthorized,
-        {'message': 'Invalid OTP'},
-      );
+      _sendJson(request.response, HttpStatus.unauthorized, {
+        'message': 'Invalid OTP',
+      });
       return;
     }
 
@@ -288,6 +279,132 @@ Future<void> _handleVerifyOtp(
               'phone': user['phone'],
               'is_verified': user['is_verified'],
             },
+    });
+  } catch (_) {
+    _badJson(request.response);
+  }
+}
+
+Future<void> _handleChangePassword(
+  HttpRequest request,
+  Map<String, Map<String, dynamic>> usersByEmail,
+) async {
+  try {
+    final json = await _readJsonBody(request);
+    if (json == null) return _badJson(request.response);
+
+    final email = (json['email'] ?? '').toString().trim().toLowerCase();
+    final currentPassword =
+        (json['current_password'] ??
+                json['currentPassword'] ??
+                json['old_password'] ??
+                '')
+            .toString();
+    final newPassword =
+        (json['new_password'] ?? json['newPassword'] ?? json['password'] ?? '')
+            .toString();
+    final confirmPassword =
+        (json['confirm_password'] ??
+                json['confirmPassword'] ??
+                json['password_confirmation'] ??
+                '')
+            .toString();
+
+    if (email.isEmpty ||
+        currentPassword.isEmpty ||
+        newPassword.isEmpty ||
+        confirmPassword.isEmpty) {
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message':
+            'email/current_password/new_password/confirm_password are required',
+      });
+      return;
+    }
+
+    final user = usersByEmail[email];
+    if (user == null) {
+      _sendJson(request.response, HttpStatus.notFound, {
+        'message': 'User not found',
+      });
+      return;
+    }
+
+    if (user['password'] != currentPassword) {
+      _sendJson(request.response, HttpStatus.unauthorized, {
+        'message': 'Current password is incorrect',
+      });
+      return;
+    }
+
+    if (newPassword != confirmPassword) {
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'New password and confirm password do not match',
+      });
+      return;
+    }
+
+    if (!_isStrongPassword(newPassword)) {
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message':
+            'Use 8+ chars with uppercase, lowercase, number and special character',
+      });
+      return;
+    }
+
+    user['password'] = newPassword;
+    _sendJson(request.response, HttpStatus.ok, {
+      'success': true,
+      'message': 'Password changed successfully',
+    });
+  } catch (_) {
+    _badJson(request.response);
+  }
+}
+
+Future<void> _handleSaveOnboarding(
+  HttpRequest request,
+  Map<String, Map<String, dynamic>> usersByEmail,
+) async {
+  try {
+    final json = await _readJsonBody(request);
+    if (json == null) return _badJson(request.response);
+
+    final email = (json['email'] ?? '').toString().trim().toLowerCase();
+    if (email.isEmpty) {
+      _sendJson(request.response, HttpStatus.badRequest, {
+        'message': 'email is required',
+      });
+      return;
+    }
+
+    final user = usersByEmail[email];
+    if (user == null) {
+      _sendJson(request.response, HttpStatus.notFound, {
+        'message': 'User not found',
+      });
+      return;
+    }
+
+    user['onboarding'] = {
+      'gender': json['gender'],
+      'goal': json['goal'],
+      'fitness_level': json['fitness_level'] ?? json['fitnessLevel'],
+      'age': json['age'],
+      'birth_year': json['birth_year'] ?? json['birthYear'],
+      'height_cm': json['height_cm'] ?? json['heightCm'],
+      'weight_kg': json['weight_kg'] ?? json['weightKg'],
+      'height_unit': json['heightUnit'],
+      'weight_unit': json['weightUnit'],
+    };
+
+    _sendJson(request.response, HttpStatus.ok, {
+      'success': true,
+      'message': 'Onboarding saved successfully',
+      'user': {
+        'id': user['id'],
+        'email': user['email'],
+        'onboarding': user['onboarding'],
+      },
     });
   } catch (_) {
     _badJson(request.response);
@@ -321,7 +438,22 @@ String _normalizePurpose(String purposeRaw) {
   return purposeRaw;
 }
 
-void _sendJson(HttpResponse response, int statusCode, Map<String, dynamic> json) {
+bool _isStrongPassword(String value) {
+  if (value.length < 8) return false;
+  final hasUppercase = RegExp(r'[A-Z]').hasMatch(value);
+  final hasLowercase = RegExp(r'[a-z]').hasMatch(value);
+  final hasNumber = RegExp(r'\d').hasMatch(value);
+  final hasSpecial = RegExp(
+    r'[!@#$%^&*(),.?":{}|<>_\-+=/\\[\];`~]',
+  ).hasMatch(value);
+  return hasUppercase && hasLowercase && hasNumber && hasSpecial;
+}
+
+void _sendJson(
+  HttpResponse response,
+  int statusCode,
+  Map<String, dynamic> json,
+) {
   response.statusCode = statusCode;
   response.write(jsonEncode(json));
   response.close();

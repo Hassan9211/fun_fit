@@ -165,7 +165,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Text(
-                                    '? $feature',
+                                    '- $feature',
                                     style: TextStyle(
                                       color: AppColors.textPrimaryFor(context),
                                       fontSize: 13,
@@ -177,7 +177,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: () => _onContinuePressed(isPremium),
+                                  onPressed: () =>
+                                      _onContinuePressed(isPremium),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,
                                     shape: RoundedRectangleBorder(
