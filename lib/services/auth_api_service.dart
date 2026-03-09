@@ -35,6 +35,8 @@ class AuthApiService {
   static const String _resetPasswordPath = '/api/reset-password';
   static const String _changePasswordPath = '/auth/change-password';
   static const String _saveOnboardingPath = '/api/onboarding';
+  static const String _homePath = '/api/home';
+  static const String _foodLogPath = '/api/foodlog';
 
   final String baseUrl;
   final List<String> _baseUrlCandidates;
@@ -87,10 +89,10 @@ class AuthApiService {
     final defaults = <String>[
       raw,
       _configuredBaseUrl,
-      _legacyLanBaseUrl,
       fallbackBaseUrl,
       'http://127.0.0.1:8000',
       if (_isAndroidRuntime) 'http://10.0.2.2:8000',
+      _legacyLanBaseUrl,
     ];
 
     final result = <String>[];
@@ -113,11 +115,24 @@ class AuthApiService {
     return _resolveBaseUrls(raw).first;
   }
 
-  Uri _buildUri(String path, {String? baseUrlOverride}) {
+  Uri _buildUri(
+    String path, {
+    String? baseUrlOverride,
+    Map<String, String>? queryParameters,
+  }) {
     final normalizedPath = path.startsWith('/') ? path.substring(1) : path;
     final baseUrl = baseUrlOverride ?? this.baseUrl;
     final base = Uri.parse(baseUrl.endsWith('/') ? baseUrl : '$baseUrl/');
-    return base.resolve(normalizedPath);
+    final uri = base.resolve(normalizedPath);
+    if (queryParameters == null || queryParameters.isEmpty) {
+      return uri;
+    }
+    return uri.replace(
+      queryParameters: <String, String>{
+        ...uri.queryParameters,
+        ...queryParameters,
+      },
+    );
   }
 
   Future<AuthApiResult> signup({
@@ -401,6 +416,124 @@ class AuthApiService {
     }
   }
 
+  Future<AuthApiResult> fetchHomeData({
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final queryParameters = <String, String>{};
+    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
+      queryParameters['email'] = normalizedEmail;
+    }
+
+    try {
+      return _getJson(
+        path: _homePath,
+        actionName: 'Home data',
+        extraHeaders: extraHeaders,
+        queryParameters: queryParameters,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> saveHomeData({
+    required Map<String, dynamic> homeData,
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final payload = <String, dynamic>{
+      ...homeData,
+      if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+        'email': normalizedEmail,
+    };
+
+    try {
+      return _postJson(
+        path: _homePath,
+        payload: payload,
+        actionName: 'Home data save',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchFoodLogData({
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final queryParameters = <String, String>{};
+    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
+      queryParameters['email'] = normalizedEmail;
+    }
+
+    try {
+      return _getJson(
+        path: _foodLogPath,
+        actionName: 'Food log',
+        extraHeaders: extraHeaders,
+        queryParameters: queryParameters,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> saveFoodLogPost({
+    required Map<String, dynamic> postData,
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final payload = <String, dynamic>{
+      ...postData,
+      'post': postData,
+      'foodlog': postData,
+      if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+        'email': normalizedEmail,
+    };
+
+    try {
+      return _postJson(
+        path: _foodLogPath,
+        payload: payload,
+        actionName: 'Food log post',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
   Map<String, dynamic>? _safeJsonDecode(String body) {
     final normalized = body.trim();
     if (normalized.isEmpty) return null;
@@ -493,6 +626,91 @@ class AuthApiService {
             _extractMessage(decoded) ??
             (ok
                 ? '$actionName successful.'
+                : '$actionName failed with status ${response.statusCode}.');
+
+        return AuthApiResult(
+          success: ok,
+          message: message,
+          statusCode: response.statusCode,
+          data: decoded,
+        );
+      } on TimeoutException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on SocketException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on http.ClientException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } catch (e) {
+        lastNetworkError = e;
+        continue;
+      }
+    }
+
+    final attempted = attemptedUris.map((e) => e.toString()).join(', ');
+    if (lastNetworkError is TimeoutException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Request timeout. Tried API URLs: $attempted. '
+            'If you are on a real Android phone, keep backend on 0.0.0.0 and use PC LAN IP.',
+        statusCode: 408,
+      );
+    }
+    if (lastNetworkError is SocketException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Network error. Tried API URLs: $attempted. '
+            'Verify backend is running and reachable from this device.',
+        statusCode: 503,
+      );
+    }
+    if (lastNetworkError is http.ClientException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Browser blocked request or API unreachable. '
+            'Tried API URL: $attempted. If running Flutter Web, enable CORS on backend.',
+        statusCode: 0,
+      );
+    }
+    return _unexpectedError();
+  }
+
+  Future<AuthApiResult> _getJson({
+    required String path,
+    required String actionName,
+    Map<String, String> extraHeaders = const <String, String>{},
+    Map<String, String> queryParameters = const <String, String>{},
+  }) async {
+    final attemptedUris = <Uri>[];
+    Object? lastNetworkError;
+
+    for (final candidateBaseUrl in _baseUrlCandidates) {
+      final uri = _buildUri(
+        path,
+        baseUrlOverride: candidateBaseUrl,
+        queryParameters: queryParameters,
+      );
+      attemptedUris.add(uri);
+      try {
+        final headers = <String, String>{
+          'Accept': 'application/json',
+        }..addAll(extraHeaders);
+
+        final response = await _client
+            .get(uri, headers: headers)
+            .timeout(const Duration(seconds: 12));
+
+        final decoded = _safeJsonDecode(response.body);
+        final ok = response.statusCode >= 200 && response.statusCode < 300;
+        final message =
+            _extractMessage(decoded) ??
+            (ok
+                ? '$actionName loaded.'
                 : '$actionName failed with status ${response.statusCode}.');
 
         return AuthApiResult(

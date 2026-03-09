@@ -16,6 +16,8 @@ enum _ChatTopic { food, challenge }
 
 enum _DiscussionReaction { none, like, dislike }
 
+enum _InviteNotificationStatus { pending, accepted, declined }
+
 class _GuideVideoItem {
   final String title;
   final String videoPath;
@@ -63,6 +65,15 @@ class _GuidesScreenState extends State<GuidesScreen> {
   String _profileImagePath = '';
   _GuidesMainTab _activeTab = _GuidesMainTab.forYou;
   _ChatTopic _activeTopic = _ChatTopic.food;
+  final List<_InviteNotification> _inviteNotifications =
+      <_InviteNotification>[
+        const _InviteNotification(
+          id: 'invite_1',
+          senderName: 'Angelina',
+          roomName: 'Body Weight',
+          ago: '8h',
+        ),
+      ];
 
   final List<_DiscussionPost> _posts = <_DiscussionPost>[
     const _DiscussionPost(
@@ -227,6 +238,10 @@ class _GuidesScreenState extends State<GuidesScreen> {
     return _ChatTab(
       selectedTopic: _activeTopic,
       onTopicChanged: (topic) => setState(() => _activeTopic = topic),
+      unreadInviteCount: _inviteNotifications
+          .where((notification) => !notification.isRead)
+          .length,
+      onOpenNotifications: _openInviteNotifications,
       posts: _posts
           .where((e) => e.type == _activeTopic)
           .toList(growable: false),
@@ -346,6 +361,26 @@ class _GuidesScreenState extends State<GuidesScreen> {
       _updatePostById(id, (old) => old.copyWith(isAccepted: !old.isAccepted));
     });
   }
+
+  Future<void> _openInviteNotifications() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _GuideInviteNotificationsScreen(
+          notifications: List<_InviteNotification>.from(_inviteNotifications),
+          onChanged: _syncInviteNotifications,
+        ),
+      ),
+    );
+  }
+
+  void _syncInviteNotifications(List<_InviteNotification> notifications) {
+    if (!mounted) return;
+    setState(() {
+      _inviteNotifications
+        ..clear()
+        ..addAll(notifications);
+    });
+  }
 }
 
 class _DiscussionPost {
@@ -399,6 +434,38 @@ class _DiscussionReply {
   final String text;
 
   const _DiscussionReply({required this.author, required this.text});
+}
+
+class _InviteNotification {
+  final String id;
+  final String senderName;
+  final String roomName;
+  final String ago;
+  final bool isRead;
+  final _InviteNotificationStatus status;
+
+  const _InviteNotification({
+    required this.id,
+    required this.senderName,
+    required this.roomName,
+    required this.ago,
+    this.isRead = false,
+    this.status = _InviteNotificationStatus.pending,
+  });
+
+  _InviteNotification copyWith({
+    bool? isRead,
+    _InviteNotificationStatus? status,
+  }) {
+    return _InviteNotification(
+      id: id,
+      senderName: senderName,
+      roomName: roomName,
+      ago: ago,
+      isRead: isRead ?? this.isRead,
+      status: status ?? this.status,
+    );
+  }
 }
 
 class _GuidesTabs extends StatelessWidget {
@@ -1390,6 +1457,8 @@ class _ExploreTab extends StatelessWidget {
 class _ChatTab extends StatelessWidget {
   final _ChatTopic selectedTopic;
   final ValueChanged<_ChatTopic> onTopicChanged;
+  final int unreadInviteCount;
+  final VoidCallback onOpenNotifications;
   final List<_DiscussionPost> posts;
   final ValueChanged<String> onLike;
   final ValueChanged<String> onDislike;
@@ -1399,6 +1468,8 @@ class _ChatTab extends StatelessWidget {
   const _ChatTab({
     required this.selectedTopic,
     required this.onTopicChanged,
+    required this.unreadInviteCount,
+    required this.onOpenNotifications,
     required this.posts,
     required this.onLike,
     required this.onDislike,
@@ -1429,6 +1500,11 @@ class _ChatTab extends StatelessWidget {
                   onTap: () => onTopicChanged(_ChatTopic.challenge),
                 ),
               ),
+              const SizedBox(width: 10),
+              _ChatNotificationButton(
+                unreadCount: unreadInviteCount,
+                onTap: onOpenNotifications,
+              ),
             ],
           ),
         ),
@@ -1453,6 +1529,72 @@ class _ChatTab extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ChatNotificationButton extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback onTap;
+
+  const _ChatNotificationButton({
+    required this.unreadCount,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = AppColors.isDark(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 36,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.borderLightFor(context)),
+            ),
+            child: Icon(
+              Icons.notifications_none_rounded,
+              size: 18,
+              color: AppColors.textPrimaryFor(context),
+            ),
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              top: -5,
+              right: -5,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 1.5,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF111827),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF121212) : Colors.white,
+                    width: 1.1,
+                  ),
+                ),
+                child: Text(
+                  unreadCount > 9 ? '9+' : '$unreadCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w700,
+                    height: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1913,6 +2055,376 @@ class _ChatMessage {
     required this.time,
     required this.mine,
   });
+}
+
+class _GuideInviteNotificationsScreen extends StatefulWidget {
+  final List<_InviteNotification> notifications;
+  final ValueChanged<List<_InviteNotification>> onChanged;
+
+  const _GuideInviteNotificationsScreen({
+    required this.notifications,
+    required this.onChanged,
+  });
+
+  @override
+  State<_GuideInviteNotificationsScreen> createState() =>
+      _GuideInviteNotificationsScreenState();
+}
+
+class _GuideInviteNotificationsScreenState
+    extends State<_GuideInviteNotificationsScreen> {
+  late List<_InviteNotification> _notifications;
+
+  int get _unreadCount =>
+      _notifications.where((notification) => !notification.isRead).length;
+
+  @override
+  void initState() {
+    super.initState();
+    _notifications = List<_InviteNotification>.from(widget.notifications);
+  }
+
+  void _notifyParent() {
+    widget.onChanged(List<_InviteNotification>.from(_notifications));
+  }
+
+  void _markAllAsRead() {
+    setState(() {
+      _notifications = _notifications
+          .map((notification) => notification.copyWith(isRead: true))
+          .toList(growable: false);
+    });
+    _notifyParent();
+  }
+
+  void _updateStatus(String id, _InviteNotificationStatus status) {
+    final index = _notifications.indexWhere(
+      (notification) => notification.id == id,
+    );
+    if (index == -1) return;
+
+    setState(() {
+      _notifications[index] = _notifications[index].copyWith(
+        isRead: true,
+        status: status,
+      );
+    });
+    _notifyParent();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        centerTitle: true,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        title: const Text(
+          'Notification',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+      ),
+      body: SafeArea(
+        top: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
+                child: Row(
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'All',
+                          style: TextStyle(
+                            color: Color(0xFF202020),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 5,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F3F5),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            '${_notifications.length}',
+                            style: const TextStyle(
+                              color: Color(0xFF475467),
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              height: 1,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: _unreadCount == 0 ? null : _markAllAsRead,
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF344054),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: const Text(
+                        'Mark all as read',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {},
+                      splashRadius: 18,
+                      icon: const Icon(
+                        Icons.settings_outlined,
+                        size: 18,
+                        color: Color(0xFF667085),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(left: 14),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    width: 35,
+                    height: 2.2,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF111111),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Divider(height: 1, color: Color(0xFFE4E7EC)),
+              Expanded(
+                child: _notifications.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No notifications yet',
+                          style: TextStyle(
+                            color: Color(0xFF667085),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+                        itemCount: _notifications.length,
+                        separatorBuilder: (_, _) =>
+                            const Divider(height: 22, color: Color(0xFFE4E7EC)),
+                        itemBuilder: (context, index) {
+                          final notification = _notifications[index];
+                          return _InviteNotificationCard(
+                            notification: notification,
+                            onAccept:
+                                notification.status ==
+                                    _InviteNotificationStatus.pending
+                                ? () => _updateStatus(
+                                    notification.id,
+                                    _InviteNotificationStatus.accepted,
+                                  )
+                                : null,
+                            onDecline:
+                                notification.status ==
+                                    _InviteNotificationStatus.pending
+                                ? () => _updateStatus(
+                                    notification.id,
+                                    _InviteNotificationStatus.declined,
+                                  )
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InviteNotificationCard extends StatelessWidget {
+  final _InviteNotification notification;
+  final VoidCallback? onAccept;
+  final VoidCallback? onDecline;
+
+  const _InviteNotificationCard({
+    required this.notification,
+    this.onAccept,
+    this.onDecline,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final status = notification.status;
+    final statusColor = status == _InviteNotificationStatus.accepted
+        ? const Color(0xFF067647)
+        : const Color(0xFFB42318);
+    final statusLabel = status == _InviteNotificationStatus.accepted
+        ? 'Invitation accepted'
+        : 'Invitation declined';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: notification.isRead
+                    ? const Color(0xFFD0D5DD)
+                    : const Color(0xFF101828),
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Text(
+                'Invitation',
+                style: TextStyle(
+                  color: Color(0xFF101828),
+                  fontSize: 12.2,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Text(
+              notification.ago,
+              style: const TextStyle(
+                color: Color(0xFF667085),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Icon(
+              Icons.more_horiz_rounded,
+              size: 18,
+              color: Color(0xFF667085),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 15),
+          child: Text(
+            '${notification.senderName} invite you to join "${notification.roomName}"\nroom',
+            style: const TextStyle(
+              color: Color(0xFF667085),
+              fontSize: 11.4,
+              fontWeight: FontWeight.w500,
+              height: 1.35,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.only(left: 15),
+          child: status == _InviteNotificationStatus.pending
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 34,
+                        child: ElevatedButton(
+                          onPressed: onAccept,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: const Text(
+                            'Accept',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: SizedBox(
+                        height: 34,
+                        child: OutlinedButton(
+                          onPressed: onDecline,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF344054),
+                            side: const BorderSide(color: Color(0xFFD0D5DD)),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                          child: const Text(
+                            'Decline',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 9,
+                  ),
+                  decoration: BoxDecoration(
+                    color: status == _InviteNotificationStatus.accepted
+                        ? const Color(0xFFF0FDF4)
+                        : const Color(0xFFFEF3F2),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: status == _InviteNotificationStatus.accepted
+                          ? const Color(0xFFA6F4C5)
+                          : const Color(0xFFFDA29B),
+                    ),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+        ),
+      ],
+    );
+  }
 }
 
 class InviteFriendScreen extends StatelessWidget {

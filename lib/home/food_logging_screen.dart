@@ -2,18 +2,16 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
-import '../widget/app_section_header.dart';
 import '../widget/file_video_preview.dart';
-import '../widget/home_bottom_nav.dart';
-import '../widget/getx.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
   const FoodLoggingScreen({super.key});
@@ -54,10 +52,12 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
   static const String _kProfileImagePath = 'profile_image_path';
   static const String _kProfileMedia = 'profile_media_items';
   static const String _defaultProfileName = 'Jacob West';
+  final AuthApiService _authApi = AuthApiService();
   final TextEditingController _composerController = TextEditingController();
   _FeedTab _selectedTab = _FeedTab.publicPosts;
   String _profileName = _defaultProfileName;
   String _profileImagePath = '';
+  bool _isSavingPost = false;
 
   final List<_FeedPost> _publicPosts = <_FeedPost>[
     const _FeedPost(
@@ -160,6 +160,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
         );
       }
     });
+    await _loadFeedFromApi();
   }
 
   List<_FeedPost> _readPublicMediaPosts(
@@ -258,12 +259,8 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
   List<_FeedPost> get _visiblePosts =>
       _selectedTab == _FeedTab.publicPosts ? _publicPosts : _myPosts;
 
-  Future<void> _openProfile() async {
-    await Get.toNamed(Routes.profile);
-    await _loadProfileData();
-  }
-
-  void _submitPost() {
+  Future<void> _submitPost() async {
+    if (_isSavingPost) return;
     final text = _composerController.text.trim();
     if (text.isEmpty) return;
 
@@ -284,9 +281,70 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       _composerController.clear();
       _selectedTab = _FeedTab.myPosts;
     });
+
+    await _savePostToApi(newPost);
   }
 
-  void _toggleLike(int index) {
+  Future<void> _loadFeedFromApi() async {
+    final email = await AuthSessionStorage.readEmail();
+    final token = await AuthSessionStorage.readToken();
+
+    final result = await _authApi.fetchFoodLogData(
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    if (!mounted || !result.success) return;
+
+    final payload = _FoodLogApiPayload.fromResponse(result.data);
+    final hasAnyData = payload.publicPosts != null || payload.myPosts != null;
+    if (!hasAnyData) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final mediaPosts = _readPublicMediaPosts(
+      prefs.getStringList(_kProfileMedia) ?? <String>[],
+      author: _profileDisplayName,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      if (payload.publicPosts != null) {
+        _publicPosts
+          ..clear()
+          ..addAll(payload.publicPosts!);
+      }
+      if (payload.myPosts != null) {
+        _myPosts
+          ..clear()
+          ..addAll(payload.myPosts!);
+      }
+      _syncProfileMediaPosts(mediaPosts);
+    });
+  }
+
+  Future<void> _savePostToApi(_FeedPost post) async {
+    if (_isSavingPost) return;
+
+    final email = await AuthSessionStorage.readEmail();
+    final token = await AuthSessionStorage.readToken();
+    _isSavingPost = true;
+
+    final result = await _authApi.saveFoodLogPost(
+      postData: post.toApiJson(),
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    _isSavingPost = false;
+
+    if (!mounted || result.success) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
+  }
+
+  Future<void> _toggleLike(int index) async {
     final post = _publicPosts[index];
     var likes = post.likes;
     _Reaction nextReaction = _Reaction.like;
@@ -298,12 +356,15 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       likes += 1;
     }
 
+    late final _FeedPost updatedPost;
     setState(() {
-      _publicPosts[index] = post.copyWith(likes: likes, reaction: nextReaction);
+      updatedPost = post.copyWith(likes: likes, reaction: nextReaction);
+      _publicPosts[index] = updatedPost;
     });
+    await _savePostToApi(updatedPost);
   }
 
-  void _toggleDislike(int index) {
+  Future<void> _toggleDislike(int index) async {
     final post = _publicPosts[index];
     var likes = post.likes;
     _Reaction nextReaction = _Reaction.dislike;
@@ -314,9 +375,12 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       likes = likes > 0 ? likes - 1 : 0;
     }
 
+    late final _FeedPost updatedPost;
     setState(() {
-      _publicPosts[index] = post.copyWith(likes: likes, reaction: nextReaction);
+      updatedPost = post.copyWith(likes: likes, reaction: nextReaction);
+      _publicPosts[index] = updatedPost;
     });
+    await _savePostToApi(updatedPost);
   }
 
   Future<void> _openReplyDialog({
@@ -362,19 +426,25 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
           : _profileImagePath,
     );
 
+    _FeedPost? updatedPost;
     setState(() {
       if (isPublic) {
         final post = _publicPosts[index];
-        _publicPosts[index] = post.copyWith(
+        updatedPost = post.copyWith(
           replies: <_PostReply>[...post.replies, reply],
         );
+        _publicPosts[index] = updatedPost!;
       } else {
         final post = _myPosts[index];
-        _myPosts[index] = post.copyWith(
+        updatedPost = post.copyWith(
           replies: <_PostReply>[...post.replies, reply],
         );
+        _myPosts[index] = updatedPost!;
       }
     });
+    if (updatedPost != null) {
+      await _savePostToApi(updatedPost!);
+    }
   }
 
   @override
@@ -394,38 +464,49 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
         final panelColor = isDark
             ? const Color(0xFF171717)
             : const Color(0xFFF2F2F2);
-        final avatarProvider = ProfileAvatarResolver.resolve(
-          _profileImagePath,
-          fallback: const AssetImage('assets/images/alina.jpg'),
-        );
         return Scaffold(
           backgroundColor: const Color(0xFF080808),
-          extendBody: true,
-          floatingActionButton: SizedBox(
-            width: 42,
-            height: 42,
-            child: FloatingActionButton(
-              backgroundColor: Colors.white,
-              elevation: 2,
-              onPressed: () {},
-              child: const Icon(Icons.add, color: Colors.black, size: 20),
-            ),
-          ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
-          bottomNavigationBar: const HomeBottomNav(selected: 'Food Log'),
           body: SafeArea(
-            bottom: false,
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: contentMaxWidth),
                 child: Column(
                   children: [
-                    AppSectionHeader(
-                      title: 'Food Log',
-                      avatarProvider: avatarProvider,
-                      onTapProfile: _openProfile,
-                      showAvatar: false,
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                      child: Row(
+                        children: [
+                          InkWell(
+                            onTap: () => Navigator.of(context).maybePop(),
+                            borderRadius: BorderRadius.circular(18),
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: const Icon(
+                                Icons.arrow_back_ios_new_rounded,
+                                color: Colors.black,
+                                size: 14,
+                              ),
+                            ),
+                          ),
+                          const Expanded(
+                            child: Text(
+                              'FoodLog',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 28, height: 28),
+                        ],
+                      ),
                     ),
                     Expanded(
                       child: AnimatedReveal(
@@ -1136,6 +1217,47 @@ class _FeedPost {
     this.isProfileMedia = false,
   });
 
+  Map<String, dynamic> toApiJson() {
+    final reactionLabel = switch (reaction) {
+      _Reaction.like => 'like',
+      _Reaction.dislike => 'dislike',
+      _Reaction.none => 'none',
+    };
+
+    return <String, dynamic>{
+      'author': author,
+      'name': author,
+      'content': content,
+      'message': content,
+      'text': content,
+      'likes': likes,
+      'like_count': likes,
+      'likeCount': likes,
+      'reaction': reactionLabel,
+      'user_reaction': reactionLabel,
+      'userReaction': reactionLabel,
+      'minutes_ago': minutesAgo,
+      'minutesAgo': minutesAgo,
+      'is_mine': isMine,
+      'isMine': isMine,
+      'replies': replies.map((reply) => reply.toApiJson()).toList(growable: false),
+      'visibility': 'public',
+      'is_public': true,
+      if (avatarFilePath != null && avatarFilePath!.trim().isNotEmpty) ...{
+        'avatar': avatarFilePath,
+        'avatar_url': avatarFilePath,
+        'avatarUrl': avatarFilePath,
+      },
+      if (mediaPath != null && mediaPath!.trim().isNotEmpty) ...{
+        'media': mediaPath,
+        'media_path': mediaPath,
+        'mediaPath': mediaPath,
+        'media_type': mediaType,
+        'mediaType': mediaType,
+      },
+    };
+  }
+
   _FeedPost copyWith({
     String? author,
     int? minutesAgo,
@@ -1179,4 +1301,240 @@ class _PostReply {
     required this.text,
     this.avatarFilePath,
   });
+
+  Map<String, dynamic> toApiJson() {
+    return <String, dynamic>{
+      'author': author,
+      'name': author,
+      'minutes_ago': minutesAgo,
+      'minutesAgo': minutesAgo,
+      'text': text,
+      'message': text,
+      if (avatarFilePath != null && avatarFilePath!.trim().isNotEmpty) ...{
+        'avatar': avatarFilePath,
+        'avatar_url': avatarFilePath,
+        'avatarUrl': avatarFilePath,
+      },
+    };
+  }
+}
+
+class _FoodLogApiPayload {
+  final List<_FeedPost>? publicPosts;
+  final List<_FeedPost>? myPosts;
+
+  const _FoodLogApiPayload({this.publicPosts, this.myPosts});
+
+  factory _FoodLogApiPayload.fromResponse(Map<String, dynamic>? response) {
+    if (response == null) {
+      return const _FoodLogApiPayload();
+    }
+
+    final containers = _collectContainers(response);
+    final publicRaw = _firstRawAcrossMaps(
+      containers,
+      const <String>[
+        'public_posts',
+        'publicPosts',
+        'public_feed',
+        'publicFeed',
+      ],
+    );
+    final myRaw = _firstRawAcrossMaps(
+      containers,
+      const <String>['my_posts', 'myPosts', 'private_posts', 'privatePosts'],
+    );
+    final genericRaw = _firstRawAcrossMaps(
+      containers,
+      const <String>['posts', 'feed', 'foodlog', 'food_log', 'items'],
+    );
+
+    final publicPosts = _parsePosts(publicRaw ?? genericRaw);
+    final myPosts = _parsePosts(myRaw);
+    if (publicPosts == null && myPosts == null) {
+      return const _FoodLogApiPayload();
+    }
+
+    if (myPosts != null) {
+      return _FoodLogApiPayload(publicPosts: publicPosts, myPosts: myPosts);
+    }
+
+    final inferredMyPosts = publicPosts
+        ?.where((post) => post.isMine)
+        .toList(growable: false);
+    return _FoodLogApiPayload(
+      publicPosts: publicPosts,
+      myPosts: inferredMyPosts,
+    );
+  }
+
+  static List<Map<String, dynamic>> _collectContainers(
+    Map<String, dynamic> root,
+  ) {
+    final result = <Map<String, dynamic>>[root];
+    final queue = <Map<String, dynamic>>[root];
+    const keys = <String>['data', 'result', 'payload', 'response'];
+
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      for (final key in keys) {
+        final nested = _asMap(current[key]);
+        if (nested == null) continue;
+        result.add(nested);
+        queue.add(nested);
+      }
+    }
+    return result;
+  }
+
+  static dynamic _firstRawAcrossMaps(
+    List<Map<String, dynamic>> maps,
+    List<String> keys,
+  ) {
+    for (final map in maps) {
+      for (final key in keys) {
+        final value = map[key];
+        if (value != null) return value;
+      }
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      return value.map((key, val) => MapEntry(key.toString(), val));
+    }
+    return null;
+  }
+
+  static List<dynamic>? _asList(dynamic value) {
+    if (value is List) return value;
+    final map = _asMap(value);
+    if (map == null) return null;
+    for (final key in const <String>['data', 'items', 'results', 'list']) {
+      final nested = map[key];
+      if (nested is List) return nested;
+    }
+    return <dynamic>[map];
+  }
+
+  static String? _firstNonEmptyString(
+    Map<String, dynamic> map,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+    }
+    return null;
+  }
+
+  static int _parseInt(dynamic raw) {
+    if (raw is int) return raw;
+    if (raw is num) return raw.toInt();
+    return int.tryParse(raw?.toString() ?? '') ?? 0;
+  }
+
+  static bool _parseBool(dynamic raw) {
+    if (raw is bool) return raw;
+    if (raw is num) return raw != 0;
+    final value = raw?.toString().trim().toLowerCase();
+    return value == 'true' || value == '1' || value == 'yes';
+  }
+
+  static _Reaction _parseReaction(Map<String, dynamic> json) {
+    final liked = _parseBool(json['is_liked'] ?? json['isLiked']);
+    final disliked = _parseBool(json['is_disliked'] ?? json['isDisliked']);
+    if (liked) return _Reaction.like;
+    if (disliked) return _Reaction.dislike;
+
+    final raw = _firstNonEmptyString(
+      json,
+      const <String>['reaction', 'user_reaction', 'userReaction'],
+    );
+    if (raw == null) return _Reaction.none;
+
+    final normalized = raw.toLowerCase();
+    if (normalized == 'like' || normalized == 'liked') return _Reaction.like;
+    if (normalized == 'dislike' || normalized == 'disliked') {
+      return _Reaction.dislike;
+    }
+    return _Reaction.none;
+  }
+
+  static String _parseMediaType(Map<String, dynamic> json) {
+    final raw = _firstNonEmptyString(
+      json,
+      const <String>['media_type', 'mediaType', 'type'],
+    );
+    if (raw == null) return _FeedMediaType.none;
+    final normalized = raw.toLowerCase();
+    if (normalized.contains('image') || normalized == 'photo') {
+      return _FeedMediaType.image;
+    }
+    return _FeedMediaType.none;
+  }
+
+  static List<_FeedPost>? _parsePosts(dynamic raw) {
+    final list = _asList(raw);
+    if (list == null) return null;
+
+    final posts = list
+        .map<_FeedPost?>((item) {
+          final json = _asMap(item);
+          if (json == null) return null;
+
+          final content = _firstNonEmptyString(
+            json,
+            const <String>['content', 'message', 'text', 'body', 'post'],
+          );
+          if (content == null || content.isEmpty) return null;
+
+          final avatar = _firstNonEmptyString(
+            json,
+            const <String>['avatar', 'avatar_url', 'avatarUrl', 'profile'],
+          );
+          final mediaPath = _firstNonEmptyString(
+            json,
+            const <String>['media', 'media_path', 'mediaPath', 'path'],
+          );
+
+          return _FeedPost(
+            author:
+                _firstNonEmptyString(
+                  json,
+                  const <String>['author', 'name', 'username', 'user_name'],
+                ) ??
+                'User',
+            minutesAgo: _parseInt(
+              json['minutes_ago'] ??
+                  json['minutesAgo'] ??
+                  json['minutes'] ??
+                  json['time'],
+            ),
+            avatarFilePath: avatar,
+            content: content,
+            likes: _parseInt(
+              json['likes'] ?? json['like_count'] ?? json['likeCount'],
+            ),
+            isMine: _parseBool(
+              json['is_mine'] ??
+                  json['isMine'] ??
+                  json['mine'] ??
+                  json['my_post'] ??
+                  json['myPost'],
+            ),
+            reaction: _parseReaction(json),
+            mediaPath: mediaPath,
+            mediaType: mediaPath == null ? _FeedMediaType.none : _parseMediaType(json),
+          );
+        })
+        .whereType<_FeedPost>()
+        .toList(growable: false);
+
+    return posts;
+  }
 }
