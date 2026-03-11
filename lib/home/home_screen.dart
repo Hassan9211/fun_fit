@@ -1,9 +1,11 @@
 // ignore_for_file: unused_field
 
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../onboarding/fitness_lvl.dart';
@@ -25,6 +27,7 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   static const String _kProfileName = 'profile_name';
   static const String _kProfileImagePath = 'profile_image_path';
+  static const String _kLocalChallenges = 'local_challenges';
   static const String _defaultProfileName = 'Jacob West';
   static const String _defaultProfileImageUrl =
       'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80';
@@ -96,12 +99,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final email = await AuthSessionStorage.readEmail();
     final token = await AuthSessionStorage.readToken();
     final prefs = await SharedPreferences.getInstance();
+    final localChallenges = _readLocalChallenges(prefs);
     final savedName = (prefs.getString(_kProfileName) ?? '').trim();
     final imagePath = prefs.getString(_kProfileImagePath) ?? '';
     if (!mounted) return;
     setState(() {
       _profileName = savedName.isEmpty ? _defaultProfileName : savedName;
       _profileImagePath = imagePath;
+      _mergeLocalChallenges(localChallenges);
     });
 
     final result = await _authApi.fetchHomeData(
@@ -130,7 +135,36 @@ class _HomeScreenState extends State<HomeScreen> {
           ..clear()
           ..addAll(payload.challenges!);
       }
+      _mergeLocalChallenges(localChallenges);
     });
+  }
+
+  List<_ActiveChallenge> _readLocalChallenges(SharedPreferences prefs) {
+    final raw = prefs.getStringList(_kLocalChallenges) ?? <String>[];
+    return raw
+        .map<_ActiveChallenge?>((item) {
+          try {
+            final decoded = jsonDecode(item);
+            if (decoded is! Map<String, dynamic>) return null;
+            return _ActiveChallenge.fromApi(decoded);
+          } catch (_) {
+            return null;
+          }
+        })
+        .whereType<_ActiveChallenge>()
+        .toList(growable: false);
+  }
+
+  void _mergeLocalChallenges(List<_ActiveChallenge> locals) {
+    if (locals.isEmpty) return;
+    for (final local in locals) {
+      final exists = _currentChallenges.any(
+        (challenge) => challenge.title == local.title,
+      );
+      if (!exists) {
+        _currentChallenges.add(local);
+      }
+    }
   }
 
   Future<void> _pickRandomChallenge() async {
@@ -139,16 +173,30 @@ class _HomeScreenState extends State<HomeScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 420));
     if (!mounted) return;
 
-    final template = _challengePool[_random.nextInt(_challengePool.length)];
+    final prefs = await SharedPreferences.getInstance();
+    final localChallenges = _readLocalChallenges(prefs);
+    final candidates = <_ActiveChallenge>[
+      ..._challengePool.map(
+        (template) =>
+            _ActiveChallenge.fromTemplate(template, progress: 0.18),
+      ),
+      ...localChallenges.map((challenge) => challenge.copyWith(progress: 0.18)),
+    ];
+
+    if (candidates.isEmpty) {
+      if (mounted) {
+        setState(() => _isPickingChallenge = false);
+      }
+      return;
+    }
+
+    final picked = candidates[_random.nextInt(candidates.length)];
     final existingIndex = _currentChallenges.indexWhere(
-      (challenge) => challenge.title == template.title,
+      (challenge) => challenge.title == picked.title,
     );
     setState(() {
       if (existingIndex == -1) {
-        _currentChallenges.insert(
-          0,
-          _ActiveChallenge.fromTemplate(template, progress: 0.18),
-        );
+        _currentChallenges.insert(0, picked);
       } else {
         final current = _currentChallenges[existingIndex];
         _currentChallenges[existingIndex] = current.copyWith(
@@ -162,7 +210,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('${template.title} selected')));
+    ).showSnackBar(SnackBar(content: Text('${picked.title} selected')));
+  }
+
+  Future<void> _openRandomChallengeScreen() async {
+    final current = _currentChallenges.isNotEmpty
+        ? _currentChallenges.first
+        : null;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _RandomChallengeScreen(
+          challenge: current,
+          onStartRandom: () async {
+            await _pickRandomChallenge();
+            if (!mounted) return null;
+            return _currentChallenges.isNotEmpty
+                ? _currentChallenges.first
+                : null;
+          },
+          onDiscard: current == null
+              ? null
+              : () async {
+                  await _removeChallenge(current);
+                },
+        ),
+      ),
+    );
   }
 
   Future<void> _removeChallenge(_ActiveChallenge challenge) async {
@@ -453,7 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             child: ElevatedButton(
                               onPressed: _isPickingChallenge
                                   ? null
-                                  : _pickRandomChallenge,
+                                  : _openRandomChallengeScreen,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.black,
                                 foregroundColor: Colors.white,
@@ -720,6 +793,344 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _RandomChallengeScreen extends StatefulWidget {
+  final _ActiveChallenge? challenge;
+  final Future<_ActiveChallenge?> Function() onStartRandom;
+  final Future<void> Function()? onDiscard;
+
+  const _RandomChallengeScreen({
+    required this.challenge,
+    required this.onStartRandom,
+    this.onDiscard,
+  });
+
+  @override
+  State<_RandomChallengeScreen> createState() => _RandomChallengeScreenState();
+}
+
+class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
+  bool _isPicking = false;
+  late _ActiveChallenge? _current;
+
+  @override
+  void initState() {
+    super.initState();
+    _current = widget.challenge;
+  }
+
+  Future<void> _showDiscardDialog(BuildContext context) async {
+    if (widget.onDiscard == null) return;
+    final shouldDiscard = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Discard Challenge'),
+        content: const Text('Are you sure you want to discard this challenge?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDiscard == true) {
+      await widget.onDiscard!();
+      if (!mounted) return;
+      setState(() => _current = null);
+    }
+  }
+
+  Future<void> _handleStartRandom() async {
+    if (_isPicking) return;
+    setState(() => _isPicking = true);
+    final next = await widget.onStartRandom();
+    if (!mounted) return;
+    setState(() {
+      _current = next;
+      _isPicking = false;
+    });
+  }
+
+  Future<void> _recordChallenge(BuildContext context) async {
+    final picker = ImagePicker();
+    final file = await picker.pickVideo(source: ImageSource.camera);
+    if (!context.mounted || file == null) return;
+    final fileName = file.path.split(RegExp(r'[\\\\/]')).last;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Video selected: $fileName')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const panelColor = Color(0xFFF5F5F5);
+    const panelTextColor = Color(0xFF222222);
+    const panelHintColor = Color(0xFF7A7A7A);
+    const panelCardColor = Color(0xFFEFEFEF);
+    final data = _current;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF080808),
+      extendBody: true,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF080808),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          color: Colors.white,
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Challenges',
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+        ),
+        centerTitle: true,
+      ),
+      body: SafeArea(
+        bottom: false,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: panelColor,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+          ),
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 96),
+            children: [
+              const Text(
+                'Choose Random Challenge',
+                style: TextStyle(
+                  color: panelHintColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: SizedBox(
+                  height: 42,
+                  child: ElevatedButton(
+                    onPressed: _isPicking ? null : _handleStartRandom,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: Colors.black45,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(9),
+                      ),
+                    ),
+                    child: const Text(
+                      'Start Random Challenge',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Current Challenges',
+                style: TextStyle(
+                  color: Color(0xFF646464),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (data == null)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: panelCardColor,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Text(
+                    'No active challenge. Start a random one.',
+                    style: TextStyle(color: panelHintColor),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: panelCardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E2E2)),
+                  ),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: SizedBox(
+                          width: 78,
+                          height: 78,
+                          child: _RemoteAwareImage(
+                            path: data.imagePath,
+                            fallbackAssetPath: 'assets/images/pushup.jpg',
+                            fit: BoxFit.cover,
+                            alignment: Alignment.center,
+                            filterQuality: FilterQuality.high,
+                            gaplessPlayback: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    data.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: panelTextColor,
+                                    ),
+                                  ),
+                                ),
+                                Text(
+                                  data.duration,
+                                  style: const TextStyle(
+                                    color: Color(0xFF8A8A8A),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              data.subtitle,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Color(0xFF8E8E8E),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                height: 1.18,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                minHeight: 8,
+                                value: data.progress,
+                                backgroundColor: const Color(0xFFE0E0E0),
+                                valueColor: const AlwaysStoppedAnimation(
+                                  Color(0xFF22C1CC),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              const SizedBox(height: 18),
+              const Text(
+                'Challenges Discription',
+                style: TextStyle(
+                  color: panelHintColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  data == null
+                      ? 'Select a random challenge to see details here.'
+                      : 'Perform ${data.title} with proper form. '
+                          'Keep your body straight, lower until your chest '
+                          'nearly touches the ground, then push back up. '
+                          'Upload a video for verification.',
+                  style: const TextStyle(
+                    color: Color(0xFF4A4A4A),
+                    fontSize: 12.5,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: () => _recordChallenge(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  icon: const Icon(Icons.videocam_outlined, size: 18),
+                  label: const Text(
+                    'Record Challenge',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: widget.onDiscard == null
+                      ? null
+                      : () => _showDiscardDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black26,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: const Text(
+                    'Discard',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
     );
   }
 }

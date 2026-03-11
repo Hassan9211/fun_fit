@@ -7,6 +7,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
@@ -37,8 +39,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const String _kFollowers = 'profile_followers_count';
 
   final ImagePicker _picker = ImagePicker();
+  final AuthApiService _authApi = AuthApiService();
 
   bool _loading = true;
+  bool _isSavingProfile = false;
   String _name = '';
   String _username = '';
   String _bio = '';
@@ -73,6 +77,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
     }
+
+    await _refreshProfileFromApi();
   }
 
   List<_ProfileMediaItem> _readMedia(List<String> raw) {
@@ -91,23 +97,150 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .toList();
   }
 
-  Future<void> _saveMedia() async {
+  Future<void> _saveProfileLocally() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kProfileName, _name);
+    await prefs.setString(_kProfileUsername, _username);
+    await prefs.setString(_kProfileBio, _bio);
+    await prefs.setString(_kProfileSocial, _socialLink);
+    await prefs.setString(_kProfileImagePath, _profileImagePath);
+    await prefs.setInt(_kFollowers, _followers);
     final encoded = _media.map((e) => jsonEncode(e.toStorageMap())).toList();
     await prefs.setStringList(_kProfileMedia, encoded);
     ProfileSyncService.notifyChanged();
   }
 
+  Future<void> _refreshProfileFromApi() async {
+    final email = await AuthSessionStorage.readEmail();
+    final token = await AuthSessionStorage.readToken();
+    if (email.isEmpty && token.isEmpty) return;
+
+    final result = await _authApi.fetchProfileData(
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    if (!mounted || !result.success) return;
+
+    final payload = _ProfileApiPayload.fromResponse(result.data);
+    if (!payload.hasAnyValue) return;
+
+    setState(() {
+      if (payload.name != null) {
+        _name = payload.name!;
+      }
+      if (payload.username != null) {
+        _username = payload.username!;
+      }
+      if (payload.bio != null) {
+        _bio = payload.bio!;
+      }
+      if (payload.socialLink != null) {
+        _socialLink = payload.socialLink!;
+      }
+      if (payload.profileImagePath != null) {
+        _profileImagePath = payload.profileImagePath!;
+      }
+      if (payload.followers != null) {
+        _followers = payload.followers!;
+      }
+      if (payload.media != null && payload.media!.isNotEmpty) {
+        _media = payload.media!;
+      }
+    });
+
+    await _saveProfileLocally();
+  }
+
+  Map<String, dynamic> _serializeProfileForApi() {
+    final normalizedName = _name.trim();
+    final normalizedUsername = _username.trim().replaceAll('@', '');
+    final normalizedBio = _bio.trim();
+    final normalizedSocial = _socialLink.trim();
+    final normalizedImage = _profileImagePath.trim();
+    final mediaItems = _media
+        .map((item) => item.toStorageMap())
+        .toList(growable: false);
+    final likesCount = _media.fold<int>(0, (sum, item) => sum + item.likes);
+
+    final profile = <String, dynamic>{
+      if (normalizedName.isNotEmpty) ...{
+        'name': normalizedName,
+        'full_name': normalizedName,
+        'fullName': normalizedName,
+      },
+      if (normalizedUsername.isNotEmpty) ...{
+        'username': normalizedUsername,
+        'handle': normalizedUsername,
+      },
+      'bio': normalizedBio,
+      'social_link': normalizedSocial,
+      'socialLink': normalizedSocial,
+      if (normalizedImage.isNotEmpty) ...{
+        'profile_image': normalizedImage,
+        'profileImage': normalizedImage,
+        'avatar': normalizedImage,
+        'avatar_url': normalizedImage,
+        'avatarUrl': normalizedImage,
+      },
+      'followers': _followers,
+      'followers_count': _followers,
+      'followersCount': _followers,
+      'posts_count': _media.length,
+      'postsCount': _media.length,
+      'likes_count': likesCount,
+      'likesCount': likesCount,
+      'media': mediaItems,
+      'media_items': mediaItems,
+      'profile_media': mediaItems,
+    };
+
+    return <String, dynamic>{
+      ...profile,
+      'profile': profile,
+      'profile_data': profile,
+      'profileData': profile,
+      'user': profile,
+    };
+  }
+
+  Future<void> _syncProfileToBackend({bool showError = false}) async {
+    if (_isSavingProfile) return;
+
+    final email = await AuthSessionStorage.readEmail();
+    final token = await AuthSessionStorage.readToken();
+    if (email.isEmpty && token.isEmpty) return;
+
+    _isSavingProfile = true;
+    final result = await _authApi.saveProfileData(
+      profileData: _serializeProfileForApi(),
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    _isSavingProfile = false;
+
+    if (!mounted || result.success || !showError) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(result.message)));
+  }
+
+  Future<void> _saveMedia() async {
+    await _saveProfileLocally();
+    await _syncProfileToBackend();
+  }
+
   Future<void> _saveProfileImagePath(String path) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kProfileImagePath, path);
-    ProfileSyncService.notifyChanged();
+    _profileImagePath = path;
+    await _saveProfileLocally();
+    await _syncProfileToBackend(showError: true);
   }
 
   String get _displayName => _name.isEmpty ? _defaultName : _name;
 
   String get _displayUsername {
-    final value = _username.isNotEmpty ? _username : _usernameFromName(_displayName);
+    final value = _username.isNotEmpty
+        ? _username
+        : _usernameFromName(_displayName);
     return value.startsWith('@') ? value : '@$value';
   }
 
@@ -125,8 +258,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickProfileImage(ImageSource source) async {
     final file = await _picker.pickImage(source: source);
     if (file == null || !mounted) return;
-    await _saveProfileImagePath(file.path);
     setState(() => _profileImagePath = file.path);
+    await _saveProfileImagePath(file.path);
   }
 
   Future<void> _showProfileImageOptions() async {
@@ -208,8 +341,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _media.insert(0, reviewed);
       _selectedVisibilityTab =
           reviewed.visibility == _ProfileMediaVisibility.private
-              ? _ProfileVisibilityTab.privateItems
-              : _ProfileVisibilityTab.publicItems;
+          ? _ProfileVisibilityTab.privateItems
+          : _ProfileVisibilityTab.publicItems;
     });
     await _saveMedia();
   }
@@ -391,21 +524,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
 
-    if (result == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kProfileName, result['name'] ?? '');
-    await prefs.setString(_kProfileUsername, result['username'] ?? '');
-    await prefs.setString(_kProfileBio, result['bio'] ?? '');
-    await prefs.setString(_kProfileSocial, result['social'] ?? '');
-    ProfileSyncService.notifyChanged();
-
-    if (!mounted) return;
+    if (result == null || !mounted) return;
     setState(() {
       _name = result['name'] ?? '';
       _username = result['username'] ?? '';
       _bio = result['bio'] ?? '';
       _socialLink = result['social'] ?? '';
     });
+    await _saveProfileLocally();
+    await _syncProfileToBackend(showError: true);
   }
 
   @override
@@ -439,11 +566,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final width = constraints.maxWidth;
                 final isDesktop = width >= 1100;
                 final isTablet = width >= 700 && width < 1100;
-                final contentMaxWidth =
-                    isDesktop ? 900.0 : (isTablet ? 760.0 : double.infinity);
-                final horizontalPadding =
-                    isDesktop ? width * 0.14 : (isTablet ? 28.0 : 8.0);
-                final avatarRadius = isDesktop ? 56.0 : (isTablet ? 50.0 : 42.0);
+                final contentMaxWidth = isDesktop
+                    ? 900.0
+                    : (isTablet ? 760.0 : double.infinity);
+                final horizontalPadding = isDesktop
+                    ? width * 0.14
+                    : (isTablet ? 28.0 : 8.0);
+                final avatarRadius = isDesktop
+                    ? 56.0
+                    : (isTablet ? 50.0 : 42.0);
                 final nameSize = isDesktop ? 22.0 : (isTablet ? 19.0 : 16.0);
                 final statSpacing = isDesktop ? 48.0 : (isTablet ? 36.0 : 28.0);
                 final gridCount = isDesktop ? 5 : (isTablet ? 4 : 3);
@@ -453,7 +584,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: contentMaxWidth),
                     child: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                      ),
                       child: Column(
                         children: [
                           AnimatedReveal(
@@ -476,7 +609,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           padding: const EdgeInsets.all(6),
                                           decoration: BoxDecoration(
                                             color: AppColors.primary,
-                                            borderRadius: BorderRadius.circular(14),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
                                           ),
                                           child: const Icon(
                                             Icons.edit,
@@ -518,7 +653,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       _bio,
                                       textAlign: TextAlign.center,
                                       style: TextStyle(
-                                        color: AppColors.textPrimaryFor(context),
+                                        color: AppColors.textPrimaryFor(
+                                          context,
+                                        ),
                                         fontSize: isDesktop ? 13 : 12,
                                       ),
                                     ),
@@ -569,7 +706,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 12),
                                 OutlinedButton.icon(
                                   onPressed: _editProfile,
-                                  icon: const Icon(Icons.edit_outlined, size: 16),
+                                  icon: const Icon(
+                                    Icons.edit_outlined,
+                                    size: 16,
+                                  ),
                                   label: const Text('Edit profile'),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: AppColors.textPrimary,
@@ -589,8 +729,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 12),
                                 _VisibilityTabs(
                                   selected: _selectedVisibilityTab,
-                                  onChanged: (tab) =>
-                                      setState(() => _selectedVisibilityTab = tab),
+                                  onChanged: (tab) => setState(
+                                    () => _selectedVisibilityTab = tab,
+                                  ),
                                 ),
                               ],
                             ),
@@ -602,18 +743,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ? Center(
                                       child: Text(
                                         _selectedVisibilityTab ==
-                                                _ProfileVisibilityTab.publicItems
+                                                _ProfileVisibilityTab
+                                                    .publicItems
                                             ? 'No public media yet.\nTap + to shoot photo/video.'
                                             : 'No private media yet.\nTap + to shoot photo/video.',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          color: AppColors.textSecondaryFor(context),
+                                          color: AppColors.textSecondaryFor(
+                                            context,
+                                          ),
                                           fontSize: 13,
                                         ),
                                       ),
                                     )
                                   : GridView.builder(
-                                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        8,
+                                        8,
+                                        90,
+                                      ),
                                       itemCount: visibleMedia.length,
                                       gridDelegate:
                                           SliverGridDelegateWithFixedCrossAxisCount(
@@ -626,12 +775,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         return GestureDetector(
                                           onTap: () => _openMedia(item),
                                           onLongPress: () {
-                                            final mediaIndex = _media.indexOf(item);
+                                            final mediaIndex = _media.indexOf(
+                                              item,
+                                            );
                                             if (mediaIndex < 0) return;
                                             _confirmDeleteMedia(mediaIndex);
                                           },
                                           child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                             child: Stack(
                                               fit: StackFit.expand,
                                               children: [
@@ -678,6 +831,374 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
+class _ProfileApiPayload {
+  final String? name;
+  final String? username;
+  final String? bio;
+  final String? socialLink;
+  final String? profileImagePath;
+  final int? followers;
+  final List<_ProfileMediaItem>? media;
+
+  const _ProfileApiPayload({
+    this.name,
+    this.username,
+    this.bio,
+    this.socialLink,
+    this.profileImagePath,
+    this.followers,
+    this.media,
+  });
+
+  bool get hasAnyValue {
+    return name != null ||
+        username != null ||
+        bio != null ||
+        socialLink != null ||
+        profileImagePath != null ||
+        followers != null ||
+        (media != null && media!.isNotEmpty);
+  }
+
+  factory _ProfileApiPayload.fromResponse(Map<String, dynamic>? response) {
+    if (response == null) {
+      return const _ProfileApiPayload();
+    }
+
+    final containers = collectCandidateMaps(response);
+    final profileMap = firstNestedMap(containers, const <String>[
+      'profile',
+      'user',
+      'account',
+    ]);
+    final valueMaps = <Map<String, dynamic>>[
+      ?profileMap,
+      ...containers,
+    ];
+
+    return _ProfileApiPayload(
+      name: firstNonEmptyString(valueMaps, const <String>[
+        'name',
+        'full_name',
+        'fullName',
+        'display_name',
+        'displayName',
+      ]),
+      username: firstNonEmptyString(valueMaps, const <String>[
+        'username',
+        'user_name',
+        'userName',
+        'handle',
+      ]),
+      bio: firstNonEmptyString(valueMaps, const <String>[
+        'bio',
+        'about',
+        'description',
+      ]),
+      socialLink: firstNonEmptyString(valueMaps, const <String>[
+        'social_link',
+        'socialLink',
+        'social',
+        'social_url',
+        'socialUrl',
+        'instagram',
+        'website',
+      ]),
+      profileImagePath: firstNonEmptyString(valueMaps, const <String>[
+        'profile_image',
+        'profileImage',
+        'avatar',
+        'avatar_url',
+        'avatarUrl',
+        'image',
+        'image_url',
+        'imageUrl',
+        'photo',
+      ]),
+      followers: asInt(
+        firstRawValueAcrossMaps(valueMaps, const <String>[
+          'followers',
+          'followers_count',
+          'followersCount',
+          'follower_count',
+          'followerCount',
+        ]),
+      ),
+      media: _extractMedia(valueMaps),
+    );
+  }
+
+  static List<Map<String, dynamic>> collectCandidateMaps(
+    Map<String, dynamic> root,
+  ) {
+    final result = <Map<String, dynamic>>[root];
+    final queue = <Map<String, dynamic>>[root];
+    const nestedKeys = <String>[
+      'data',
+      'result',
+      'payload',
+      'profile',
+      'user',
+      'account',
+      'attributes',
+    ];
+
+    while (queue.isNotEmpty) {
+      final current = queue.removeAt(0);
+      for (final key in nestedKeys) {
+        final nested = asMap(current[key]);
+        if (nested == null) continue;
+        result.add(nested);
+        queue.add(nested);
+      }
+    }
+
+    return result;
+  }
+
+  static Map<String, dynamic>? firstNestedMap(
+    List<Map<String, dynamic>> containers,
+    List<String> keys,
+  ) {
+    for (final container in containers) {
+      for (final key in keys) {
+        final nested = asMap(container[key]);
+        if (nested != null) {
+          return nested;
+        }
+      }
+    }
+    return null;
+  }
+
+  static String? firstNonEmptyString(dynamic source, List<String> keys) {
+    final maps = source is List<Map<String, dynamic>>
+        ? source
+        : <Map<String, dynamic>>[if (source is Map<String, dynamic>) source];
+    for (final map in maps) {
+      for (final key in keys) {
+        final value = map[key];
+        if (value is String && value.trim().isNotEmpty) {
+          return value.trim();
+        }
+      }
+    }
+    return null;
+  }
+
+  static dynamic firstRawValue(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  static dynamic firstRawValueAcrossMaps(
+    List<Map<String, dynamic>> maps,
+    List<String> keys,
+  ) {
+    for (final map in maps) {
+      final value = firstRawValue(map, keys);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  static Map<String, dynamic>? asMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return value.map((key, val) => MapEntry(key.toString(), val));
+    }
+    return null;
+  }
+
+  static List<dynamic>? asList(dynamic value) {
+    if (value is List) {
+      return value;
+    }
+    final map = asMap(value);
+    if (map == null) return null;
+    for (final key in const <String>['data', 'items', 'results', 'list']) {
+      final nested = map[key];
+      if (nested is List) {
+        return nested;
+      }
+    }
+    return <dynamic>[map];
+  }
+
+  static int? asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toInt();
+    final text = value.toString().trim();
+    if (text.isEmpty) return null;
+    return int.tryParse(text);
+  }
+
+  static bool _asBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      return normalized == '1' ||
+          normalized == 'true' ||
+          normalized == 'yes' ||
+          normalized == 'y';
+    }
+    return false;
+  }
+
+  static List<_ProfileMediaItem>? _extractMedia(
+    List<Map<String, dynamic>> containers,
+  ) {
+    final raw = firstRawValueAcrossMaps(containers, const <String>[
+      'media',
+      'media_items',
+      'mediaItems',
+      'profile_media',
+      'profileMedia',
+      'posts',
+      'items',
+    ]);
+    if (raw == null) return null;
+
+    final items = asList(raw) ?? const <dynamic>[];
+    final parsed = items
+        .map<_ProfileMediaItem?>((item) {
+          final map = asMap(item);
+          if (map == null) return null;
+          return _mediaFromApiMap(map);
+        })
+        .whereType<_ProfileMediaItem>()
+        .toList(growable: false);
+
+    return parsed;
+  }
+
+  static _ProfileMediaItem? _mediaFromApiMap(Map<String, dynamic> json) {
+    final path = firstNonEmptyString(json, const <String>[
+      'path',
+      'file_path',
+      'filePath',
+      'local_path',
+      'localPath',
+      'uri',
+      'url',
+      'media_url',
+      'mediaUrl',
+      'image',
+      'image_url',
+      'imageUrl',
+      'video_url',
+      'videoUrl',
+    ]);
+    if (path == null || path.isEmpty) return null;
+
+    // Profile grid currently renders local file media only.
+    if (!File(path).existsSync()) return null;
+
+    final type =
+        firstNonEmptyString(json, const <String>[
+          'type',
+          'media_type',
+          'mediaType',
+        ]) ??
+        _guessMediaType(path);
+
+    return _ProfileMediaItem(
+      path: path,
+      type: type == 'video' ? 'video' : 'image',
+      likes:
+          asInt(
+            firstRawValue(json, const <String>[
+              'likes',
+              'like_count',
+              'likeCount',
+            ]),
+          ) ??
+          0,
+      dislikes:
+          asInt(
+            firstRawValue(json, const <String>[
+              'dislikes',
+              'dislike_count',
+              'dislikeCount',
+            ]),
+          ) ??
+          0,
+      shares:
+          asInt(
+            firstRawValue(json, const <String>[
+              'shares',
+              'share_count',
+              'shareCount',
+            ]),
+          ) ??
+          0,
+      isSaved: _asBool(
+        firstRawValue(json, const <String>['is_saved', 'isSaved', 'saved']),
+      ),
+      isLiked: _asBool(
+        firstRawValue(json, const <String>['is_liked', 'isLiked', 'liked']),
+      ),
+      isDisliked: _asBool(
+        firstRawValue(json, const <String>[
+          'is_disliked',
+          'isDisliked',
+          'disliked',
+        ]),
+      ),
+      uploaderName:
+          firstNonEmptyString(json, const <String>[
+            'uploader_name',
+            'uploaderName',
+            'author',
+            'name',
+          ]) ??
+          'User',
+      uploaderUsername:
+          firstNonEmptyString(json, const <String>[
+            'uploader_username',
+            'uploaderUsername',
+            'username',
+            'handle',
+          ]) ??
+          '@user',
+      visibility: _ProfileMediaVisibility.normalize(
+        firstNonEmptyString(json, const <String>[
+              'visibility',
+              'privacy',
+              'scope',
+            ]) ??
+            _ProfileMediaVisibility.public,
+      ),
+    );
+  }
+
+  static String _guessMediaType(String path) {
+    final lower = path.toLowerCase();
+    const videoExtensions = <String>[
+      '.mp4',
+      '.mov',
+      '.avi',
+      '.mkv',
+      '.webm',
+      '.m4v',
+    ];
+    for (final ext in videoExtensions) {
+      if (lower.endsWith(ext)) return 'video';
+    }
+    return 'image';
+  }
+}
+
 class _ProfileInput extends StatelessWidget {
   final TextEditingController controller;
   final String label;
@@ -705,10 +1226,7 @@ class _VisibilityTabs extends StatelessWidget {
   final _ProfileVisibilityTab selected;
   final ValueChanged<_ProfileVisibilityTab> onChanged;
 
-  const _VisibilityTabs({
-    required this.selected,
-    required this.onChanged,
-  });
+  const _VisibilityTabs({required this.selected, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -800,9 +1318,7 @@ class _VisibilityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isPrivate
-            ? const Color(0xCC7C2D12)
-            : const Color(0xCC166534),
+        color: isPrivate ? const Color(0xCC7C2D12) : const Color(0xCC166534),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -911,8 +1427,9 @@ class _ProfileMediaItem {
       isDisliked: isDisliked ?? this.isDisliked,
       uploaderName: uploaderName ?? this.uploaderName,
       uploaderUsername: uploaderUsername ?? this.uploaderUsername,
-      visibility:
-          _ProfileMediaVisibility.normalize(visibility ?? this.visibility),
+      visibility: _ProfileMediaVisibility.normalize(
+        visibility ?? this.visibility,
+      ),
     );
   }
 }
@@ -927,7 +1444,8 @@ class _CapturedMediaReviewScreen extends StatefulWidget {
       _CapturedMediaReviewScreenState();
 }
 
-class _CapturedMediaReviewScreenState extends State<_CapturedMediaReviewScreen> {
+class _CapturedMediaReviewScreenState
+    extends State<_CapturedMediaReviewScreen> {
   VideoPlayerController? _controller;
   late _ProfileMediaItem _item;
   bool _loadingVideo = false;
@@ -1020,10 +1538,7 @@ class _CapturedMediaReviewScreenState extends State<_CapturedMediaReviewScreen> 
                           fit: StackFit.expand,
                           children: [
                             if (_item.type == 'image')
-                              Image.file(
-                                File(_item.path),
-                                fit: BoxFit.contain,
-                              )
+                              Image.file(File(_item.path), fit: BoxFit.contain)
                             else if (_controller != null &&
                                 _controller!.value.isInitialized)
                               GestureDetector(
@@ -1051,7 +1566,9 @@ class _CapturedMediaReviewScreenState extends State<_CapturedMediaReviewScreen> 
                             Positioned(
                               left: 12,
                               top: 12,
-                              child: _VisibilityBadge(visibility: _item.visibility),
+                              child: _VisibilityBadge(
+                                visibility: _item.visibility,
+                              ),
                             ),
                             if (_item.type == 'video' && _controller != null)
                               Positioned(
@@ -1159,7 +1676,13 @@ class _StatItem extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 2),
-        Text(label, style: TextStyle(color: AppColors.textSecondaryFor(context), fontSize: 12)),
+        Text(
+          label,
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 12,
+          ),
+        ),
       ],
     );
   }
@@ -1350,7 +1873,9 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
               child: Column(
                 children: [
                   _actionIcon(
-                    icon: _item.isLiked ? Icons.thumb_up_alt : Icons.thumb_up_alt_outlined,
+                    icon: _item.isLiked
+                        ? Icons.thumb_up_alt
+                        : Icons.thumb_up_alt_outlined,
                     label: _item.likes.toString(),
                     onTap: _toggleLike,
                   ),
@@ -1364,7 +1889,9 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
                   ),
                   const SizedBox(height: 14),
                   _actionIcon(
-                    icon: _item.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                    icon: _item.isSaved
+                        ? Icons.bookmark
+                        : Icons.bookmark_border,
                     label: 'Save',
                     onTap: _toggleSave,
                   ),

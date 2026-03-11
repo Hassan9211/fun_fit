@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -41,6 +42,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   static const String _kProfileName = 'profile_name';
   static const String _kProfileImagePath = 'profile_image_path';
   static const String _defaultProfileName = 'Jacob West';
+  static const String _kLocalChallenges = 'local_challenges';
 
   _ChallengesTab _selectedTab = _ChallengesTab.publicPosts;
   String _profileName = _defaultProfileName;
@@ -206,10 +208,25 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   }
 
   void _toggleAccept(String id) {
+    final publicIndex = _publicPosts.indexWhere((post) => post.id == id);
+    final myIndex = _myPosts.indexWhere((post) => post.id == id);
+    final post =
+        publicIndex != -1 ? _publicPosts[publicIndex] : (myIndex != -1 ? _myPosts[myIndex] : null);
+    if (post == null) return;
+
+    if (post.isMine || post.author == _profileDisplayName) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot accept your own challenge.'),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _updatePostById(
         id,
-        (post) => post.copyWith(isAccepted: !post.isAccepted),
+        (oldPost) => oldPost.copyWith(isAccepted: !oldPost.isAccepted),
       );
     });
   }
@@ -290,6 +307,26 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       _publicPosts.insert(0, newPost);
       _selectedTab = _ChallengesTab.myPosts;
     });
+    await _saveLocalChallenge(draft);
+  }
+
+  Future<void> _saveLocalChallenge(_DraftChallenge draft) async {
+    final prefs = await SharedPreferences.getInstance();
+    final existing = prefs.getStringList(_kLocalChallenges) ?? <String>[];
+    final payload = <String, dynamic>{
+      'title': draft.name,
+      'subtitle': draft.description,
+      'duration': draft.time,
+      'image': draft.mediaPath.isNotEmpty
+          ? draft.mediaPath
+          : 'assets/images/pushup.jpg',
+      'image_url': draft.mediaPath.isNotEmpty
+          ? draft.mediaPath
+          : 'assets/images/pushup.jpg',
+      'progress': 0.0,
+    };
+    existing.insert(0, jsonEncode(payload));
+    await prefs.setStringList(_kLocalChallenges, existing);
   }
 
   @override

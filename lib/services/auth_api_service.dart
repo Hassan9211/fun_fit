@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kDebugMode, kIsWeb;
 import 'package:http/http.dart' as http;
 
 class AuthApiResult {
@@ -33,8 +33,9 @@ class AuthApiService {
   static const String _verifyForgotOtpPath = '/api/forgot-password/verify-otp';
   static const String _verifySigninOtpPath = '/api/login/verify-otp';
   static const String _resetPasswordPath = '/api/reset-password';
-  static const String _changePasswordPath = '/auth/change-password';
+  static const String _changePasswordPath = '/api/auth/change-password';
   static const String _saveOnboardingPath = '/api/onboarding';
+  static const String _profilePath = '/api/profile';
   static const String _homePath = '/api/home';
   static const String _foodLogPath = '/api/foodlog';
 
@@ -174,7 +175,11 @@ class AuthApiService {
     };
 
     try {
-      return _postJson(path: _signupPath, payload: payload, actionName: 'Signup');
+      return _postJson(
+        path: _signupPath,
+        payload: payload,
+        actionName: 'Signup',
+      );
     } catch (_) {
       return _unexpectedError();
     }
@@ -265,7 +270,11 @@ class AuthApiService {
     }
 
     try {
-      return _postJson(path: verifyPath, payload: payload, actionName: 'OTP verify');
+      return _postJson(
+        path: verifyPath,
+        payload: payload,
+        actionName: 'OTP verify',
+      );
     } catch (_) {
       return _unexpectedError();
     }
@@ -375,14 +384,8 @@ class AuthApiService {
         'fitness_level': onboardingData['fitnessLevel'],
       if (onboardingData['birthYear'] != null)
         'birth_year': onboardingData['birthYear'],
-      if (heightCm != null) ...{
-        'height_cm': heightCm,
-        'height': heightCm,
-      },
-      if (weightKg != null) ...{
-        'weight_kg': weightKg,
-        'weight': weightKg,
-      },
+      if (heightCm != null) ...{'height_cm': heightCm, 'height': heightCm},
+      if (weightKg != null) ...{'weight_kg': weightKg, 'weight': weightKg},
       if (heightUnit != null) ...{
         'height_unit': heightUnit,
         'heightUnit': heightUnit,
@@ -439,6 +442,115 @@ class AuthApiService {
         extraHeaders: extraHeaders,
         queryParameters: queryParameters,
       );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchProfileData({
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final queryParameters = <String, String>{};
+    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
+      queryParameters['email'] = normalizedEmail;
+    }
+
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          '[Profile] fetch candidates=$_baseUrlCandidates '
+          'hasToken=${token != null && token.isNotEmpty} '
+          'query=$queryParameters',
+        );
+      }
+
+      final result = await _getJson(
+        path: _profilePath,
+        actionName: 'Profile data',
+        extraHeaders: extraHeaders,
+        queryParameters: queryParameters,
+      );
+
+      if (kDebugMode) {
+        debugPrint(
+          '[Profile] fetch status=${result.statusCode} '
+          'success=${result.success} message=${result.message}',
+        );
+      }
+
+      return result;
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> saveProfileData({
+    required Map<String, dynamic> profileData,
+    String? email,
+    String? bearerToken,
+  }) async {
+    final normalizedEmail = email?.trim();
+    final token = bearerToken?.trim();
+    final extraHeaders = <String, String>{};
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+
+    final payload = <String, dynamic>{
+      ...profileData,
+      if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+        'email': normalizedEmail,
+    };
+
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          '[Profile] save candidates=$_baseUrlCandidates '
+          'hasToken=${token != null && token.isNotEmpty} '
+          'payloadKeys=${payload.keys.toList()}',
+        );
+      }
+
+      final result = await _putJson(
+        path: _profilePath,
+        payload: payload,
+        actionName: 'Profile update',
+        extraHeaders: extraHeaders,
+      );
+      // Some backends expose profile updates as POST instead of PUT.
+      if (result.statusCode == 405) {
+        final postResult = await _postJson(
+          path: _profilePath,
+          payload: payload,
+          actionName: 'Profile save',
+          extraHeaders: extraHeaders,
+        );
+
+        if (kDebugMode) {
+          debugPrint(
+            '[Profile] save via POST status=${postResult.statusCode} '
+            'success=${postResult.success} message=${postResult.message}',
+          );
+        }
+
+        return postResult;
+      }
+
+      if (kDebugMode) {
+        debugPrint(
+          '[Profile] save via PUT status=${result.statusCode} '
+          'success=${result.success} message=${result.message}',
+        );
+      }
+      return result;
     } catch (_) {
       return _unexpectedError();
     }
@@ -549,8 +661,9 @@ class AuthApiService {
   String? _extractMessage(Map<String, dynamic>? json) {
     if (json == null) return null;
     final message = json['message'] ?? json['error'] ?? json['detail'];
-    final normalizedMessage =
-        message is String && message.trim().isNotEmpty ? message.trim() : null;
+    final normalizedMessage = message is String && message.trim().isNotEmpty
+        ? message.trim()
+        : null;
 
     final errors = json['errors'];
     final validationMessage = _extractValidationMessage(errors);
@@ -680,6 +793,88 @@ class AuthApiService {
     return _unexpectedError();
   }
 
+  Future<AuthApiResult> _putJson({
+    required String path,
+    required Map<String, dynamic> payload,
+    required String actionName,
+    Map<String, String> extraHeaders = const <String, String>{},
+  }) async {
+    final attemptedUris = <Uri>[];
+    Object? lastNetworkError;
+
+    for (final candidateBaseUrl in _baseUrlCandidates) {
+      final uri = _buildUri(path, baseUrlOverride: candidateBaseUrl);
+      attemptedUris.add(uri);
+      try {
+        final headers = <String, String>{
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        }..addAll(extraHeaders);
+
+        final response = await _client
+            .put(uri, headers: headers, body: jsonEncode(payload))
+            .timeout(const Duration(seconds: 12));
+
+        final decoded = _safeJsonDecode(response.body);
+        final ok = response.statusCode >= 200 && response.statusCode < 300;
+        final message =
+            _extractMessage(decoded) ??
+            (ok
+                ? '$actionName successful.'
+                : '$actionName failed with status ${response.statusCode}.');
+
+        return AuthApiResult(
+          success: ok,
+          message: message,
+          statusCode: response.statusCode,
+          data: decoded,
+        );
+      } on TimeoutException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on SocketException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on http.ClientException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } catch (e) {
+        lastNetworkError = e;
+        continue;
+      }
+    }
+
+    final attempted = attemptedUris.map((e) => e.toString()).join(', ');
+    if (lastNetworkError is TimeoutException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Request timeout. Tried API URLs: $attempted. '
+            'If you are on a real Android phone, keep backend on 0.0.0.0 and use PC LAN IP.',
+        statusCode: 408,
+      );
+    }
+    if (lastNetworkError is SocketException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Network error. Tried API URLs: $attempted. '
+            'Verify backend is running and reachable from this device.',
+        statusCode: 503,
+      );
+    }
+    if (lastNetworkError is http.ClientException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Browser blocked request or API unreachable. '
+            'Tried API URL: $attempted. If running Flutter Web, enable CORS on backend.',
+        statusCode: 0,
+      );
+    }
+    return _unexpectedError();
+  }
+
   Future<AuthApiResult> _getJson({
     required String path,
     required String actionName,
@@ -697,9 +892,8 @@ class AuthApiService {
       );
       attemptedUris.add(uri);
       try {
-        final headers = <String, String>{
-          'Accept': 'application/json',
-        }..addAll(extraHeaders);
+        final headers = <String, String>{'Accept': 'application/json'}
+          ..addAll(extraHeaders);
 
         final response = await _client
             .get(uri, headers: headers)
