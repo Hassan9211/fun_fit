@@ -1,11 +1,11 @@
 // ignore_for_file: unused_field
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../onboarding/fitness_lvl.dart';
@@ -16,6 +16,7 @@ import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/record_with_audio_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const String _kProfileName = 'profile_name';
   static const String _kProfileImagePath = 'profile_image_path';
   static const String _kLocalChallenges = 'local_challenges';
+  static const String _kRandomChallenges = 'random_challenges';
   static const String _defaultProfileName = 'Jacob West';
   static const String _defaultProfileImageUrl =
       'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&q=80';
@@ -68,6 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ActiveChallenge.fromTemplate(_challengePool[0], progress: 0.34),
     _ActiveChallenge.fromTemplate(_challengePool[1], progress: 0.58),
   ];
+  final List<_ActiveChallenge> _randomChallenges = <_ActiveChallenge>[];
 
   String _profileName = _defaultProfileName;
   String _profileImagePath = '';
@@ -75,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isPickingChallenge = false;
   bool _isSavingHomeData = false;
   final AuthApiService _authApi = AuthApiService();
+  Timer? _ticker;
   List<String> _notifications = List<String>.from(_defaultNotifications);
   _RecommendedMealCardData _recommendedMeal = const _RecommendedMealCardData(
     title: 'Nut Butter Toast With Boiled Eggs',
@@ -87,11 +91,13 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     ProfileSyncService.changes.addListener(_loadHomeData);
     _loadHomeData();
+    _startTicker();
   }
 
   @override
   void dispose() {
     ProfileSyncService.changes.removeListener(_loadHomeData);
+    _ticker?.cancel();
     super.dispose();
   }
 
@@ -99,15 +105,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final email = await AuthSessionStorage.readEmail();
     final token = await AuthSessionStorage.readToken();
     final prefs = await SharedPreferences.getInstance();
-    final localChallenges = _readLocalChallenges(prefs);
+    final randomChallenges = _readLocalChallenges(prefs, _kRandomChallenges);
     final savedName = (prefs.getString(_kProfileName) ?? '').trim();
     final imagePath = prefs.getString(_kProfileImagePath) ?? '';
     if (!mounted) return;
     setState(() {
       _profileName = savedName.isEmpty ? _defaultProfileName : savedName;
       _profileImagePath = imagePath;
-      _mergeLocalChallenges(localChallenges);
+      _randomChallenges
+        ..clear()
+        ..addAll(randomChallenges);
     });
+    await _ensureMinimumRandomChallenges();
+    _tickChallenges();
 
     final result = await _authApi.fetchHomeData(
       email: email.isEmpty ? null : email,
@@ -135,12 +145,14 @@ class _HomeScreenState extends State<HomeScreen> {
           ..clear()
           ..addAll(payload.challenges!);
       }
-      _mergeLocalChallenges(localChallenges);
     });
   }
 
-  List<_ActiveChallenge> _readLocalChallenges(SharedPreferences prefs) {
-    final raw = prefs.getStringList(_kLocalChallenges) ?? <String>[];
+  List<_ActiveChallenge> _readLocalChallenges(
+    SharedPreferences prefs,
+    String key,
+  ) {
+    final raw = prefs.getStringList(key) ?? <String>[];
     return raw
         .map<_ActiveChallenge?>((item) {
           try {
@@ -155,17 +167,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList(growable: false);
   }
 
-  void _mergeLocalChallenges(List<_ActiveChallenge> locals) {
-    if (locals.isEmpty) return;
-    for (final local in locals) {
-      final exists = _currentChallenges.any(
-        (challenge) => challenge.title == local.title,
-      );
-      if (!exists) {
-        _currentChallenges.add(local);
-      }
-    }
-  }
 
   Future<void> _pickRandomChallenge() async {
     if (_isPickingChallenge) return;
@@ -174,11 +175,10 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
-    final localChallenges = _readLocalChallenges(prefs);
+    final localChallenges = _readLocalChallenges(prefs, _kLocalChallenges);
     final candidates = <_ActiveChallenge>[
       ..._challengePool.map(
-        (template) =>
-            _ActiveChallenge.fromTemplate(template, progress: 0.18),
+        (template) => _ActiveChallenge.fromTemplate(template, progress: 0.18),
       ),
       ...localChallenges.map((challenge) => challenge.copyWith(progress: 0.18)),
     ];
@@ -190,21 +190,26 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final picked = candidates[_random.nextInt(candidates.length)];
-    final existingIndex = _currentChallenges.indexWhere(
+    final picked = _startChallenge(
+      candidates[_random.nextInt(candidates.length)],
+    );
+    final existingIndex = _randomChallenges.indexWhere(
       (challenge) => challenge.title == picked.title,
     );
     setState(() {
       if (existingIndex == -1) {
-        _currentChallenges.insert(0, picked);
+        _randomChallenges.insert(0, picked);
       } else {
-        final current = _currentChallenges[existingIndex];
-        _currentChallenges[existingIndex] = current.copyWith(
+        final current = _randomChallenges[existingIndex];
+        _randomChallenges[existingIndex] = current.copyWith(
           progress: (current.progress + 0.14).clamp(0.05, 1.0),
         );
       }
+      _upsertHomeChallenge(picked);
       _isPickingChallenge = false;
     });
+    await _ensureMinimumRandomChallenges();
+    await _saveRandomChallenges();
     await _saveHomeData();
     if (!mounted) return;
 
@@ -214,19 +219,29 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openRandomChallengeScreen() async {
-    final current = _currentChallenges.isNotEmpty
-        ? _currentChallenges.first
+    await _ensureMinimumRandomChallenges();
+    if (!mounted) return;
+    final current = _randomChallenges.isNotEmpty
+        ? _randomChallenges.first
         : null;
     await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _RandomChallengeScreen(
           challenge: current,
+          initialChallenges: List<_ActiveChallenge>.from(_randomChallenges),
+          getChallenges: () => List<_ActiveChallenge>.from(_randomChallenges),
           onStartRandom: () async {
             await _pickRandomChallenge();
             if (!mounted) return null;
-            return _currentChallenges.isNotEmpty
-                ? _currentChallenges.first
+            return _randomChallenges.isNotEmpty
+                ? _randomChallenges.first
                 : null;
+          },
+          onSelect: (selected) async {
+            await _setRandomCurrent(selected);
+          },
+          onTogglePause: (selected) async {
+            await _togglePause(selected);
           },
           onDiscard: current == null
               ? null
@@ -239,8 +254,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _removeChallenge(_ActiveChallenge challenge) async {
-    setState(() => _currentChallenges.remove(challenge));
-    await _saveHomeData();
+    setState(() => _randomChallenges.remove(challenge));
+    await _saveRandomChallenges();
   }
 
   Future<void> _openProfile() async {
@@ -263,6 +278,214 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _clearChallenges() async {
     setState(() => _currentChallenges.clear());
     await _saveHomeData();
+  }
+
+  Future<void> _saveRandomChallenges() async {
+    final prefs = await SharedPreferences.getInstance();
+    final serialized = _randomChallenges
+        .map((challenge) => jsonEncode(challenge.toApiJson()))
+        .toList(growable: false);
+    await prefs.setStringList(_kRandomChallenges, serialized);
+  }
+
+  void _upsertHomeChallenge(_ActiveChallenge challenge) {
+    final existingIndex = _currentChallenges.indexWhere(
+      (item) => item.title == challenge.title,
+    );
+    if (existingIndex == -1) {
+      _currentChallenges.insert(0, challenge);
+    } else {
+      final existing = _currentChallenges[existingIndex];
+      _currentChallenges.removeAt(existingIndex);
+      _currentChallenges.insert(
+        0,
+        existing.copyWith(
+          progress: challenge.progress,
+          startedAtMs: challenge.startedAtMs,
+          remainingSeconds: challenge.remainingSeconds,
+          isCompleted: challenge.isCompleted,
+        ),
+      );
+    }
+  }
+
+  Future<void> _setRandomCurrent(_ActiveChallenge challenge) async {
+    final started = _startChallenge(challenge);
+    final existingIndex = _randomChallenges.indexWhere(
+      (item) => item.title == challenge.title,
+    );
+    if (existingIndex == -1) return;
+    setState(() {
+      _randomChallenges.removeAt(existingIndex);
+      _randomChallenges.insert(0, started);
+      _upsertHomeChallenge(started);
+    });
+    await _saveRandomChallenges();
+    await _saveHomeData();
+  }
+
+  Future<void> _togglePause(_ActiveChallenge challenge) async {
+    final updated = challenge.isRunning
+        ? _pauseChallenge(challenge)
+        : _resumeChallenge(challenge);
+    final randomIndex = _randomChallenges.indexWhere(
+      (item) => item.title == challenge.title,
+    );
+    if (randomIndex == -1) return;
+    setState(() {
+      _randomChallenges[randomIndex] = updated;
+      _upsertHomeChallenge(updated);
+    });
+    await _saveRandomChallenges();
+    await _saveHomeData();
+  }
+
+  _ActiveChallenge _startChallenge(_ActiveChallenge challenge) {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return challenge.copyWith(
+      startedAtMs: now,
+      remainingSeconds: challenge.remainingSeconds ?? challenge.totalSeconds,
+      isCompleted: false,
+    );
+  }
+
+  _ActiveChallenge _pauseChallenge(_ActiveChallenge challenge) {
+    final remaining = challenge.remainingSecondsNow;
+    return challenge.copyWith(startedAtMs: null, remainingSeconds: remaining);
+  }
+
+  _ActiveChallenge _resumeChallenge(_ActiveChallenge challenge) {
+    return challenge.copyWith(
+      startedAtMs: DateTime.now().millisecondsSinceEpoch,
+      remainingSeconds: challenge.remainingSeconds ?? challenge.totalSeconds,
+      isCompleted: false,
+    );
+  }
+
+  void _startTicker() {
+    _ticker ??= Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _tickChallenges(),
+    );
+  }
+
+  void _tickChallenges() {
+    if (!mounted) return;
+    final completed = <_ActiveChallenge>[];
+    bool changed = false;
+
+    for (var i = 0; i < _currentChallenges.length; i++) {
+      final challenge = _currentChallenges[i];
+      if (!challenge.isRunning) continue;
+      final remaining = challenge.remainingSecondsNow;
+      if (remaining == 0 && !challenge.isCompleted) {
+        _currentChallenges[i] = challenge.copyWith(
+          isCompleted: true,
+          startedAtMs: null,
+          progress: 1,
+        );
+        completed.add(_currentChallenges[i]);
+        changed = true;
+      } else {
+        final progress = challenge.totalSeconds == 0
+            ? 1.0
+            : (1 - (remaining / challenge.totalSeconds)).clamp(0.0, 1.0);
+        if ((progress - challenge.progress).abs() > 0.001) {
+          _currentChallenges[i] = challenge.copyWith(progress: progress);
+          changed = true;
+        }
+      }
+    }
+
+    for (var i = 0; i < _randomChallenges.length; i++) {
+      final challenge = _randomChallenges[i];
+      if (!challenge.isRunning) continue;
+      final remaining = challenge.remainingSecondsNow;
+      if (remaining == 0 && !challenge.isCompleted) {
+        _randomChallenges[i] = challenge.copyWith(
+          isCompleted: true,
+          startedAtMs: null,
+          progress: 1,
+        );
+        completed.add(_randomChallenges[i]);
+        changed = true;
+      } else {
+        final progress = challenge.totalSeconds == 0
+            ? 1.0
+            : (1 - (remaining / challenge.totalSeconds)).clamp(0.0, 1.0);
+        if ((progress - challenge.progress).abs() > 0.001) {
+          _randomChallenges[i] = challenge.copyWith(progress: progress);
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      if (completed.isNotEmpty) {
+        final completedTitles = completed
+            .map((challenge) => challenge.title)
+            .toSet();
+        _currentChallenges.removeWhere(
+          (challenge) => completedTitles.contains(challenge.title),
+        );
+        _randomChallenges.removeWhere(
+          (challenge) => completedTitles.contains(challenge.title),
+        );
+      }
+      setState(() {});
+      if (completed.isNotEmpty) {
+        _saveRandomChallenges();
+        _saveHomeData();
+      }
+      for (final challenge in completed) {
+        _awardPoints(challenge);
+      }
+    }
+  }
+
+  Future<void> _awardPoints(_ActiveChallenge challenge) async {
+    final prefs = await SharedPreferences.getInstance();
+    final current = prefs.getInt('leaderboard_points') ?? 34;
+    final earned = challenge.totalSeconds > 5 * 60 ? 3 : 2;
+    await prefs.setInt('leaderboard_points', current + earned);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${challenge.title} completed (+$earned pts)')),
+    );
+  }
+
+  Future<void> _ensureMinimumRandomChallenges({int minCount = 3}) async {
+    if (_randomChallenges.length >= minCount) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final localChallenges = _readLocalChallenges(prefs, _kLocalChallenges);
+    final candidates = <_ActiveChallenge>[
+      ..._challengePool.map(
+        (template) => _ActiveChallenge.fromTemplate(template, progress: 0.18),
+      ),
+      ...localChallenges.map((challenge) => challenge.copyWith(progress: 0.18)),
+    ];
+    final existingTitles = _randomChallenges
+        .map((challenge) => challenge.title)
+        .toSet();
+    final available = candidates
+        .where((challenge) => !existingTitles.contains(challenge.title))
+        .toList(growable: true);
+
+    if (available.isEmpty) return;
+
+    final additions = <_ActiveChallenge>[];
+    while (_randomChallenges.length + additions.length < minCount &&
+        available.isNotEmpty) {
+      final next = available.removeAt(_random.nextInt(available.length));
+      additions.add(next);
+    }
+
+    if (additions.isEmpty || !mounted) return;
+    setState(() {
+      _randomChallenges.addAll(additions);
+    });
+    await _saveRandomChallenges();
   }
 
   Future<void> _saveHomeData() async {
@@ -292,7 +515,8 @@ class _HomeScreenState extends State<HomeScreen> {
         .toList(growable: false);
 
     return <String, dynamic>{
-      if (_selectedCategory != null && _selectedCategory!.trim().isNotEmpty) ...{
+      if (_selectedCategory != null &&
+          _selectedCategory!.trim().isNotEmpty) ...{
         'selected_category': _selectedCategory,
         'selectedCategory': _selectedCategory,
         'category': _selectedCategory,
@@ -765,6 +989,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 1.18,
                   ),
                 ),
+                if (challenge.hasCountdown) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Remaining: ${challenge.formatRemainingTime()}',
+                    style: const TextStyle(
+                      color: Color(0xFF4A4A4A),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(999),
@@ -799,12 +1034,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _RandomChallengeScreen extends StatefulWidget {
   final _ActiveChallenge? challenge;
+  final List<_ActiveChallenge> initialChallenges;
+  final List<_ActiveChallenge> Function() getChallenges;
   final Future<_ActiveChallenge?> Function() onStartRandom;
+  final Future<void> Function(_ActiveChallenge) onSelect;
+  final Future<void> Function(_ActiveChallenge) onTogglePause;
   final Future<void> Function()? onDiscard;
 
   const _RandomChallengeScreen({
     required this.challenge,
+    required this.initialChallenges,
+    required this.getChallenges,
     required this.onStartRandom,
+    required this.onSelect,
+    required this.onTogglePause,
     this.onDiscard,
   });
 
@@ -813,13 +1056,50 @@ class _RandomChallengeScreen extends StatefulWidget {
 }
 
 class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
+  static const String _kChallengeReels = 'challenge_reels_items';
+  static const String _kProfileName = 'profile_name';
+  static const String _kProfileUsername = 'profile_username';
+  static const String _defaultProfileName = 'Jacob West';
+
   bool _isPicking = false;
   late _ActiveChallenge? _current;
+  late List<_ActiveChallenge> _challengeList;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
-    _current = widget.challenge;
+    _challengeList = List<_ActiveChallenge>.from(widget.initialChallenges);
+    _current =
+        widget.challenge ??
+        (_challengeList.isNotEmpty ? _challengeList.first : null);
+    _ticker = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _refreshFromParent(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _refreshFromParent() {
+    if (!mounted) return;
+    final refreshed = widget.getChallenges();
+    if (refreshed.isEmpty) return;
+    setState(() {
+      _challengeList = refreshed;
+      if (_current != null) {
+        _current = refreshed.firstWhere(
+          (item) => item.title == _current!.title,
+          orElse: () => _current!,
+        );
+      } else {
+        _current = refreshed.first;
+      }
+    });
   }
 
   Future<void> _showDiscardDialog(BuildContext context) async {
@@ -855,18 +1135,78 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     if (!mounted) return;
     setState(() {
       _current = next;
+      _challengeList = widget.getChallenges();
       _isPicking = false;
     });
   }
 
+  Future<void> _startExistingChallenge(_ActiveChallenge challenge) async {
+    await widget.onSelect(challenge);
+    if (!mounted) return;
+    setState(() {
+      _current = widget.getChallenges().firstWhere(
+        (item) => item.title == challenge.title,
+        orElse: () => challenge,
+      );
+      _challengeList = widget.getChallenges();
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('${challenge.title} started')));
+  }
+
   Future<void> _recordChallenge(BuildContext context) async {
-    final picker = ImagePicker();
-    final file = await picker.pickVideo(source: ImageSource.camera);
-    if (!context.mounted || file == null) return;
-    final fileName = file.path.split(RegExp(r'[\\\\/]')).last;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Video selected: $fileName')),
+    final path = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const RecordWithAudioScreen()),
     );
+    if (!context.mounted || path == null || path.isEmpty) return;
+    await _saveChallengeVideoToReels(path);
+    if (!context.mounted) return;
+    final fileName = path.split(RegExp(r'[\\\\/]')).last;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Video selected: $fileName')));
+  }
+
+  Future<void> _saveChallengeVideoToReels(String path) async {
+    final prefs = await SharedPreferences.getInstance();
+    final mediaRaw = prefs.getStringList(_kChallengeReels) ?? <String>[];
+    final name = (prefs.getString(_kProfileName) ?? '').trim();
+    final username = (prefs.getString(_kProfileUsername) ?? '').trim();
+
+    final payload = <String, dynamic>{
+      'path': path,
+      'type': 'video',
+      'likes': 0,
+      'dislikes': 0,
+      'shares': 0,
+      'is_saved': false,
+      'is_liked': false,
+      'is_disliked': false,
+      'uploader_name': name.isEmpty ? _defaultProfileName : name,
+      'uploader_username': username,
+      'visibility': 'public',
+      'source': 'challenge',
+    };
+
+    mediaRaw.insert(0, jsonEncode(payload));
+    await prefs.setStringList(_kChallengeReels, mediaRaw);
+    ProfileSyncService.notifyChanged();
+  }
+
+  Future<void> _handleTogglePause() async {
+    final current = _current;
+    if (current == null) return;
+    await widget.onTogglePause(current);
+    if (!mounted) return;
+    final refreshed = widget.getChallenges();
+    setState(() {
+      _challengeList = refreshed;
+      _current = refreshed.firstWhere(
+        (item) => item.title == current.title,
+        orElse: () => current,
+      );
+    });
   }
 
   @override
@@ -876,6 +1216,10 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     const panelHintColor = Color(0xFF7A7A7A);
     const panelCardColor = Color(0xFFEFEFEF);
     final data = _current;
+    final remaining = data?.formatRemainingTime();
+    final canStop = data != null && data.isRunning;
+    final canResume = data != null && data.isPaused;
+    final isCompleted = data != null && data.isCompleted;
 
     return Scaffold(
       backgroundColor: const Color(0xFF080808),
@@ -947,6 +1291,51 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                 ),
               ),
               const SizedBox(height: 10),
+              if (remaining != null)
+                Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E2E2)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.timer_outlined,
+                        size: 16,
+                        color: Color(0xFF1EA7A4),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Remaining: $remaining',
+                        style: const TextStyle(
+                          color: panelTextColor,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ..._challengeList.map(
+                (challenge) => Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: InkWell(
+                    onTap: () => _startExistingChallenge(challenge),
+                    borderRadius: BorderRadius.circular(12),
+                    child: _RandomChallengeTile(
+                      challenge: challenge,
+                      isActive: data?.title == challenge.title,
+                    ),
+                  ),
+                ),
+              ),
+              if (_challengeList.isNotEmpty) const SizedBox(height: 8),
               if (data == null)
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -963,89 +1352,116 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                   ),
                 )
               else
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: panelCardColor,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFE2E2E2)),
-                  ),
-                  child: Row(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: SizedBox(
-                          width: 78,
-                          height: 78,
-                          child: _RemoteAwareImage(
-                            path: data.imagePath,
-                            fallbackAssetPath: 'assets/images/pushup.jpg',
-                            fit: BoxFit.cover,
-                            alignment: Alignment.center,
-                            filterQuality: FilterQuality.high,
-                            gaplessPlayback: true,
+                InkWell(
+                  onTap: () => _startExistingChallenge(data),
+                  borderRadius: BorderRadius.circular(12),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: panelCardColor,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E2E2)),
+                    ),
+                    child: Row(
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(10),
+                          child: SizedBox(
+                            width: 78,
+                            height: 78,
+                            child: _RemoteAwareImage(
+                              path: data.imagePath,
+                              fallbackAssetPath: 'assets/images/pushup.jpg',
+                              fit: BoxFit.cover,
+                              alignment: Alignment.center,
+                              filterQuality: FilterQuality.high,
+                              gaplessPlayback: true,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    data.title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: panelTextColor,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      data.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                        color: panelTextColor,
+                                      ),
                                     ),
                                   ),
+                                  Text(
+                                    data.duration,
+                                    style: const TextStyle(
+                                      color: Color(0xFF8A8A8A),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                data.subtitle,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xFF8E8E8E),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.18,
                                 ),
-                                Text(
-                                  data.duration,
-                                  style: const TextStyle(
-                                    color: Color(0xFF8A8A8A),
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
+                              ),
+                              const SizedBox(height: 10),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(999),
+                                child: LinearProgressIndicator(
+                                  minHeight: 8,
+                                  value: data.progress,
+                                  backgroundColor: const Color(0xFFE0E0E0),
+                                  valueColor: const AlwaysStoppedAnimation(
+                                    Color(0xFF22C1CC),
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              data.subtitle,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Color(0xFF8E8E8E),
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                height: 1.18,
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(999),
-                              child: LinearProgressIndicator(
-                                minHeight: 8,
-                                value: data.progress,
-                                backgroundColor: const Color(0xFFE0E0E0),
-                                valueColor: const AlwaysStoppedAnimation(
-                                  Color(0xFF22C1CC),
-                                ),
-                              ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: data == null || isCompleted
+                      ? null
+                      : _handleTogglePause,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: Colors.black26,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    isCompleted
+                        ? 'Completed'
+                        : (canStop ? 'Stop' : (canResume ? 'Resume' : 'Stop')),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
               const SizedBox(height: 18),
               const Text(
                 'Challenges Discription',
@@ -1076,9 +1492,9 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                   data == null
                       ? 'Select a random challenge to see details here.'
                       : 'Perform ${data.title} with proper form. '
-                          'Keep your body straight, lower until your chest '
-                          'nearly touches the ground, then push back up. '
-                          'Upload a video for verification.',
+                            'Keep your body straight, lower until your chest '
+                            'nearly touches the ground, then push back up. '
+                            'Upload a video for verification.',
                   style: const TextStyle(
                     color: Color(0xFF4A4A4A),
                     fontSize: 12.5,
@@ -1131,6 +1547,99 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
         ),
       ),
       bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
+    );
+  }
+}
+
+class _RandomChallengeTile extends StatelessWidget {
+  final _ActiveChallenge challenge;
+  final bool isActive;
+
+  const _RandomChallengeTile({required this.challenge, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    final background = isActive ? const Color(0xFFE6F7FA) : Colors.white;
+    final border = isActive ? const Color(0xFF22C1CC) : const Color(0xFFE2E2E2);
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: SizedBox(
+              width: 68,
+              height: 68,
+              child: _RemoteAwareImage(
+                path: challenge.imagePath,
+                fallbackAssetPath: 'assets/images/pushup.jpg',
+                fit: BoxFit.cover,
+                alignment: Alignment.center,
+                filterQuality: FilterQuality.high,
+                gaplessPlayback: true,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        challenge.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1D1D1D),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      challenge.duration,
+                      style: const TextStyle(
+                        color: Color(0xFF8A8A8A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  challenge.subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF8E8E8E),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    height: 1.18,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1551,6 +2060,28 @@ class _HomeApiPayload {
     return '$text min';
   }
 
+  static int parseDurationSeconds(dynamic rawDuration) {
+    if (rawDuration == null) return 0;
+    if (rawDuration is num) {
+      return (rawDuration * 60).round();
+    }
+
+    final text = rawDuration.toString().trim().toLowerCase();
+    if (text.isEmpty) return 0;
+
+    final matchColon = RegExp(r'(\d+)\s*:\s*(\d+)').firstMatch(text);
+    if (matchColon != null) {
+      final minutes = int.tryParse(matchColon.group(1)!) ?? 0;
+      final seconds = int.tryParse(matchColon.group(2)!) ?? 0;
+      return (minutes * 60) + seconds;
+    }
+
+    final matchNumber = RegExp(r'(\d+)').firstMatch(text);
+    final value = int.tryParse(matchNumber?.group(1) ?? '') ?? 0;
+    if (text.contains('sec')) return value;
+    return value * 60;
+  }
+
   static double parseProgress(dynamic rawProgress) {
     if (rawProgress == null) {
       return 0;
@@ -1589,6 +2120,10 @@ class _ActiveChallenge {
   final String duration;
   final String imagePath;
   final double progress;
+  final int totalSeconds;
+  final int? startedAtMs;
+  final int? remainingSeconds;
+  final bool isCompleted;
 
   const _ActiveChallenge({
     required this.title,
@@ -1596,22 +2131,58 @@ class _ActiveChallenge {
     required this.duration,
     required this.imagePath,
     required this.progress,
+    required this.totalSeconds,
+    this.startedAtMs,
+    this.remainingSeconds,
+    this.isCompleted = false,
   });
+
+  static const Object _unset = Object();
 
   factory _ActiveChallenge.fromTemplate(
     _ChallengeTemplate template, {
     required double progress,
   }) {
+    final totalSeconds = _HomeApiPayload.parseDurationSeconds(
+      template.duration,
+    );
     return _ActiveChallenge(
       title: template.title,
       subtitle: template.subtitle,
       duration: template.duration,
       imagePath: template.imagePath,
       progress: progress,
+      totalSeconds: totalSeconds,
     );
   }
 
   factory _ActiveChallenge.fromApi(Map<String, dynamic> json) {
+    final durationRaw = _HomeApiPayload.firstRawValue(json, const <String>[
+      'duration',
+      'duration_text',
+      'durationText',
+      'time',
+      'length',
+    ]);
+    final durationText = _HomeApiPayload.formatDuration(durationRaw);
+    final totalSecondsRaw =
+        _HomeApiPayload.firstRawValue(json, const <String>[
+          'duration_seconds',
+          'durationSeconds',
+          'total_seconds',
+          'totalSeconds',
+        ]) ??
+        _HomeApiPayload.parseDurationSeconds(durationRaw);
+    final totalSeconds = totalSecondsRaw is num
+        ? totalSecondsRaw.toInt()
+        : int.tryParse(totalSecondsRaw.toString());
+
+    int? parseInt(dynamic value) {
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
     return _ActiveChallenge(
       title:
           _HomeApiPayload.firstNonEmptyString(json, const <String>[
@@ -1629,15 +2200,7 @@ class _ActiveChallenge {
             'summary',
           ]) ??
           '',
-      duration: _HomeApiPayload.formatDuration(
-        _HomeApiPayload.firstRawValue(json, const <String>[
-          'duration',
-          'duration_text',
-          'durationText',
-          'time',
-          'length',
-        ]),
-      ),
+      duration: durationText,
       imagePath:
           _HomeApiPayload.firstNonEmptyString(json, const <String>[
             'image',
@@ -1656,6 +2219,28 @@ class _ActiveChallenge {
           'completedPercentage',
         ]),
       ),
+      totalSeconds: totalSeconds ?? 0,
+      startedAtMs: parseInt(
+        _HomeApiPayload.firstRawValue(json, const <String>[
+          'started_at_ms',
+          'startedAtMs',
+          'started_at',
+          'startedAt',
+        ]),
+      ),
+      remainingSeconds: parseInt(
+        _HomeApiPayload.firstRawValue(json, const <String>[
+          'remaining_seconds',
+          'remainingSeconds',
+        ]),
+      ),
+      isCompleted:
+          _HomeApiPayload.firstRawValue(json, const <String>[
+            'is_completed',
+            'isCompleted',
+            'completed',
+          ]) ==
+          true,
     );
   }
 
@@ -1678,16 +2263,66 @@ class _ActiveChallenge {
       'percentage': (progress * 100).round(),
       'completed_percentage': (progress * 100).round(),
       'completedPercentage': (progress * 100).round(),
+      'duration_seconds': totalSeconds,
+      'durationSeconds': totalSeconds,
+      'started_at_ms': startedAtMs,
+      'startedAtMs': startedAtMs,
+      'remaining_seconds': remainingSeconds,
+      'remainingSeconds': remainingSeconds,
+      'is_completed': isCompleted,
+      'isCompleted': isCompleted,
     };
   }
 
-  _ActiveChallenge copyWith({double? progress}) {
+  _ActiveChallenge copyWith({
+    double? progress,
+    int? totalSeconds,
+    Object? startedAtMs = _unset,
+    Object? remainingSeconds = _unset,
+    bool? isCompleted,
+  }) {
     return _ActiveChallenge(
       title: title,
       subtitle: subtitle,
       duration: duration,
       imagePath: imagePath,
       progress: progress ?? this.progress,
+      totalSeconds: totalSeconds ?? this.totalSeconds,
+      startedAtMs: startedAtMs == _unset
+          ? this.startedAtMs
+          : startedAtMs as int?,
+      remainingSeconds: remainingSeconds == _unset
+          ? this.remainingSeconds
+          : remainingSeconds as int?,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
+  }
+
+  bool get isRunning => startedAtMs != null && !isCompleted;
+
+  bool get isPaused =>
+      startedAtMs == null && remainingSeconds != null && !isCompleted;
+
+  bool get hasCountdown =>
+      totalSeconds > 0 &&
+      (startedAtMs != null || remainingSeconds != null || isCompleted);
+
+  int get remainingSecondsNow {
+    if (isCompleted) return 0;
+    if (startedAtMs == null) {
+      return remainingSeconds ?? totalSeconds;
+    }
+    final elapsed =
+        ((DateTime.now().millisecondsSinceEpoch - startedAtMs!) / 1000).floor();
+    final base = remainingSeconds ?? totalSeconds;
+    final remaining = base - elapsed;
+    return remaining < 0 ? 0 : remaining;
+  }
+
+  String formatRemainingTime() {
+    final remaining = remainingSecondsNow;
+    final minutes = remaining ~/ 60;
+    final seconds = remaining % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
@@ -15,8 +16,9 @@ import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/file_video_preview.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/record_with_audio_screen.dart';
 
-enum _ProfileVisibilityTab { publicItems, privateItems }
+enum _ProfileVisibilityTab { publicItems, privateItems, savedItems }
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -31,11 +33,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'https://images.unsplash.com/photo-1599566150163-29194dcaad36';
 
   static const String _kProfileMedia = 'profile_media_items';
+  static const String _kChallengeReels = 'challenge_reels_items';
   static const String _kProfileName = 'profile_name';
   static const String _kProfileUsername = 'profile_username';
   static const String _kProfileBio = 'profile_bio';
   static const String _kProfileSocial = 'profile_social_link';
   static const String _kProfileImagePath = 'profile_image_path';
+  static const String _kProfileFavorites = 'profile_favorite_videos';
+  static const String _kReelLikes = 'profile_reel_likes';
+  static const String _kReelLiked = 'profile_reel_liked_set';
+  static const String _kReelComments = 'profile_reel_comments';
+  static const String _kReelShares = 'profile_reel_shares';
+  static const String _kReelFollows = 'profile_reel_followed';
   static const String _kFollowers = 'profile_followers_count';
 
   final ImagePicker _picker = ImagePicker();
@@ -50,8 +59,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _profileImagePath = '';
   int _followers = 0;
   List<_ProfileMediaItem> _media = <_ProfileMediaItem>[];
+  List<_ProfileMediaItem> _challengeReels = <_ProfileMediaItem>[];
   _ProfileVisibilityTab _selectedVisibilityTab =
       _ProfileVisibilityTab.publicItems;
+  final Set<String> _followedCreators = <String>{};
+  final Set<String> _likedReels = <String>{};
+  final Set<String> _savedReels = <String>{};
+  final Map<String, int> _reelLikeCounts = <String, int>{};
+  final Map<String, List<String>> _reelComments = <String, List<String>>{};
+  final Map<String, int> _reelShareCounts = <String, int>{};
 
   @override
   void initState() {
@@ -69,8 +85,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _bio = prefs.getString(_kProfileBio) ?? '';
         _socialLink = prefs.getString(_kProfileSocial) ?? '';
         _profileImagePath = prefs.getString(_kProfileImagePath) ?? '';
+        _savedReels
+          ..clear()
+          ..addAll(prefs.getStringList(_kProfileFavorites) ?? const <String>[]);
+        _followedCreators
+          ..clear()
+          ..addAll(prefs.getStringList(_kReelFollows) ?? const <String>[]);
+        _loadReelState(prefs);
         _followers = prefs.getInt(_kFollowers) ?? 0;
         _media = _readMedia(prefs.getStringList(_kProfileMedia) ?? <String>[]);
+        _challengeReels = _readMedia(
+          prefs.getStringList(_kChallengeReels) ?? <String>[],
+        );
         _loading = false;
       });
     } catch (_) {
@@ -93,12 +119,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         })
         .whereType<_ProfileMediaItem>()
-        .where((item) => File(item.path).existsSync())
         .toList();
+  }
+
+  Future<String> _persistCapturedFile(
+    String sourcePath, {
+    required bool isVideo,
+  }) async {
+    try {
+      final sourceFile = File(sourcePath);
+      if (!sourceFile.existsSync()) return sourcePath;
+      final dir = await getApplicationDocumentsDirectory();
+      final mediaDir = Directory('${dir.path}/profile_media');
+      if (!await mediaDir.exists()) {
+        await mediaDir.create(recursive: true);
+      }
+      final dotIndex = sourcePath.lastIndexOf('.');
+      final extension = dotIndex >= 0
+          ? sourcePath.substring(dotIndex)
+          : (isVideo ? '.mp4' : '.jpg');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final prefix = isVideo ? 'vid' : 'img';
+      final targetPath = '${mediaDir.path}/$prefix$timestamp$extension';
+      final copied = await sourceFile.copy(targetPath);
+      return copied.path;
+    } catch (_) {
+      return sourcePath;
+    }
+  }
+
+  List<_ProfileMediaItem> _mergeProfileMedia({
+    required List<_ProfileMediaItem> remote,
+    required List<_ProfileMediaItem> local,
+  }) {
+    final localByPath = <String, _ProfileMediaItem>{
+      for (final item in local) item.path: item,
+    };
+    final merged = <_ProfileMediaItem>[];
+    final seen = <String>{};
+
+    for (final remoteItem in remote) {
+      final localItem = localByPath[remoteItem.path];
+      if (localItem != null &&
+          localItem.visibility == _ProfileMediaVisibility.private) {
+        merged.add(localItem);
+      } else {
+        merged.add(remoteItem);
+      }
+      seen.add(remoteItem.path);
+    }
+
+    for (final localItem in local) {
+      if (!seen.contains(localItem.path)) {
+        merged.add(localItem);
+      }
+    }
+
+    return merged;
   }
 
   Future<void> _saveProfileLocally() async {
     final prefs = await SharedPreferences.getInstance();
+    _media = _media
+        .map(
+          (item) => item.copyWith(
+            uploaderName: _displayName,
+            uploaderUsername: _displayUsername,
+          ),
+        )
+        .toList(growable: false);
     await prefs.setString(_kProfileName, _name);
     await prefs.setString(_kProfileUsername, _username);
     await prefs.setString(_kProfileBio, _bio);
@@ -124,6 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final payload = _ProfileApiPayload.fromResponse(result.data);
     if (!payload.hasAnyValue) return;
 
+    final localMediaSnapshot = List<_ProfileMediaItem>.from(_media);
+
     setState(() {
       if (payload.name != null) {
         _name = payload.name!;
@@ -144,7 +235,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _followers = payload.followers!;
       }
       if (payload.media != null && payload.media!.isNotEmpty) {
-        _media = payload.media!;
+        _media = _mergeProfileMedia(
+          remote: payload.media!,
+          local: localMediaSnapshot,
+        );
       }
     });
 
@@ -244,20 +338,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return value.startsWith('@') ? value : '@$value';
   }
 
-  List<_ProfileMediaItem> get _visibleMedia => _media
-      .where(
-        (item) => _selectedVisibilityTab == _ProfileVisibilityTab.publicItems
-            ? item.visibility == _ProfileMediaVisibility.public
-            : item.visibility == _ProfileMediaVisibility.private,
-      )
-      .toList(growable: false);
-
   String _usernameFromName(String name) =>
       name.trim().toLowerCase().replaceAll(' ', '_');
 
   Future<void> _pickProfileImage(ImageSource source) async {
     final file = await _picker.pickImage(source: source);
-    if (file == null || !mounted) return;
+    if (!mounted) return;
+    if (file == null) return;
     setState(() => _profileImagePath = file.path);
     await _saveProfileImagePath(file.path);
   }
@@ -311,13 +398,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _addCapturedMedia({required bool isVideo}) async {
+    final nav = Navigator.of(context);
     final file = isVideo
-        ? await _picker.pickVideo(source: ImageSource.camera)
+        ? null
         : await _picker.pickImage(source: ImageSource.camera);
-    if (file == null || !mounted) return;
+    if (!mounted) return;
+    final videoPath = isVideo
+        ? await nav.push<String>(
+            MaterialPageRoute(builder: (_) => const RecordWithAudioScreen()),
+          )
+        : null;
+    if (!mounted) return;
+    if (!isVideo && file == null) return;
+    if (isVideo && (videoPath == null || videoPath.isEmpty)) return;
 
+    final persistedPath = isVideo
+        ? await _persistCapturedFile(videoPath!, isVideo: true)
+        : await _persistCapturedFile(file!.path, isVideo: false);
+    if (!mounted) return;
+
+    final defaultVisibility =
+        _selectedVisibilityTab == _ProfileVisibilityTab.privateItems
+            ? _ProfileMediaVisibility.private
+            : _ProfileMediaVisibility.public;
     final draft = _ProfileMediaItem(
-      path: file.path,
+      path: persistedPath,
       type: isVideo ? 'video' : 'image',
       likes: 0,
       dislikes: 0,
@@ -327,9 +432,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isDisliked: false,
       uploaderName: _displayName,
       uploaderUsername: _displayUsername,
-      visibility: _ProfileMediaVisibility.public,
+      visibility: defaultVisibility,
     );
 
+    if (!mounted) return;
     final reviewed = await Navigator.of(context).push<_ProfileMediaItem>(
       MaterialPageRoute(
         builder: (_) => _CapturedMediaReviewScreen(item: draft),
@@ -432,8 +538,329 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _saveMedia();
   }
 
-  Future<void> _confirmDeleteMedia(int index) async {
-    final item = _media[index];
+  void _toggleFollow(String username) {
+    setState(() {
+      if (_followedCreators.contains(username)) {
+        _followedCreators.remove(username);
+      } else {
+        _followedCreators.add(username);
+      }
+    });
+    _persistFollows();
+  }
+
+  void _toggleReelLike(_ProfileMediaItem item) {
+    final key = item.path;
+    final current = _reelLikeCounts[key] ?? item.likes;
+    setState(() {
+      if (_likedReels.contains(key)) {
+        _likedReels.remove(key);
+        _reelLikeCounts[key] = (current - 1).clamp(0, 1 << 30);
+      } else {
+        _likedReels.add(key);
+        _reelLikeCounts[key] = current + 1;
+      }
+    });
+    _persistReelState();
+  }
+
+  void _toggleReelSave(_ProfileMediaItem item) {
+    final key = item.path;
+    setState(() {
+      if (_savedReels.contains(key)) {
+        _savedReels.remove(key);
+      } else {
+        _savedReels.add(key);
+      }
+    });
+    _persistFavorites();
+  }
+
+  void _addReelShare(_ProfileMediaItem item) {
+    final key = item.path;
+    final current = _reelShareCounts[key] ?? 0;
+    setState(() {
+      _reelShareCounts[key] = current + 1;
+    });
+    _persistReelState();
+  }
+
+  Future<void> _persistFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kProfileFavorites, _savedReels.toList());
+  }
+
+  Future<void> _persistFollows() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kReelFollows, _followedCreators.toList());
+  }
+
+  void _loadReelState(SharedPreferences prefs) {
+    final liked = prefs.getStringList(_kReelLiked) ?? const <String>[];
+    _likedReels
+      ..clear()
+      ..addAll(liked);
+
+    final likesJson = prefs.getString(_kReelLikes);
+    final commentsJson = prefs.getString(_kReelComments);
+    final sharesJson = prefs.getString(_kReelShares);
+    _reelLikeCounts
+      ..clear()
+      ..addAll(_decodeIntMap(likesJson));
+    _reelShareCounts
+      ..clear()
+      ..addAll(_decodeIntMap(sharesJson));
+    _reelComments
+      ..clear()
+      ..addAll(_decodeStringListMap(commentsJson));
+  }
+
+  Future<void> _persistReelState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_kReelLiked, _likedReels.toList());
+    await prefs.setString(_kReelLikes, jsonEncode(_reelLikeCounts));
+    await prefs.setString(_kReelShares, jsonEncode(_reelShareCounts));
+    await prefs.setString(_kReelComments, jsonEncode(_reelComments));
+  }
+
+  Map<String, int> _decodeIntMap(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return <String, int>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, int>{};
+      return decoded.map(
+        (key, value) => MapEntry(
+          key.toString(),
+          value is num ? value.toInt() : int.tryParse(value.toString()) ?? 0,
+        ),
+      );
+    } catch (_) {
+      return <String, int>{};
+    }
+  }
+
+  Map<String, List<String>> _decodeStringListMap(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return <String, List<String>>{};
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, List<String>>{};
+      return decoded.map((key, value) {
+        final list = value is List
+            ? value.map((item) => item.toString()).toList()
+            : <String>[];
+        return MapEntry(key.toString(), list);
+      });
+    } catch (_) {
+      return <String, List<String>>{};
+    }
+  }
+
+  Future<void> _openReels(List<_ProfileMediaItem> reels) async {
+    if (reels.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ReelsScreen(
+          reels: reels,
+          isFollowed: (username) => _followedCreators.contains(username),
+          isLiked: (path) => _likedReels.contains(path),
+          isSaved: (path) => _savedReels.contains(path),
+          likeCountFor: (path, fallback) => _reelLikeCounts[path] ?? fallback,
+          commentCountFor: (path) => _reelComments[path]?.length ?? 0,
+          commentsFor: (path) => _reelComments[path] ?? const <String>[],
+          shareCountFor: (path) => _reelShareCounts[path] ?? 0,
+          onToggleFollow: (username) {
+            _toggleFollow(username);
+          },
+          onToggleLike: (item) {
+            _toggleReelLike(item);
+          },
+          onToggleSave: (item) {
+            _toggleReelSave(item);
+          },
+          onAddComment: (item, text) {
+            setState(() {
+              _reelComments.putIfAbsent(item.path, () => <String>[]);
+              _reelComments[item.path]!.add(text);
+            });
+            _persistReelState();
+          },
+          onAddShare: (item) {
+            _addReelShare(item);
+          },
+        ),
+      ),
+    );
+  }
+
+  void _showFollowersSheet() {
+    final followers = _followedCreators.toList()..sort();
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Following',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              if (followers.isEmpty)
+                Text(
+                  'No followed users yet.',
+                  style: TextStyle(
+                    color: AppColors.textSecondaryFor(context),
+                    fontSize: 13,
+                  ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: followers.length,
+                    separatorBuilder: (_, _) => const Divider(height: 14),
+                    itemBuilder: (context, index) {
+                      final username = followers[index];
+                      return Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: AppColors.surfaceMuted(context),
+                            child: Text(
+                              username.isEmpty
+                                  ? 'U'
+                                  : username[0].toUpperCase(),
+                              style: TextStyle(
+                                color: AppColors.textPrimaryFor(context),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              username.isEmpty ? 'user' : '@$username',
+                              style: TextStyle(
+                                color: AppColors.textPrimaryFor(context),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: () {
+                              _toggleFollow(username);
+                              Navigator.of(context).pop();
+                            },
+                            child: const Text('Unfollow'),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMediaGrid(
+    List<_ProfileMediaItem> items,
+    int gridCount, {
+    required String emptyMessage,
+    bool muted = true,
+    bool showPlayOverlay = true,
+  }) {
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          emptyMessage,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: items.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: gridCount,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return GestureDetector(
+          onTap: () => _openMedia(item),
+          onLongPress: () => _showMediaActions(item),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                item.type == 'image'
+                    ? Image.file(File(item.path), fit: BoxFit.cover)
+                    : FileVideoPreview(
+                        path: item.path,
+                        fit: BoxFit.cover,
+                        playIconSize: 26,
+                        muted: muted,
+                        showPlayOverlay: showPlayOverlay,
+                      ),
+                Positioned(
+                  left: 6,
+                  bottom: 6,
+                  child: _VisibilityBadge(visibility: item.visibility),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showMediaActions(_ProfileMediaItem item) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheet) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('Delete'),
+                  onTap: () => Navigator.of(sheet).pop('delete'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.close),
+                  title: const Text('Cancel'),
+                  onTap: () => Navigator.of(sheet).pop('cancel'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (choice != 'delete' || !mounted) return;
+
     final shouldDelete = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -453,6 +880,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (shouldDelete != true || !mounted) return;
 
+    final index = _media.indexWhere((e) => e.path == item.path);
+    if (index == -1) return;
     setState(() => _media.removeAt(index));
     await _saveMedia();
 
@@ -539,7 +968,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     final posts = _media.length;
     final likes = _media.fold<int>(0, (sum, item) => sum + item.likes);
-    final visibleMedia = _visibleMedia;
+    final effectiveMedia = _media
+        .where((item) => item.source != 'challenge')
+        .map(
+          (item) => item.copyWith(
+            uploaderName: _displayName,
+            uploaderUsername: _displayUsername,
+          ),
+        )
+        .toList(growable: false);
+    final publicMedia = effectiveMedia
+        .where((item) => item.visibility == 'public')
+        .toList();
+    final reels = <_ProfileMediaItem>[
+      ..._challengeReels,
+      ...publicMedia.where((item) => item.type == 'video'),
+    ];
+    final privateMedia = effectiveMedia
+        .where((item) => item.visibility == 'private')
+        .toList();
+    final savedMedia = effectiveMedia
+        .where((item) => _savedReels.contains(item.path))
+        .toList();
     final ImageProvider avatar = ProfileAvatarResolver.resolve(
       _profileImagePath,
       fallback: const NetworkImage(_defaultImageUrl),
@@ -578,7 +1028,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final nameSize = isDesktop ? 22.0 : (isTablet ? 19.0 : 16.0);
                 final statSpacing = isDesktop ? 48.0 : (isTablet ? 36.0 : 28.0);
                 final gridCount = isDesktop ? 5 : (isTablet ? 4 : 3);
-
                 return Align(
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
@@ -689,6 +1138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         child: _StatItem(
                                           label: 'Followers',
                                           value: _followers.toString(),
+                                          onTap: _showFollowersSheet,
                                         ),
                                       ),
                                     ),
@@ -733,84 +1183,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     () => _selectedVisibilityTab = tab,
                                   ),
                                 ),
+                                const SizedBox(height: 10),
+                                SizedBox(
+                                  height: 38,
+                                  child: OutlinedButton(
+                                    onPressed: () => _openReels(reels),
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: AppColors.textPrimaryFor(
+                                        context,
+                                      ),
+                                      side: BorderSide(
+                                        color: AppColors.borderLightFor(
+                                          context,
+                                        ),
+                                      ),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    child: const Text(
+                                      'Reels',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                           Expanded(
                             child: AnimatedReveal(
                               delay: const Duration(milliseconds: 140),
-                              child: visibleMedia.isEmpty
-                                  ? Center(
-                                      child: Text(
-                                        _selectedVisibilityTab ==
-                                                _ProfileVisibilityTab
-                                                    .publicItems
-                                            ? 'No public media yet.\nTap + to shoot photo/video.'
-                                            : 'No private media yet.\nTap + to shoot photo/video.',
-                                        textAlign: TextAlign.center,
-                                        style: TextStyle(
-                                          color: AppColors.textSecondaryFor(
-                                            context,
-                                          ),
-                                          fontSize: 13,
-                                        ),
-                                      ),
-                                    )
-                                  : GridView.builder(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        8,
-                                        8,
-                                        8,
-                                        90,
-                                      ),
-                                      itemCount: visibleMedia.length,
-                                      gridDelegate:
-                                          SliverGridDelegateWithFixedCrossAxisCount(
-                                            crossAxisCount: gridCount,
-                                            crossAxisSpacing: 4,
-                                            mainAxisSpacing: 4,
-                                          ),
-                                      itemBuilder: (context, index) {
-                                        final item = visibleMedia[index];
-                                        return GestureDetector(
-                                          onTap: () => _openMedia(item),
-                                          onLongPress: () {
-                                            final mediaIndex = _media.indexOf(
-                                              item,
-                                            );
-                                            if (mediaIndex < 0) return;
-                                            _confirmDeleteMedia(mediaIndex);
-                                          },
-                                          child: ClipRRect(
-                                            borderRadius: BorderRadius.circular(
-                                              8,
-                                            ),
-                                            child: Stack(
-                                              fit: StackFit.expand,
-                                              children: [
-                                                item.type == 'image'
-                                                    ? Image.file(
-                                                        File(item.path),
-                                                        fit: BoxFit.cover,
-                                                      )
-                                                    : FileVideoPreview(
-                                                        path: item.path,
-                                                        fit: BoxFit.cover,
-                                                        playIconSize: 26,
-                                                      ),
-                                                Positioned(
-                                                  left: 6,
-                                                  bottom: 6,
-                                                  child: _VisibilityBadge(
-                                                    visibility: item.visibility,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
+                              child: _buildMediaGrid(
+                                _selectedVisibilityTab ==
+                                        _ProfileVisibilityTab.savedItems
+                                    ? savedMedia
+                                    : (_selectedVisibilityTab ==
+                                              _ProfileVisibilityTab.privateItems
+                                          ? privateMedia
+                                          : publicMedia),
+                                gridCount,
+                                emptyMessage:
+                                    _selectedVisibilityTab ==
+                                        _ProfileVisibilityTab.savedItems
+                                    ? 'No saved videos yet.'
+                                    : (_selectedVisibilityTab ==
+                                              _ProfileVisibilityTab.privateItems
+                                          ? 'No private videos yet.'
+                                          : 'No public videos yet.\nTap + to upload a video.'),
+                                muted:
+                                    _selectedVisibilityTab !=
+                                    _ProfileVisibilityTab.privateItems,
+                                showPlayOverlay:
+                                    _selectedVisibilityTab !=
+                                    _ProfileVisibilityTab.privateItems,
+                              ),
                             ),
                           ),
                         ],
@@ -871,10 +1299,7 @@ class _ProfileApiPayload {
       'user',
       'account',
     ]);
-    final valueMaps = <Map<String, dynamic>>[
-      ?profileMap,
-      ...containers,
-    ];
+    final valueMaps = <Map<String, dynamic>>[?profileMap, ...containers];
 
     return _ProfileApiPayload(
       name: firstNonEmptyString(valueMaps, const <String>[
@@ -1257,6 +1682,11 @@ class _VisibilityTabs extends StatelessWidget {
             selected: selected == _ProfileVisibilityTab.privateItems,
             onTap: () => onChanged(_ProfileVisibilityTab.privateItems),
           ),
+          _VisibilityTabButton(
+            title: 'Saved',
+            selected: selected == _ProfileVisibilityTab.savedItems,
+            onTap: () => onChanged(_ProfileVisibilityTab.savedItems),
+          ),
         ],
       ),
     );
@@ -1333,6 +1763,369 @@ class _VisibilityBadge extends StatelessWidget {
   }
 }
 
+class _ReelActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _ReelActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Column(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.4),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.white, size: 22),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReelsScreen extends StatefulWidget {
+  final List<_ProfileMediaItem> reels;
+  final bool Function(String username) isFollowed;
+  final bool Function(String path) isLiked;
+  final bool Function(String path) isSaved;
+  final int Function(String path, int fallback) likeCountFor;
+  final int Function(String path) commentCountFor;
+  final List<String> Function(String path) commentsFor;
+  final int Function(String path) shareCountFor;
+  final ValueChanged<String> onToggleFollow;
+  final ValueChanged<_ProfileMediaItem> onToggleLike;
+  final ValueChanged<_ProfileMediaItem> onToggleSave;
+  final void Function(_ProfileMediaItem, String text) onAddComment;
+  final ValueChanged<_ProfileMediaItem> onAddShare;
+
+  const _ReelsScreen({
+    required this.reels,
+    required this.isFollowed,
+    required this.isLiked,
+    required this.isSaved,
+    required this.likeCountFor,
+    required this.commentCountFor,
+    required this.commentsFor,
+    required this.shareCountFor,
+    required this.onToggleFollow,
+    required this.onToggleLike,
+    required this.onToggleSave,
+    required this.onAddComment,
+    required this.onAddShare,
+  });
+
+  @override
+  State<_ReelsScreen> createState() => _ReelsScreenState();
+}
+
+class _ReelsScreenState extends State<_ReelsScreen> {
+  late final PageController _controller;
+  bool _showHeart = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _openCommentSheet(_ProfileMediaItem item) async {
+    final controller = TextEditingController();
+    final existing = widget.commentsFor(item.path);
+    final submitted = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            14,
+            16,
+            MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add Comment',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+              const SizedBox(height: 10),
+              if (existing.isNotEmpty) ...[
+                ...existing.map(
+                  (comment) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(
+                      comment,
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
+              TextField(
+                controller: controller,
+                autofocus: true,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  hintText: 'Write a comment...',
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 40,
+                child: ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Post'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+    if (submitted == true && controller.text.trim().isNotEmpty) {
+      widget.onAddComment(item, controller.text.trim());
+      if (mounted) setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        elevation: 0,
+        title: const Text(
+          'Reels',
+          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+        ),
+        centerTitle: true,
+      ),
+      body: widget.reels.isEmpty
+          ? const Center(
+              child: Text(
+                'No reels yet.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            )
+          : PageView.builder(
+              scrollDirection: Axis.vertical,
+              controller: _controller,
+              physics: const ClampingScrollPhysics(),
+              allowImplicitScrolling: true,
+              itemCount: widget.reels.length,
+              itemBuilder: (context, index) {
+                final item = widget.reels[index];
+                final key = item.path;
+                final followKey = item.uploaderUsername.isEmpty
+                    ? item.uploaderName
+                    : item.uploaderUsername;
+                final likeCount = widget.likeCountFor(key, item.likes);
+                final commentCount = widget.commentCountFor(key);
+                final shareCount = widget.shareCountFor(key);
+                final isFollow = widget.isFollowed(followKey);
+                final liked = widget.isLiked(key);
+                final saved = widget.isSaved(key);
+
+                return RepaintBoundary(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      GestureDetector(
+                        onDoubleTap: () {
+                          widget.onToggleLike(item);
+                          setState(() => _showHeart = true);
+                          Future<void>.delayed(
+                            const Duration(milliseconds: 420),
+                          ).then((_) {
+                            if (mounted) setState(() => _showHeart = false);
+                          });
+                        },
+                        child: FileVideoPreview(
+                          path: item.path,
+                          fit: BoxFit.cover,
+                          autoplay: true,
+                          showPlayOverlay: false,
+                          playIconSize: 42,
+                          muted: false,
+                        ),
+                      ),
+                      if (_showHeart)
+                        Center(
+                          child: Icon(
+                            Icons.favorite,
+                            color: Colors.white.withValues(alpha: 0.9),
+                            size: 86,
+                          ),
+                        ),
+                      Positioned(
+                        left: 14,
+                        right: 14,
+                        bottom: 18,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        item.uploaderName.isEmpty
+                                            ? 'User'
+                                            : item.uploaderName,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      OutlinedButton(
+                                        onPressed: () {
+                                          widget.onToggleFollow(followKey);
+                                          setState(() {});
+                                        },
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Colors.white,
+                                          side: const BorderSide(
+                                            color: Colors.white,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 10,
+                                            vertical: 6,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          isFollow ? 'Following' : 'Follow',
+                                          style: const TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.uploaderUsername.isEmpty
+                                        ? '@user'
+                                        : '@${item.uploaderUsername}',
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              children: [
+                                _ReelActionButton(
+                                  icon: liked
+                                      ? Icons.favorite
+                                      : Icons.favorite_border,
+                                  label: '$likeCount',
+                                  onTap: () {
+                                    widget.onToggleLike(item);
+                                    setState(() {});
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                _ReelActionButton(
+                                  icon: Icons.comment,
+                                  label: '$commentCount',
+                                  onTap: () => _openCommentSheet(item),
+                                ),
+                                const SizedBox(height: 12),
+                                _ReelActionButton(
+                                  icon: saved
+                                      ? Icons.bookmark
+                                      : Icons.bookmark_border,
+                                  label: 'Save',
+                                  onTap: () {
+                                    widget.onToggleSave(item);
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          saved
+                                              ? 'Removed from favorites'
+                                              : 'Saved to favorites',
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                _ReelActionButton(
+                                  icon: Icons.share,
+                                  label: '$shareCount',
+                                  onTap: () async {
+                                    widget.onAddShare(item);
+                                    setState(() {});
+                                    await Share.share(
+                                      item.path,
+                                      subject: 'Watch this reel',
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+
 abstract class _ProfileMediaVisibility {
   static const String public = 'public';
   static const String private = 'private';
@@ -1354,6 +2147,7 @@ class _ProfileMediaItem {
   final String uploaderName;
   final String uploaderUsername;
   final String visibility;
+  final String source;
 
   const _ProfileMediaItem({
     required this.path,
@@ -1367,6 +2161,7 @@ class _ProfileMediaItem {
     required this.uploaderName,
     required this.uploaderUsername,
     required this.visibility,
+    this.source = '',
   });
 
   factory _ProfileMediaItem.fromStorage(Map<String, dynamic> json) {
@@ -1384,6 +2179,7 @@ class _ProfileMediaItem {
       visibility: _ProfileMediaVisibility.normalize(
         (json['visibility'] ?? '').toString(),
       ),
+      source: (json['source'] ?? '').toString(),
     );
   }
 
@@ -1400,6 +2196,7 @@ class _ProfileMediaItem {
       'uploader_name': uploaderName,
       'uploader_username': uploaderUsername,
       'visibility': visibility,
+      'source': source,
     };
   }
 
@@ -1415,6 +2212,7 @@ class _ProfileMediaItem {
     String? uploaderName,
     String? uploaderUsername,
     String? visibility,
+    String? source,
   }) {
     return _ProfileMediaItem(
       path: path ?? this.path,
@@ -1430,6 +2228,7 @@ class _ProfileMediaItem {
       visibility: _ProfileMediaVisibility.normalize(
         visibility ?? this.visibility,
       ),
+      source: source ?? this.source,
     );
   }
 }
@@ -1660,30 +2459,38 @@ class _CapturedMediaReviewScreenState
 class _StatItem extends StatelessWidget {
   final String label;
   final String value;
+  final VoidCallback? onTap;
 
-  const _StatItem({required this.label, required this.value});
+  const _StatItem({required this.label, required this.value, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: AppColors.textTitleFor(context),
-            fontWeight: FontWeight.w700,
-            fontSize: 16,
-          ),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: TextStyle(
+                color: AppColors.textTitleFor(context),
+                fontWeight: FontWeight.w700,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
+                fontSize: 12,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: TextStyle(
-            color: AppColors.textSecondaryFor(context),
-            fontSize: 12,
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -1710,10 +2517,12 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
   }
 
   Future<void> _init() async {
-    final controller = VideoPlayerController.file(File(_item.path));
+    final controller = VideoPlayerController.file(
+      File(_item.path),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
     await controller.initialize();
     controller.setLooping(true);
-    await controller.play();
     if (!mounted) {
       await controller.dispose();
       return;
@@ -1722,6 +2531,8 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
       _controller = controller;
       _loading = false;
     });
+    await controller.setVolume(1);
+    await controller.play();
   }
 
   @override

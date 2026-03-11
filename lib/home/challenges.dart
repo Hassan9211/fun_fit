@@ -15,6 +15,7 @@ import '../widget/app_colors.dart';
 import '../widget/app_section_header.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/getx.dart';
+import '../widget/record_with_audio_screen.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -43,6 +44,9 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   static const String _kProfileImagePath = 'profile_image_path';
   static const String _defaultProfileName = 'Jacob West';
   static const String _kLocalChallenges = 'local_challenges';
+  static const String _kRandomChallenges = 'random_challenges';
+  static const String _kChallengeReels = 'challenge_reels_items';
+  static const String _kProfileUsername = 'profile_username';
 
   _ChallengesTab _selectedTab = _ChallengesTab.publicPosts;
   String _profileName = _defaultProfileName;
@@ -317,6 +321,8 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       'title': draft.name,
       'subtitle': draft.description,
       'duration': draft.time,
+      'difficulty': draft.category,
+      'fitness_level': draft.category,
       'image': draft.mediaPath.isNotEmpty
           ? draft.mediaPath
           : 'assets/images/pushup.jpg',
@@ -327,6 +333,42 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     };
     existing.insert(0, jsonEncode(payload));
     await prefs.setStringList(_kLocalChallenges, existing);
+
+    final randomExisting =
+        prefs.getStringList(_kRandomChallenges) ?? <String>[];
+    randomExisting.removeWhere((item) {
+      try {
+        final decoded = jsonDecode(item);
+        return decoded is Map && decoded['title'] == draft.name;
+      } catch (_) {
+        return false;
+      }
+    });
+    randomExisting.insert(0, jsonEncode(payload));
+    await prefs.setStringList(_kRandomChallenges, randomExisting);
+
+    if (draft.mediaType == _MediaType.video && draft.mediaPath.isNotEmpty) {
+      final mediaRaw = prefs.getStringList(_kChallengeReels) ?? <String>[];
+      final name = (prefs.getString(_kProfileName) ?? '').trim();
+      final username = (prefs.getString(_kProfileUsername) ?? '').trim();
+      final mediaPayload = <String, dynamic>{
+        'path': draft.mediaPath,
+        'type': 'video',
+        'likes': 0,
+        'dislikes': 0,
+        'shares': 0,
+        'is_saved': false,
+        'is_liked': false,
+        'is_disliked': false,
+        'uploader_name': name.isEmpty ? _defaultProfileName : name,
+        'uploader_username': username,
+        'visibility': 'public',
+        'source': 'challenge',
+      };
+      mediaRaw.insert(0, jsonEncode(mediaPayload));
+      await prefs.setStringList(_kChallengeReels, mediaRaw);
+      ProfileSyncService.notifyChanged();
+    }
   }
 
   @override
@@ -357,14 +399,14 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
             width: 42,
             height: 42,
             child: FloatingActionButton(
-              backgroundColor: Colors.white,
+              backgroundColor: Colors.black,
               elevation: 2,
               onPressed: _openAddChallenge,
-              child: const Icon(Icons.add, color: Colors.black, size: 20),
+              child: const Icon(Icons.add, color: Colors.white, size: 20),
             ),
           ),
           floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerDocked,
+              FloatingActionButtonLocation.endFloat,
           bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
           body: SafeArea(
             bottom: false,
@@ -626,15 +668,24 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
 
   Future<void> _captureFromCamera({required bool isVideo}) async {
     try {
+      if (!mounted) return;
+      final nav = Navigator.of(context);
       final XFile? file = isVideo
-          ? await _picker.pickVideo(source: ImageSource.camera)
+          ? null
           : await _picker.pickImage(
               source: ImageSource.camera,
               imageQuality: 85,
             );
-      if (file == null || !mounted) return;
+      final videoPath = isVideo
+          ? await nav.push<String>(
+              MaterialPageRoute(builder: (_) => const RecordWithAudioScreen()),
+            )
+          : null;
+      if (!mounted) return;
+      if (!isVideo && file == null) return;
+      if (isVideo && (videoPath == null || videoPath.isEmpty)) return;
       setState(() {
-        _selectedMediaPath = file.path;
+        _selectedMediaPath = isVideo ? videoPath! : file!.path;
         _selectedMediaType = isVideo ? _MediaType.video : _MediaType.image;
       });
     } catch (_) {

@@ -19,9 +19,11 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   static const String _kProfileImagePath = 'profile_image_path';
+  static const String _kUserPoints = 'leaderboard_points';
 
   int _tab = 0;
   String _profileImagePath = '';
+  int _userPoints = 34;
 
   final List<_Leader> _all = const [
     _Leader(
@@ -95,6 +97,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     super.initState();
     ProfileSyncService.changes.addListener(_loadProfileImage);
     _loadProfileImage();
+    _loadUserPoints();
   }
 
   @override
@@ -104,13 +107,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   }
 
   List<_Leader> get _current {
+    List<_Leader> list;
     if (_tab == 1) {
-      return _all.where((e) => e.gender == _Gender.men).toList();
+      list = _all.where((e) => e.gender == _Gender.men).toList();
+    } else if (_tab == 2) {
+      list = _all.where((e) => e.gender == _Gender.women).toList();
+    } else {
+      list = _all.toList();
     }
-    if (_tab == 2) {
-      return _all.where((e) => e.gender == _Gender.women).toList();
-    }
-    return _all;
+    return list
+        .map(
+          (leader) => leader.me
+              ? _Leader(
+                  leader.name,
+                  _userPoints,
+                  leader.image,
+                  gender: leader.gender,
+                  me: leader.me,
+                  badge: leader.badge,
+                )
+              : leader,
+        )
+        .toList();
   }
 
   Future<void> _loadProfileImage() async {
@@ -118,6 +136,13 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final savedPath = (prefs.getString(_kProfileImagePath) ?? '').trim();
     if (!mounted) return;
     setState(() => _profileImagePath = savedPath);
+  }
+
+  Future<void> _loadUserPoints() async {
+    final prefs = await SharedPreferences.getInstance();
+    final points = prefs.getInt(_kUserPoints) ?? _userPoints;
+    if (!mounted) return;
+    setState(() => _userPoints = points);
   }
 
   Future<void> _goProfile() async {

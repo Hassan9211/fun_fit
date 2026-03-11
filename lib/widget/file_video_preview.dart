@@ -10,6 +10,7 @@ class FileVideoPreview extends StatefulWidget {
   final bool showPlayOverlay;
   final double playIconSize;
   final Widget? fallback;
+  final bool muted;
 
   const FileVideoPreview({
     super.key,
@@ -19,6 +20,7 @@ class FileVideoPreview extends StatefulWidget {
     this.showPlayOverlay = true,
     this.playIconSize = 36,
     this.fallback,
+    this.muted = true,
   });
 
   @override
@@ -49,7 +51,7 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
     try {
       await controller.initialize();
       await controller.setLooping(true);
-      await controller.setVolume(0);
+      await controller.setVolume(widget.muted ? 0 : 1);
       if (widget.autoplay) {
         await controller.play();
       }
