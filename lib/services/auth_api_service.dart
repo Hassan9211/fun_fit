@@ -22,22 +22,53 @@ class AuthApiResult {
 class AuthApiService {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'http://192.168.2.114:8000/api',
   );
-  static const String _legacyLanBaseUrl = 'http://192.168.2.125:8000';
-  static const String _signupPath = '/api/signup';
-  static const String _loginPath = '/api/login';
-  static const String _requestForgotOtpPath = '/api/forgot-password';
-  static const String _requestSigninOtpPath = '/api/login/request-otp';
-  static const String _verifySignupOtpPath = '/api/signup/verify-otp';
-  static const String _verifyForgotOtpPath = '/api/forgot-password/verify-otp';
-  static const String _verifySigninOtpPath = '/api/login/verify-otp';
-  static const String _resetPasswordPath = '/api/reset-password';
-  static const String _changePasswordPath = '/api/auth/change-password';
-  static const String _saveOnboardingPath = '/api/onboarding';
-  static const String _profilePath = '/api/profile';
-  static const String _homePath = '/api/home';
-  static const String _foodLogPath = '/api/foodlog';
+  static const String _legacyLanBaseUrl = 'http://192.168.2.114:8000/api';
+  static const String _signupPath = '/register';
+  static const String _loginPath = '/login';
+  static const String _requestOtpPath = '/send_otp';
+  static const String _verifyOtpPath = '/validate_otp';
+  static const String _updatePasswordPath = '/update_password';
+  static const String _updateProfilePath = '/update_profile';
+  static const String _updateFitnessLevelPath = '/update_fitness_level';
+  static const String _userProfilePath = '/user_profile';
+  static const String _updatePreferencesPath = '/update_preferences';
+  static const String _notificationsPath = '/notifications';
+  static const String _foodLogCreatePath = '/create_food_log';
+  static const String _foodLogMyPath = '/my_food_logs';
+  static const String _foodLogAllPath = '/all_food_logs';
+  static const String _allChallengesPath = '/all_challenges';
+  static const String _commentFoodLogPath = '/comment_food_log';
+  static const String _likeFoodLogPath = '/like_food_log';
+  static const String _likeFoodLogCommentPath = '/like_food_log_comment';
+  static const String _deleteFoodLogPath = '/delete_food_log';
+  static const String _addRecipePath = '/add_recipe';
+  static const String _getRecipesPath = '/get_recipes';
+  static const String _updateProfileImgPath = '/update_profile_img';
+  static const String _followPath = '/follow';
+  static const String _updateFcmPath = '/update_fcm';
+  static const String _createSubscriptionPath = '/create_subscription';
+  static const String _updateSubscriptionPath = '/update_subscription';
+  static const String _tokenLoginPath = '/token_login';
+  static const String _leaderboardPath = '/leaderboard';
+  static const String _guidesPath = '/guides';
+  static const String _guidePath = '/guide';
+  static const String _guideCategoriesPath = '/guide_categories';
+  static const String _helpFaqsPath = '/help_faqs';
+  static const String _getShortsPath = '/get_shorts';
+  static const String _searchVideosPath = '/search_videos';
+  static const String _createReelPath = '/create_reel';
+  static const String _reelsPath = '/reels';
+  static const String _myReelsPath = '/my_reels';
+  static const String _likeReelPath = '/like_reel';
+  static const String _commentReelPath = '/comment_reel';
+  static const String _getContactsPath = '/get_contacts';
+  static const String _sendMessagePath = '/send_message';
+  static const String _createChallengePath = '/create_challenge';
+  static const String _acceptChallengePath = '/accept_challenge';
+  static const String _likeChallengePath = '/like_challenge';
+  static const String _commentPath = '/comment';
 
   final String baseUrl;
   final List<String> _baseUrlCandidates;
@@ -81,18 +112,18 @@ class AuthApiService {
   static List<String> _resolveBaseUrls(String raw) {
     final explicitBaseUrl = _normalizeBaseUrl(raw);
     if (explicitBaseUrl != null) {
-      return <String>[explicitBaseUrl];
+      return _expandBaseUrlCandidates(<String>[explicitBaseUrl]);
     }
 
     final fallbackBaseUrl = _isAndroidRuntime
-        ? 'http://10.0.2.2:8000'
-        : 'http://127.0.0.1:8000';
+        ? 'http://10.0.2.2:8000/api'
+        : 'http://127.0.0.1:8000/api';
     final defaults = <String>[
       raw,
       _configuredBaseUrl,
       fallbackBaseUrl,
-      'http://127.0.0.1:8000',
-      if (_isAndroidRuntime) 'http://10.0.2.2:8000',
+      'http://127.0.0.1:8000/api',
+      if (_isAndroidRuntime) 'http://10.0.2.2:8000/api',
       _legacyLanBaseUrl,
     ];
 
@@ -100,8 +131,10 @@ class AuthApiService {
     for (final entry in defaults) {
       final normalized = _normalizeBaseUrl(entry);
       if (normalized == null) continue;
-      if (!result.contains(normalized)) {
-        result.add(normalized);
+      if (!result.contains(normalized)) result.add(normalized);
+      final apiVariant = _withApiSuffixIfNeeded(normalized);
+      if (apiVariant != normalized && !result.contains(apiVariant)) {
+        result.add(apiVariant);
       }
     }
 
@@ -110,6 +143,26 @@ class AuthApiService {
     }
 
     return result;
+  }
+
+  static List<String> _expandBaseUrlCandidates(List<String> baseUrls) {
+    final expanded = <String>[];
+    for (final base in baseUrls) {
+      if (!expanded.contains(base)) expanded.add(base);
+      final apiVariant = _withApiSuffixIfNeeded(base);
+      if (apiVariant != base && !expanded.contains(apiVariant)) {
+        expanded.add(apiVariant);
+      }
+    }
+    return expanded;
+  }
+
+  static String _withApiSuffixIfNeeded(String baseUrl) {
+    final uri = Uri.parse(baseUrl);
+    if (uri.path.isEmpty || uri.path == '/') {
+      return baseUrl.endsWith('/api') ? baseUrl : '$baseUrl/api';
+    }
+    return baseUrl;
   }
 
   static String _resolvePrimaryBaseUrl(String raw) {
@@ -210,30 +263,21 @@ class AuthApiService {
     String? password,
   }) async {
     final purposeAliases = _purposeAliases(purpose);
-    final requestPath = switch (purposeAliases.primary) {
-      'signin' => _requestSigninOtpPath,
-      _ => _requestForgotOtpPath,
-    };
     final normalizedEmail = email.trim();
     final payload = <String, dynamic>{
       'email': normalizedEmail,
-      if (purposeAliases.primary == 'signin') ...{
-        'username': normalizedEmail,
-        'identifier': normalizedEmail,
-        if (password != null && password.trim().isNotEmpty)
-          'password': password,
-      } else ...{
-        'purpose': purposeAliases.primary,
-        'otp_purpose': purposeAliases.primary,
-        'type': purposeAliases.primary,
-        'flow': purposeAliases.primary,
-        'purpose_alt': purposeAliases.secondary,
-      },
+      'purpose': purposeAliases.primary,
+      'otp_purpose': purposeAliases.primary,
+      'type': purposeAliases.primary,
+      'flow': purposeAliases.primary,
+      'purpose_alt': purposeAliases.secondary,
+      if (password != null && password.trim().isNotEmpty)
+        'password': password,
     };
 
     try {
       return _postJson(
-        path: requestPath,
+        path: _requestOtpPath,
         payload: payload,
         actionName: 'OTP request',
       );
@@ -248,12 +292,6 @@ class AuthApiService {
     required String purpose,
   }) async {
     final purposeAliases = _purposeAliases(purpose);
-    final verifyPath = switch (purposeAliases.primary) {
-      'signup' => _verifySignupOtpPath,
-      'forgotPassword' => _verifyForgotOtpPath,
-      'signin' => _verifySigninOtpPath,
-      _ => _verifyForgotOtpPath,
-    };
     final normalizedEmail = email.trim();
     final normalizedOtp = otp.trim();
     final payload = <String, dynamic>{
@@ -262,16 +300,14 @@ class AuthApiService {
       'code': normalizedOtp,
       'otp_code': normalizedOtp,
     };
-    if (purposeAliases.primary != 'signin') {
-      payload['purpose'] = purposeAliases.primary;
-      payload['otp_purpose'] = purposeAliases.primary;
-      payload['type'] = purposeAliases.primary;
-      payload['purpose_alt'] = purposeAliases.secondary;
-    }
+    payload['purpose'] = purposeAliases.primary;
+    payload['otp_purpose'] = purposeAliases.primary;
+    payload['type'] = purposeAliases.primary;
+    payload['purpose_alt'] = purposeAliases.secondary;
 
     try {
       return _postJson(
-        path: verifyPath,
+        path: _verifyOtpPath,
         payload: payload,
         actionName: 'OTP verify',
       );
@@ -309,7 +345,7 @@ class AuthApiService {
 
     try {
       return _postJson(
-        path: _changePasswordPath,
+        path: _updatePasswordPath,
         payload: payload,
         actionName: 'Change password',
         extraHeaders: extraHeaders,
@@ -359,7 +395,7 @@ class AuthApiService {
 
     try {
       return _postJson(
-        path: _resetPasswordPath,
+        path: _updatePasswordPath,
         payload: payload,
         actionName: 'Reset password',
       );
@@ -408,12 +444,28 @@ class AuthApiService {
     }
 
     try {
-      return _postJson(
-        path: _saveOnboardingPath,
+      final profileResult = await _postJson(
+        path: _updateProfilePath,
         payload: payload,
-        actionName: 'Onboarding save',
+        actionName: 'Onboarding profile',
         extraHeaders: extraHeaders,
       );
+
+      final fitness = onboardingData['fitnessLevel'] ??
+          onboardingData['fitness_level'];
+      if (fitness != null) {
+        await _postJson(
+          path: _updateFitnessLevelPath,
+          payload: <String, dynamic>{
+            'fitness_level': fitness,
+            'fitnessLevel': fitness,
+          },
+          actionName: 'Onboarding fitness level',
+          extraHeaders: extraHeaders,
+        );
+      }
+
+      return profileResult;
     } catch (_) {
       return _unexpectedError();
     }
@@ -423,24 +475,35 @@ class AuthApiService {
     String? email,
     String? bearerToken,
   }) async {
-    final normalizedEmail = email?.trim();
     final token = bearerToken?.trim();
     final extraHeaders = <String, String>{};
     if (token != null && token.isNotEmpty) {
       extraHeaders['Authorization'] = 'Bearer $token';
     }
 
-    final queryParameters = <String, String>{};
-    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
-      queryParameters['email'] = normalizedEmail;
-    }
-
     try {
-      return _getJson(
-        path: _homePath,
-        actionName: 'Home data',
+      final notificationsResult = await _getJson(
+        path: _notificationsPath,
+        actionName: 'Notifications',
         extraHeaders: extraHeaders,
-        queryParameters: queryParameters,
+      );
+      final challengesResult = await _getJson(
+        path: _allChallengesPath,
+        actionName: 'Challenges',
+        extraHeaders: extraHeaders,
+      );
+
+      final notifications = _extractList(notificationsResult.data);
+      final challenges = _extractList(challengesResult.data);
+
+      return AuthApiResult(
+        success: true,
+        message: 'Home data loaded.',
+        statusCode: 200,
+        data: <String, dynamic>{
+          ...?_entryIfNotNull('notifications', notifications),
+          ...?_entryIfNotNull('challenges', challenges),
+        },
       );
     } catch (_) {
       return _unexpectedError();
@@ -473,7 +536,7 @@ class AuthApiService {
       }
 
       final result = await _getJson(
-        path: _profilePath,
+        path: _userProfilePath,
         actionName: 'Profile data',
         extraHeaders: extraHeaders,
         queryParameters: queryParameters,
@@ -519,34 +582,16 @@ class AuthApiService {
         );
       }
 
-      final result = await _putJson(
-        path: _profilePath,
+      final result = await _postJson(
+        path: _updateProfilePath,
         payload: payload,
         actionName: 'Profile update',
         extraHeaders: extraHeaders,
       );
-      // Some backends expose profile updates as POST instead of PUT.
-      if (result.statusCode == 405) {
-        final postResult = await _postJson(
-          path: _profilePath,
-          payload: payload,
-          actionName: 'Profile save',
-          extraHeaders: extraHeaders,
-        );
-
-        if (kDebugMode) {
-          debugPrint(
-            '[Profile] save via POST status=${postResult.statusCode} '
-            'success=${postResult.success} message=${postResult.message}',
-          );
-        }
-
-        return postResult;
-      }
 
       if (kDebugMode) {
         debugPrint(
-          '[Profile] save via PUT status=${result.statusCode} '
+          '[Profile] save status=${result.statusCode} '
           'success=${result.success} message=${result.message}',
         );
       }
@@ -568,17 +613,29 @@ class AuthApiService {
       extraHeaders['Authorization'] = 'Bearer $token';
     }
 
-    final payload = <String, dynamic>{
-      ...homeData,
-      if (normalizedEmail != null && normalizedEmail.isNotEmpty)
-        'email': normalizedEmail,
-    };
-
     try {
+      final fitness = homeData['fitness_level'] ??
+          homeData['fitnessLevel'] ??
+          homeData['selected_category'] ??
+          homeData['selectedCategory'] ??
+          homeData['category'];
+      if (fitness == null) {
+        return const AuthApiResult(
+          success: true,
+          message: 'No home data to save.',
+          statusCode: 200,
+        );
+      }
+
       return _postJson(
-        path: _homePath,
-        payload: payload,
-        actionName: 'Home data save',
+        path: _updateFitnessLevelPath,
+        payload: <String, dynamic>{
+          'fitness_level': fitness,
+          'fitnessLevel': fitness,
+          if (normalizedEmail != null && normalizedEmail.isNotEmpty)
+            'email': normalizedEmail,
+        },
+        actionName: 'Update fitness level',
         extraHeaders: extraHeaders,
       );
     } catch (_) {
@@ -590,24 +647,35 @@ class AuthApiService {
     String? email,
     String? bearerToken,
   }) async {
-    final normalizedEmail = email?.trim();
     final token = bearerToken?.trim();
     final extraHeaders = <String, String>{};
     if (token != null && token.isNotEmpty) {
       extraHeaders['Authorization'] = 'Bearer $token';
     }
 
-    final queryParameters = <String, String>{};
-    if (normalizedEmail != null && normalizedEmail.isNotEmpty) {
-      queryParameters['email'] = normalizedEmail;
-    }
-
     try {
-      return _getJson(
-        path: _foodLogPath,
-        actionName: 'Food log',
+      final allResult = await _getJson(
+        path: _foodLogAllPath,
+        actionName: 'Food log (all)',
         extraHeaders: extraHeaders,
-        queryParameters: queryParameters,
+      );
+      final myResult = await _getJson(
+        path: _foodLogMyPath,
+        actionName: 'Food log (mine)',
+        extraHeaders: extraHeaders,
+      );
+
+      final allPosts = _extractList(allResult.data);
+      final myPosts = _extractList(myResult.data);
+
+      return AuthApiResult(
+        success: true,
+        message: 'Food log loaded.',
+        statusCode: 200,
+        data: <String, dynamic>{
+          ...?_entryIfNotNull('public_posts', allPosts),
+          ...?_entryIfNotNull('my_posts', myPosts),
+        },
       );
     } catch (_) {
       return _unexpectedError();
@@ -626,8 +694,24 @@ class AuthApiService {
       extraHeaders['Authorization'] = 'Bearer $token';
     }
 
+    final contentValue =
+        (postData['content'] ??
+                postData['message'] ??
+                postData['text'] ??
+                postData['body'])
+            ?.toString()
+            .trim();
+    final titleValue =
+        (postData['title'] ?? postData['name'])?.toString().trim();
+    final descriptionValue =
+        (postData['description'] ?? postData['details'])?.toString().trim();
+
     final payload = <String, dynamic>{
       ...postData,
+      if (titleValue == null || titleValue.isEmpty)
+        'title': contentValue ?? '',
+      if (descriptionValue == null || descriptionValue.isEmpty)
+        'description': contentValue ?? '',
       'post': postData,
       'foodlog': postData,
       if (normalizedEmail != null && normalizedEmail.isNotEmpty)
@@ -636,9 +720,646 @@ class AuthApiService {
 
     try {
       return _postJson(
-        path: _foodLogPath,
+        path: _foodLogCreatePath,
         payload: payload,
         actionName: 'Food log post',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> commentFoodLog({
+    required Map<String, dynamic> commentData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _commentFoodLogPath,
+        payload: commentData,
+        actionName: 'Food log comment',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> likeFoodLog({
+    required Map<String, dynamic> likeData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _likeFoodLogPath,
+        payload: likeData,
+        actionName: 'Food log like',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> likeFoodLogComment({
+    required Map<String, dynamic> likeData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _likeFoodLogCommentPath,
+        payload: likeData,
+        actionName: 'Food log comment like',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> deleteFoodLog({
+    required Map<String, dynamic> deleteData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _deleteFoodLogPath,
+        payload: deleteData,
+        actionName: 'Food log delete',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> updateProfileImage({
+    required String imagePath,
+    String? bearerToken,
+  }) async {
+    return _postMultipart(
+      path: _updateProfileImgPath,
+      files: <String, String>{'image': imagePath},
+      fields: const <String, String>{},
+      bearerToken: bearerToken,
+      actionName: 'Update profile image',
+    );
+  }
+
+  Future<AuthApiResult> followUser({
+    required Map<String, dynamic> followData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _followPath,
+        payload: followData,
+        actionName: 'Follow user',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> updateFcm({
+    required Map<String, dynamic> fcmData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _updateFcmPath,
+        payload: fcmData,
+        actionName: 'Update FCM',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> createSubscription({
+    required Map<String, dynamic> data,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _createSubscriptionPath,
+        payload: data,
+        actionName: 'Create subscription',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> updateSubscription({
+    required Map<String, dynamic> data,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _updateSubscriptionPath,
+        payload: data,
+        actionName: 'Update subscription',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> tokenLogin({String? bearerToken}) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _tokenLoginPath,
+        actionName: 'Token login',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> addRecipe({
+    required Map<String, dynamic> recipeData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _addRecipePath,
+        payload: recipeData,
+        actionName: 'Add recipe',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> getRecipes({
+    Map<String, String>? queryParameters,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _getRecipesPath,
+        payload: queryParameters ?? const <String, String>{},
+        actionName: 'Get recipes',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchLeaderboard({
+    Map<String, dynamic>? requestData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _leaderboardPath,
+        payload: requestData ?? const <String, dynamic>{},
+        actionName: 'Leaderboard',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchGuides({
+    Map<String, String>? queryParameters,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _guidesPath,
+        actionName: 'Guides',
+        extraHeaders: extraHeaders,
+        queryParameters: queryParameters ?? const <String, String>{},
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchGuide({
+    required String guideId,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _guidePath,
+        actionName: 'Guide',
+        extraHeaders: extraHeaders,
+        queryParameters: <String, String>{'guide_id': guideId},
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchGuideCategories({String? bearerToken}) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _guideCategoriesPath,
+        actionName: 'Guide categories',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchHelpFaqs({String? lang}) async {
+    final query = <String, String>{};
+    if (lang != null && lang.trim().isNotEmpty) {
+      query['lang'] = lang.trim();
+    }
+    try {
+      return _getJson(
+        path: _helpFaqsPath,
+        actionName: 'Help FAQs',
+        queryParameters: query,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> updatePreferences({
+    String? languageCode,
+    String? themeMode,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    final payload = <String, dynamic>{
+      if (languageCode != null && languageCode.trim().isNotEmpty)
+        'language': languageCode.trim(),
+      if (themeMode != null && themeMode.trim().isNotEmpty)
+        'theme': themeMode.trim(),
+      if (languageCode != null && languageCode.trim().isNotEmpty)
+        'language_code': languageCode.trim(),
+      if (themeMode != null && themeMode.trim().isNotEmpty)
+        'theme_mode': themeMode.trim(),
+    };
+    try {
+      return _postJson(
+        path: _updatePreferencesPath,
+        payload: payload,
+        actionName: 'Update preferences',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchReels({
+    Map<String, String>? queryParameters,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _reelsPath,
+        actionName: 'Reels',
+        extraHeaders: extraHeaders,
+        queryParameters: queryParameters ?? const <String, String>{},
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchMyReels({String? bearerToken}) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _myReelsPath,
+        actionName: 'My reels',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> createReel({
+    required String videoPath,
+    String? thumbnailPath,
+    String? caption,
+    String? privacy,
+    String? bearerToken,
+  }) async {
+    return _postMultipart(
+      path: _createReelPath,
+      files: <String, String>{
+        'video': videoPath,
+        if (thumbnailPath != null && thumbnailPath.trim().isNotEmpty)
+          'thumbnail': thumbnailPath,
+      },
+      fields: <String, String>{
+        if (caption != null && caption.trim().isNotEmpty)
+          'caption': caption.trim(),
+        if (privacy != null && privacy.trim().isNotEmpty)
+          'privacy': privacy.trim(),
+      },
+      bearerToken: bearerToken,
+      actionName: 'Create reel',
+    );
+  }
+
+  Future<AuthApiResult> likeReel({
+    required Map<String, dynamic> likeData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _likeReelPath,
+        payload: likeData,
+        actionName: 'Like reel',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> commentReel({
+    required Map<String, dynamic> commentData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _commentReelPath,
+        payload: commentData,
+        actionName: 'Comment reel',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchContacts({String? bearerToken}) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _getContactsPath,
+        actionName: 'Contacts',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> sendMessage({
+    required Map<String, dynamic> messageData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _sendMessagePath,
+        payload: messageData,
+        actionName: 'Send message',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> createChallenge({
+    required Map<String, dynamic> data,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _createChallengePath,
+        payload: data,
+        actionName: 'Create challenge',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> acceptChallenge({
+    required Map<String, dynamic> data,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _acceptChallengePath,
+        payload: data,
+        actionName: 'Accept challenge',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> likeChallenge({
+    required Map<String, dynamic> likeData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _likeChallengePath,
+        payload: likeData,
+        actionName: 'Like challenge',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> commentOnChallenge({
+    required Map<String, dynamic> commentData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _commentPath,
+        payload: commentData,
+        actionName: 'Challenge comment',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> fetchShorts({
+    Map<String, dynamic>? requestData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _getShortsPath,
+        payload: requestData ?? const <String, dynamic>{},
+        actionName: 'Shorts',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> searchVideos({
+    required Map<String, dynamic> requestData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _searchVideosPath,
+        payload: requestData,
+        actionName: 'Search videos',
         extraHeaders: extraHeaders,
       );
     } catch (_) {
@@ -697,6 +1418,109 @@ class AuthApiService {
     return null;
   }
 
+  List<dynamic>? _extractList(dynamic value) {
+    if (value is List) return value;
+    if (value is Map) {
+      for (final key in const <String>['data', 'items', 'results', 'list']) {
+        final nested = value[key];
+        if (nested is List) return nested;
+      }
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? _entryIfNotNull(String key, dynamic value) {
+    if (value == null) return null;
+    return <String, dynamic>{key: value};
+  }
+
+  Future<AuthApiResult> _postMultipart({
+    required String path,
+    required Map<String, String> files,
+    required Map<String, String> fields,
+    required String actionName,
+    String? bearerToken,
+  }) async {
+    final attemptedUris = <Uri>[];
+    Object? lastNetworkError;
+
+    for (final candidateBaseUrl in _baseUrlCandidates) {
+      final uri = _buildUri(path, baseUrlOverride: candidateBaseUrl);
+      attemptedUris.add(uri);
+      try {
+        final request = http.MultipartRequest('POST', uri);
+        if (bearerToken != null && bearerToken.trim().isNotEmpty) {
+          request.headers['Authorization'] = 'Bearer ${bearerToken.trim()}';
+        }
+        request.fields.addAll(fields);
+        for (final entry in files.entries) {
+          final file = File(entry.value);
+          if (!file.existsSync()) continue;
+          request.files.add(await http.MultipartFile.fromPath(entry.key, file.path));
+        }
+
+        final streamed = await request.send().timeout(const Duration(seconds: 20));
+        final response = await http.Response.fromStream(streamed);
+        final decoded = _safeJsonDecode(response.body);
+        final ok = response.statusCode >= 200 && response.statusCode < 300;
+        final message =
+            _extractMessage(decoded) ??
+            (ok
+                ? '$actionName successful.'
+                : '$actionName failed with status ${response.statusCode}.');
+
+        return AuthApiResult(
+          success: ok,
+          message: message,
+          statusCode: response.statusCode,
+          data: decoded,
+        );
+      } on TimeoutException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on SocketException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } on http.ClientException catch (e) {
+        lastNetworkError = e;
+        continue;
+      } catch (e) {
+        lastNetworkError = e;
+        continue;
+      }
+    }
+
+    final attempted = attemptedUris.map((e) => e.toString()).join(', ');
+    if (lastNetworkError is TimeoutException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Request timeout. Tried API URLs: $attempted. '
+            'Verify backend is running and reachable.',
+        statusCode: 408,
+      );
+    }
+    if (lastNetworkError is SocketException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Network error. Tried API URLs: $attempted. '
+            'Verify backend is running and reachable.',
+        statusCode: 503,
+      );
+    }
+    if (lastNetworkError is http.ClientException) {
+      return AuthApiResult(
+        success: false,
+        message:
+            'Browser blocked request or API unreachable. '
+            'Tried API URL: $attempted. If running Flutter Web, enable CORS on backend.',
+        statusCode: 0,
+      );
+    }
+    return _unexpectedError();
+  }
+
   String? _extractValueByKeys({
     required Map<String, dynamic>? source,
     required List<String> keys,
@@ -709,6 +1533,11 @@ class AuthApiService {
       }
     }
     return null;
+  }
+
+  String _clipForLog(String value, [int max = 800]) {
+    if (value.length <= max) return value;
+    return '${value.substring(0, max)}...';
   }
 
   Future<AuthApiResult> _postJson({
@@ -729,9 +1558,44 @@ class AuthApiService {
           'Accept': 'application/json',
         }..addAll(extraHeaders);
 
+        String? encodedPayload;
+        try {
+          encodedPayload = jsonEncode(payload);
+        } on JsonUnsupportedObjectError catch (e) {
+          if (actionName == 'Food log post') {
+            debugPrint(
+              '[API] $actionName payload encoding failed: $e '
+              'keys=${payload.keys.toList()}',
+            );
+          }
+          return const AuthApiResult(
+            success: false,
+            message: 'Invalid data in request. Please try again.',
+            statusCode: 400,
+          );
+        }
+
+        if (actionName == 'Food log post') {
+          debugPrint(
+            '[API] $actionName POST $uri payloadKeys=${payload.keys.toList()}',
+          );
+        }
+
         final response = await _client
-            .post(uri, headers: headers, body: jsonEncode(payload))
+            .post(uri, headers: headers, body: encodedPayload)
             .timeout(const Duration(seconds: 12));
+
+        if (actionName == 'Food log post') {
+          debugPrint(
+            '[API] $actionName status=${response.statusCode} '
+            'body=${_clipForLog(response.body)}',
+          );
+        }
+
+        if (response.statusCode == 404) {
+          // Try next base URL candidate if the route is missing here.
+          continue;
+        }
 
         final decoded = _safeJsonDecode(response.body);
         final ok = response.statusCode >= 200 && response.statusCode < 300;
@@ -793,87 +1657,6 @@ class AuthApiService {
     return _unexpectedError();
   }
 
-  Future<AuthApiResult> _putJson({
-    required String path,
-    required Map<String, dynamic> payload,
-    required String actionName,
-    Map<String, String> extraHeaders = const <String, String>{},
-  }) async {
-    final attemptedUris = <Uri>[];
-    Object? lastNetworkError;
-
-    for (final candidateBaseUrl in _baseUrlCandidates) {
-      final uri = _buildUri(path, baseUrlOverride: candidateBaseUrl);
-      attemptedUris.add(uri);
-      try {
-        final headers = <String, String>{
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        }..addAll(extraHeaders);
-
-        final response = await _client
-            .put(uri, headers: headers, body: jsonEncode(payload))
-            .timeout(const Duration(seconds: 12));
-
-        final decoded = _safeJsonDecode(response.body);
-        final ok = response.statusCode >= 200 && response.statusCode < 300;
-        final message =
-            _extractMessage(decoded) ??
-            (ok
-                ? '$actionName successful.'
-                : '$actionName failed with status ${response.statusCode}.');
-
-        return AuthApiResult(
-          success: ok,
-          message: message,
-          statusCode: response.statusCode,
-          data: decoded,
-        );
-      } on TimeoutException catch (e) {
-        lastNetworkError = e;
-        continue;
-      } on SocketException catch (e) {
-        lastNetworkError = e;
-        continue;
-      } on http.ClientException catch (e) {
-        lastNetworkError = e;
-        continue;
-      } catch (e) {
-        lastNetworkError = e;
-        continue;
-      }
-    }
-
-    final attempted = attemptedUris.map((e) => e.toString()).join(', ');
-    if (lastNetworkError is TimeoutException) {
-      return AuthApiResult(
-        success: false,
-        message:
-            'Request timeout. Tried API URLs: $attempted. '
-            'If you are on a real Android phone, keep backend on 0.0.0.0 and use PC LAN IP.',
-        statusCode: 408,
-      );
-    }
-    if (lastNetworkError is SocketException) {
-      return AuthApiResult(
-        success: false,
-        message:
-            'Network error. Tried API URLs: $attempted. '
-            'Verify backend is running and reachable from this device.',
-        statusCode: 503,
-      );
-    }
-    if (lastNetworkError is http.ClientException) {
-      return AuthApiResult(
-        success: false,
-        message:
-            'Browser blocked request or API unreachable. '
-            'Tried API URL: $attempted. If running Flutter Web, enable CORS on backend.',
-        statusCode: 0,
-      );
-    }
-    return _unexpectedError();
-  }
 
   Future<AuthApiResult> _getJson({
     required String path,

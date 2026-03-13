@@ -46,7 +46,7 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
 
     final controller = VideoPlayerController.file(
       file,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: widget.muted),
     );
     try {
       await controller.initialize();
@@ -54,6 +54,9 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
       await controller.setVolume(widget.muted ? 0 : 1);
       if (widget.autoplay) {
         await controller.play();
+      }
+      if (!widget.muted) {
+        await controller.setVolume(1);
       }
       if (!mounted) {
         await controller.dispose();

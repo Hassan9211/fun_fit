@@ -8,6 +8,8 @@ import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
@@ -51,6 +53,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   _ChallengesTab _selectedTab = _ChallengesTab.publicPosts;
   String _profileName = _defaultProfileName;
   String _profileImagePath = '';
+  final AuthApiService _authApi = AuthApiService();
 
   final List<_ChallengePost> _publicPosts = <_ChallengePost>[
     const _ChallengePost(
@@ -166,7 +169,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     }
   }
 
-  void _toggleLike(String id) {
+  Future<void> _toggleLike(String id) async {
     final index = _publicPosts.indexWhere((post) => post.id == id);
     if (index == -1) return;
 
@@ -187,9 +190,16 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
         (oldPost) => oldPost.copyWith(likes: likes, reaction: nextReaction),
       );
     });
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.likeChallenge(
+        likeData: <String, dynamic>{'challenge_id': id},
+        bearerToken: token,
+      );
+    }
   }
 
-  void _toggleDislike(String id) {
+  Future<void> _toggleDislike(String id) async {
     final index = _publicPosts.indexWhere((post) => post.id == id);
     if (index == -1) return;
 
@@ -211,7 +221,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     });
   }
 
-  void _toggleAccept(String id) {
+  Future<void> _toggleAccept(String id) async {
     final publicIndex = _publicPosts.indexWhere((post) => post.id == id);
     final myIndex = _myPosts.indexWhere((post) => post.id == id);
     final post =
@@ -227,12 +237,23 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       return;
     }
 
+    final willAccept = !post.isAccepted;
     setState(() {
       _updatePostById(
         id,
         (oldPost) => oldPost.copyWith(isAccepted: !oldPost.isAccepted),
       );
     });
+    if (willAccept) {
+      await _saveAcceptedChallengeToRandom(post);
+    }
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.acceptChallenge(
+        data: <String, dynamic>{'challenge_id': id},
+        bearerToken: token,
+      );
+    }
   }
 
   Future<void> _openReplyDialog(String id) async {
@@ -281,6 +302,16 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
         (post) => post.copyWith(replies: <_PostReply>[...post.replies, reply]),
       );
     });
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.commentOnChallenge(
+        commentData: <String, dynamic>{
+          'challenge_id': id,
+          'comment': text,
+        },
+        bearerToken: token,
+      );
+    }
   }
 
   Future<void> _openAddChallenge() async {
@@ -312,40 +343,58 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       _selectedTab = _ChallengesTab.myPosts;
     });
     await _saveLocalChallenge(draft);
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.createChallenge(
+        data: <String, dynamic>{
+          'title': draft.name,
+          'description': draft.description,
+          'category': draft.category,
+          'fitness_level': draft.fitnessLevel,
+          'duration': draft.time,
+        },
+        bearerToken: token,
+      );
+    }
   }
 
-  Future<void> _saveLocalChallenge(_DraftChallenge draft) async {
+  Future<void> _saveLocalChallenge(
+    _DraftChallenge draft, {
+    bool includeInRandom = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
-    final existing = prefs.getStringList(_kLocalChallenges) ?? <String>[];
-    final payload = <String, dynamic>{
-      'title': draft.name,
-      'subtitle': draft.description,
-      'duration': draft.time,
-      'difficulty': draft.category,
-      'fitness_level': draft.category,
-      'image': draft.mediaPath.isNotEmpty
-          ? draft.mediaPath
-          : 'assets/images/pushup.jpg',
-      'image_url': draft.mediaPath.isNotEmpty
-          ? draft.mediaPath
-          : 'assets/images/pushup.jpg',
-      'progress': 0.0,
-    };
-    existing.insert(0, jsonEncode(payload));
-    await prefs.setStringList(_kLocalChallenges, existing);
+    if (includeInRandom) {
+      final payload = <String, dynamic>{
+        'title': draft.name,
+        'subtitle': draft.description,
+        'duration': draft.time,
+        'difficulty': draft.category,
+        'fitness_level': draft.category,
+        'image': draft.mediaPath.isNotEmpty
+            ? draft.mediaPath
+            : 'assets/images/pushup.jpg',
+        'image_url': draft.mediaPath.isNotEmpty
+            ? draft.mediaPath
+            : 'assets/images/pushup.jpg',
+        'progress': 0.0,
+      };
+      final existing = prefs.getStringList(_kLocalChallenges) ?? <String>[];
+      existing.insert(0, jsonEncode(payload));
+      await prefs.setStringList(_kLocalChallenges, existing);
 
-    final randomExisting =
-        prefs.getStringList(_kRandomChallenges) ?? <String>[];
-    randomExisting.removeWhere((item) {
-      try {
-        final decoded = jsonDecode(item);
-        return decoded is Map && decoded['title'] == draft.name;
-      } catch (_) {
-        return false;
-      }
-    });
-    randomExisting.insert(0, jsonEncode(payload));
-    await prefs.setStringList(_kRandomChallenges, randomExisting);
+      final randomExisting =
+          prefs.getStringList(_kRandomChallenges) ?? <String>[];
+      randomExisting.removeWhere((item) {
+        try {
+          final decoded = jsonDecode(item);
+          return decoded is Map && decoded['title'] == draft.name;
+        } catch (_) {
+          return false;
+        }
+      });
+      randomExisting.insert(0, jsonEncode(payload));
+      await prefs.setStringList(_kRandomChallenges, randomExisting);
+    }
 
     if (draft.mediaType == _MediaType.video && draft.mediaPath.isNotEmpty) {
       final mediaRaw = prefs.getStringList(_kChallengeReels) ?? <String>[];
@@ -369,6 +418,48 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       await prefs.setStringList(_kChallengeReels, mediaRaw);
       ProfileSyncService.notifyChanged();
     }
+  }
+
+  String _inferDuration(String description) {
+    final match = RegExp(
+      r'(\d+)\s*(min|mins|minute|minutes)',
+      caseSensitive: false,
+    ).firstMatch(description);
+    if (match != null) {
+      return '${match.group(1)} mins';
+    }
+    return '10 mins';
+  }
+
+  Future<void> _saveAcceptedChallengeToRandom(_ChallengePost post) async {
+    final prefs = await SharedPreferences.getInstance();
+    final randomExisting = prefs.getStringList(_kRandomChallenges) ?? <String>[];
+    randomExisting.removeWhere((item) {
+      try {
+        final decoded = jsonDecode(item);
+        return decoded is Map && decoded['title'] == post.title;
+      } catch (_) {
+        return false;
+      }
+    });
+
+    final payload = <String, dynamic>{
+      'title': post.title,
+      'subtitle': post.description,
+      'duration': _inferDuration(post.description),
+      'difficulty': post.category,
+      'fitness_level': post.fitnessLevel,
+      'image': (post.mediaPath != null && post.mediaPath!.trim().isNotEmpty)
+          ? post.mediaPath
+          : 'assets/images/pushup.jpg',
+      'image_url': (post.mediaPath != null && post.mediaPath!.trim().isNotEmpty)
+          ? post.mediaPath
+          : 'assets/images/pushup.jpg',
+      'progress': 0.0,
+    };
+    randomExisting.insert(0, jsonEncode(payload));
+    await prefs.setStringList(_kRandomChallenges, randomExisting);
+    ProfileSyncService.notifyChanged();
   }
 
   @override

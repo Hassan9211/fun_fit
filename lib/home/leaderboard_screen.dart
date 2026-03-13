@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
@@ -25,7 +27,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   String _profileImagePath = '';
   int _userPoints = 34;
 
-  final List<_Leader> _all = const [
+  final AuthApiService _authApi = AuthApiService();
+  List<_Leader> _all = List<_Leader>.from(_defaultLeaders);
+
+  static const List<_Leader> _defaultLeaders = [
     _Leader(
       'Bryan',
       43,
@@ -98,6 +103,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     ProfileSyncService.changes.addListener(_loadProfileImage);
     _loadProfileImage();
     _loadUserPoints();
+    _loadLeaderboard();
   }
 
   @override
@@ -115,7 +121,7 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     } else {
       list = _all.toList();
     }
-    return list
+    final hydrated = list
         .map(
           (leader) => leader.me
               ? _Leader(
@@ -129,6 +135,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
               : leader,
         )
         .toList();
+    hydrated.sort((a, b) => b.points.compareTo(a.points));
+    return hydrated;
   }
 
   Future<void> _loadProfileImage() async {
@@ -143,6 +151,47 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     final points = prefs.getInt(_kUserPoints) ?? _userPoints;
     if (!mounted) return;
     setState(() => _userPoints = points);
+  }
+
+  Future<void> _loadLeaderboard() async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    final result = await _authApi.fetchLeaderboard(bearerToken: token);
+    if (!mounted || !result.success) return;
+    final parsed = _parseLeaderboard(result.data);
+    if (parsed.isEmpty) return;
+    setState(() => _all = parsed);
+  }
+
+  List<_Leader> _parseLeaderboard(Map<String, dynamic>? response) {
+    if (response == null) return const <_Leader>[];
+    final raw = response['items'] ?? response['data'] ?? response['results'];
+    final list = raw is List ? raw : (raw == null ? [] : [raw]);
+    return list
+        .map<_Leader?>((item) {
+          if (item is! Map) return null;
+          final map = item.map((k, v) => MapEntry(k.toString(), v));
+          final name = (map['name'] ?? map['user'] ?? '').toString().trim();
+          final pointsRaw = map['points'] ?? map['score'] ?? map['value'];
+          final points = int.tryParse(pointsRaw?.toString() ?? '') ?? 0;
+          final image =
+              (map['avatar'] ?? map['image'] ?? 'assets/images/yoga.jpg')
+                  .toString()
+                  .trim();
+          final gender = _parseGender(map['gender'] ?? map['sex']);
+          if (name.isEmpty) return null;
+          return _Leader(name, points, image, gender: gender);
+        })
+        .whereType<_Leader>()
+        .toList(growable: false);
+  }
+
+  _Gender _parseGender(dynamic raw) {
+    final value = raw?.toString().toLowerCase().trim() ?? '';
+    if (value == 'female' || value == 'women' || value == 'woman' || value == 'f') {
+      return _Gender.women;
+    }
+    return _Gender.men;
   }
 
   Future<void> _goProfile() async {

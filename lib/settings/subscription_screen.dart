@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 
 class SubscriptionScreen extends StatefulWidget {
@@ -12,6 +14,7 @@ class SubscriptionScreen extends StatefulWidget {
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isPremiumTab = false;
   final ScrollController _scrollController = ScrollController();
+  final AuthApiService _authApi = AuthApiService();
 
   static const List<String> _basicFeatures = <String>[
     '3 beginner-level challenges per day',
@@ -83,7 +86,21 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _onContinuePressed(bool isPremium) async {
     if (isPremium) {
       _openPremiumSection();
+      final token = await AuthSessionStorage.readToken();
+      if (token.isNotEmpty) {
+        await _authApi.createSubscription(
+          data: <String, dynamic>{'plan': 'premium'},
+          bearerToken: token,
+        );
+      }
       return;
+    }
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.updateSubscription(
+        data: <String, dynamic>{'plan': 'basic'},
+        bearerToken: token,
+      );
     }
     await _showFreePlanSubscribedPopup();
   }

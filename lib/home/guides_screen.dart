@@ -5,6 +5,8 @@ import 'package:video_player/video_player.dart';
 
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
@@ -32,7 +34,7 @@ class _GuideVideoItem {
   });
 }
 
-const List<_GuideVideoItem> _guideVideoPlaylist = <_GuideVideoItem>[
+const List<_GuideVideoItem> _fallbackGuideVideoPlaylist = <_GuideVideoItem>[
   _GuideVideoItem(
     title: 'Lower Body Training',
     videoPath: 'assets/videos/LowerBodyTraning.mp4',
@@ -65,6 +67,9 @@ class _GuidesScreenState extends State<GuidesScreen> {
   String _profileImagePath = '';
   _GuidesMainTab _activeTab = _GuidesMainTab.forYou;
   _ChatTopic _activeTopic = _ChatTopic.food;
+  final AuthApiService _authApi = AuthApiService();
+  List<_GuideVideoItem> _guideVideoPlaylist =
+      List<_GuideVideoItem>.from(_fallbackGuideVideoPlaylist);
   final List<_InviteNotification> _inviteNotifications =
       <_InviteNotification>[
         const _InviteNotification(
@@ -125,6 +130,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
     super.initState();
     ProfileSyncService.changes.addListener(_loadProfileImage);
     _loadProfileImage();
+    _loadGuides();
   }
 
   @override
@@ -138,6 +144,58 @@ class _GuidesScreenState extends State<GuidesScreen> {
     final savedPath = (prefs.getString(_kProfileImagePath) ?? '').trim();
     if (!mounted) return;
     setState(() => _profileImagePath = savedPath);
+  }
+
+  Future<void> _loadGuides() async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    final result = await _authApi.fetchGuides(bearerToken: token);
+    if (!mounted || !result.success) return;
+    final items = _parseGuides(result.data);
+    if (items.isEmpty) return;
+    setState(() => _guideVideoPlaylist = items);
+  }
+
+  List<_GuideVideoItem> _parseGuides(Map<String, dynamic>? response) {
+    if (response == null) return const <_GuideVideoItem>[];
+    final raw = response['items'] ?? response['data'] ?? response['results'];
+    final list = raw is List ? raw : (raw == null ? [] : [raw]);
+    return list
+        .map<_GuideVideoItem?>((item) {
+          if (item is! Map) return null;
+          final map = item.map((k, v) => MapEntry(k.toString(), v));
+          final title = (map['title'] ?? map['name'] ?? '').toString().trim();
+          final videoPath =
+              (map['video_url'] ?? map['video'] ?? map['videoPath'] ?? '')
+                  .toString()
+                  .trim();
+          final imagePath =
+              (map['thumbnail_url'] ??
+                      map['image_url'] ??
+                      map['image'] ??
+                      map['imagePath'] ??
+                      '')
+                  .toString()
+                  .trim();
+          final meta = (map['meta'] ??
+                  map['duration'] ??
+                  map['duration_text'] ??
+                  map['durationText'] ??
+                  '')
+              .toString()
+              .trim();
+          if (title.isEmpty || videoPath.isEmpty || imagePath.isEmpty) {
+            return null;
+          }
+          return _GuideVideoItem(
+            title: title,
+            videoPath: videoPath,
+            imagePath: imagePath,
+            meta: meta.isEmpty ? '5 Min' : meta,
+          );
+        })
+        .whereType<_GuideVideoItem>()
+        .toList(growable: false);
   }
 
   @override
@@ -225,7 +283,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
 
   Widget _buildBody() {
     if (_activeTab == _GuidesMainTab.forYou) {
-      return _ForYouTab();
+      return _ForYouTab(playlist: _guideVideoPlaylist);
     }
     if (_activeTab == _GuidesMainTab.explore) {
       return _ExploreTab(
@@ -557,13 +615,15 @@ class _TabChip extends StatelessWidget {
 }
 
 class _ForYouTab extends StatelessWidget {
-  const _ForYouTab();
+  final List<_GuideVideoItem> playlist;
+
+  const _ForYouTab({required this.playlist});
 
   void _openPlayer(BuildContext context, int index) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _GuidesVideoPlayerScreen(
-          playlist: _guideVideoPlaylist,
+          playlist: playlist.isEmpty ? _fallbackGuideVideoPlaylist : playlist,
           initialIndex: index,
         ),
       ),
@@ -572,6 +632,9 @@ class _ForYouTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final items =
+        playlist.isEmpty ? _fallbackGuideVideoPlaylist : playlist;
+    final firstTwo = items.take(2).toList(growable: false);
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
       children: [
@@ -586,19 +649,33 @@ class _ForYouTab extends StatelessWidget {
         const SizedBox(height: 14),
         const _SectionHeading(title: 'Workout Videos'),
         const SizedBox(height: 8),
-        _WorkoutStrip(onOpenVideo: (index) => _openPlayer(context, index)),
+        _WorkoutStrip(
+          items: firstTwo,
+          onOpenVideo: (index) => _openPlayer(context, index),
+        ),
         const SizedBox(height: 14),
         const _MutedSectionLabel(label: 'Challenge Tutorial Guide'),
         const SizedBox(height: 8),
-        _MediaCard(
-          imagePath: 'assets/images/yoga.jpg',
-          videoPath: 'assets/videos/ChallangeTetorial.mp4',
-          title: 'Challenge Tutorial',
-          subtitle: '',
-          height: 104,
-          showPlay: true,
-          onTap: () => _openPlayer(context, 2),
-        ),
+        if (items.length > 2)
+          _MediaCard(
+            imagePath: items[2].imagePath,
+            videoPath: items[2].videoPath,
+            title: items[2].title,
+            subtitle: items[2].meta,
+            height: 104,
+            showPlay: true,
+            onTap: () => _openPlayer(context, 2),
+          )
+        else
+          _MediaCard(
+            imagePath: 'assets/images/yoga.jpg',
+            videoPath: 'assets/videos/ChallangeTetorial.mp4',
+            title: 'Challenge Tutorial',
+            subtitle: '',
+            height: 104,
+            showPlay: true,
+            onTap: () => _openPlayer(context, 2),
+          ),
       ],
     );
   }
@@ -657,34 +734,34 @@ class _SectionHeading extends StatelessWidget {
 }
 
 class _WorkoutStrip extends StatelessWidget {
+  final List<_GuideVideoItem> items;
   final ValueChanged<int> onOpenVideo;
 
-  const _WorkoutStrip({required this.onOpenVideo});
+  const _WorkoutStrip({required this.items, required this.onOpenVideo});
 
   @override
   Widget build(BuildContext context) {
+    final list = items.isEmpty ? _fallbackGuideVideoPlaylist : items;
     return SizedBox(
       height: 114,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          _WorkoutVideoCard(
-            title: 'Lower Body\nTraining',
-            imagePath: 'assets/images/pilates.jpg',
-            videoPath: 'assets/videos/LowerBodyTraning.mp4',
-            minutes: '5 Min',
-            kcal: '500',
-            onTap: () => onOpenVideo(0),
-          ),
-          const SizedBox(width: 8),
-          _WorkoutVideoCard(
-            title: 'Hand\nTraining',
-            imagePath: 'assets/images/weightlifting.jpg',
-            videoPath: 'assets/videos/HandTraning.mp4',
-            minutes: '4 Min',
-            kcal: '400',
-            onTap: () => onOpenVideo(1),
-          ),
+          ...list.asMap().entries.map((entry) {
+            final index = entry.key;
+            final item = entry.value;
+            return Padding(
+              padding: EdgeInsets.only(right: index == list.length - 1 ? 0 : 8),
+              child: _WorkoutVideoCard(
+                title: item.title,
+                imagePath: item.imagePath,
+                videoPath: item.videoPath,
+                minutes: item.meta,
+                kcal: '500',
+                onTap: () => onOpenVideo(index),
+              ),
+            );
+          }),
         ],
       ),
     );
@@ -1832,6 +1909,7 @@ class _GuidesChatRoomScreen extends StatefulWidget {
 
 class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final AuthApiService _authApi = AuthApiService();
   final List<_ChatMessage> _messages = <_ChatMessage>[
     const _ChatMessage(
       text: 'Hello sir, Good Morning',
@@ -1862,13 +1940,24 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
     super.dispose();
   }
 
-  void _send() {
+  Future<void> _send() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
     setState(() {
       _messages.add(_ChatMessage(text: text, time: 'Now', mine: true));
       _messageController.clear();
     });
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    await _authApi.sendMessage(
+      messageData: <String, dynamic>{
+        'message': text,
+        'text': text,
+        'room': widget.post.id,
+        'room_id': widget.post.id,
+      },
+      bearerToken: token,
+    );
   }
 
   @override

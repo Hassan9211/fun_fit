@@ -25,9 +25,7 @@ class Routes {
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
   static const String changePassword = '/change-password';
-  static const String otpSignup = '/otp-signup';
   static const String otpForgotPassword = '/otp-forgot-password';
-  static const String otpSignin = '/otp-signin';
   static const String registrationSuccess = '/registration-success';
   static const String passwordResetSuccess = '/password-reset-success';
   static const String ready = '/ready';
@@ -52,18 +50,9 @@ class Routes {
     GetPage(name: login, page: () => const LoginScreen()),
     GetPage(name: forgotPassword, page: () => const ForgotPasswordScreen()),
     GetPage(name: changePassword, page: () => const ChangePasswordScreen()),
-    // Reuse OtpScreen while varying route name and purpose.
-    GetPage(
-      name: otpSignup,
-      page: () => const OtpScreen(purpose: OtpPurpose.signup),
-    ),
     GetPage(
       name: otpForgotPassword,
       page: () => const OtpScreen(purpose: OtpPurpose.forgotPassword),
-    ),
-    GetPage(
-      name: otpSignin,
-      page: () => const OtpScreen(purpose: OtpPurpose.signin),
     ),
     GetPage(
       name: registrationSuccess,

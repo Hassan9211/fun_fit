@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/auth_api_service.dart';
+import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 
 class LanguagePreferencesScreen extends StatefulWidget {
@@ -11,6 +14,7 @@ class LanguagePreferencesScreen extends StatefulWidget {
 }
 
 class _LanguagePreferencesScreenState extends State<LanguagePreferencesScreen> {
+  static const String _languageKey = 'language_preference';
   static const List<String> _languages = <String>[
     'Arabic',
     'Bengali',
@@ -34,11 +38,30 @@ class _LanguagePreferencesScreenState extends State<LanguagePreferencesScreen> {
   ];
 
   String? _selectedLanguage;
+  final AuthApiService _authApi = AuthApiService();
 
   @override
   void initState() {
     super.initState();
-    _selectedLanguage = 'English';
+    _loadLanguage();
+  }
+
+  Future<void> _loadLanguage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = prefs.getString(_languageKey);
+    if (!mounted) return;
+    setState(() => _selectedLanguage = saved ?? 'English');
+  }
+
+  Future<void> _saveLanguage(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_languageKey, value);
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    await _authApi.updatePreferences(
+      languageCode: value,
+      bearerToken: token,
+    );
   }
 
   @override
@@ -88,6 +111,7 @@ class _LanguagePreferencesScreenState extends State<LanguagePreferencesScreen> {
                 onChanged: (value) {
                   if (value == null) return;
                   setState(() => _selectedLanguage = value);
+                  _saveLanguage(value);
                 },
               ),
             ),

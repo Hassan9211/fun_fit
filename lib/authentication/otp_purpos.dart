@@ -1,1 +1,1 @@
-enum OtpPurpose { signup, forgotPassword, signin }
+enum OtpPurpose { forgotPassword }

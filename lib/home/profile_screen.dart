@@ -40,6 +40,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   static const String _kProfileSocial = 'profile_social_link';
   static const String _kProfileImagePath = 'profile_image_path';
   static const String _kProfileFavorites = 'profile_favorite_videos';
+  static const String _kDeletedMedia = 'profile_deleted_media_paths';
   static const String _kReelLikes = 'profile_reel_likes';
   static const String _kReelLiked = 'profile_reel_liked_set';
   static const String _kReelComments = 'profile_reel_comments';
@@ -65,6 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final Set<String> _followedCreators = <String>{};
   final Set<String> _likedReels = <String>{};
   final Set<String> _savedReels = <String>{};
+  final Set<String> _deletedMediaPaths = <String>{};
   final Map<String, int> _reelLikeCounts = <String, int>{};
   final Map<String, List<String>> _reelComments = <String, List<String>>{};
   final Map<String, int> _reelShareCounts = <String, int>{};
@@ -88,15 +90,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _savedReels
           ..clear()
           ..addAll(prefs.getStringList(_kProfileFavorites) ?? const <String>[]);
+        _deletedMediaPaths
+          ..clear()
+          ..addAll(prefs.getStringList(_kDeletedMedia) ?? const <String>[]);
         _followedCreators
           ..clear()
           ..addAll(prefs.getStringList(_kReelFollows) ?? const <String>[]);
         _loadReelState(prefs);
         _followers = prefs.getInt(_kFollowers) ?? 0;
-        _media = _readMedia(prefs.getStringList(_kProfileMedia) ?? <String>[]);
+        _media = _readMedia(prefs.getStringList(_kProfileMedia) ?? <String>[])
+            .where((item) => !_isDeletedPath(item.path))
+            .toList(growable: true);
         _challengeReels = _readMedia(
           prefs.getStringList(_kChallengeReels) ?? <String>[],
-        );
+        ).toList(growable: true);
         _loading = false;
       });
     } catch (_) {
@@ -196,6 +203,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await prefs.setInt(_kFollowers, _followers);
     final encoded = _media.map((e) => jsonEncode(e.toStorageMap())).toList();
     await prefs.setStringList(_kProfileMedia, encoded);
+    await prefs.setStringList(_kDeletedMedia, _deletedMediaPaths.toList());
     ProfileSyncService.notifyChanged();
   }
 
@@ -236,9 +244,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
       if (payload.media != null && payload.media!.isNotEmpty) {
         _media = _mergeProfileMedia(
-          remote: payload.media!,
+          remote: payload.media!
+              .where((item) => !_isDeletedPath(item.path))
+              .toList(growable: true),
           local: localMediaSnapshot,
-        );
+        ).where((item) => !_isDeletedPath(item.path)).toList(growable: true);
       }
     });
 
@@ -323,10 +333,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _syncProfileToBackend();
   }
 
+  Future<void> _saveChallengeReels() async {
+    final prefs = await SharedPreferences.getInstance();
+    final encoded = _challengeReels
+        .map((e) => jsonEncode(e.toStorageMap()))
+        .toList(growable: false);
+    await prefs.setStringList(_kChallengeReels, encoded);
+  }
+
   Future<void> _saveProfileImagePath(String path) async {
     _profileImagePath = path;
     await _saveProfileLocally();
     await _syncProfileToBackend(showError: true);
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      await _authApi.updateProfileImage(
+        imagePath: path,
+        bearerToken: token,
+      );
+    }
   }
 
   String get _displayName => _name.isEmpty ? _defaultName : _name;
@@ -340,6 +365,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   String _usernameFromName(String name) =>
       name.trim().toLowerCase().replaceAll(' ', '_');
+
+  String _normalizeMediaPath(String path) {
+    final trimmed = path.trim();
+    if (trimmed.isEmpty) return '';
+    final uri = Uri.tryParse(trimmed);
+    if (uri != null) {
+      if (uri.scheme == 'http' || uri.scheme == 'https') {
+        final withoutQuery = uri.replace(query: '', fragment: '');
+        if (withoutQuery.pathSegments.isNotEmpty) {
+          return withoutQuery.pathSegments.last.toLowerCase();
+        }
+        return withoutQuery.path.toLowerCase();
+      }
+      if (uri.scheme == 'file') {
+        return uri.toFilePath().toLowerCase();
+      }
+    }
+    return trimmed.replaceAll('\\', '/').toLowerCase();
+  }
+
+  bool _sameMediaPath(String a, String b) {
+    if (a == b) return true;
+    final keyA = _normalizeMediaPath(a);
+    final keyB = _normalizeMediaPath(b);
+    if (keyA.isEmpty || keyB.isEmpty) return false;
+    return keyA == keyB;
+  }
+
+  bool _isDeletedPath(String path) {
+    if (_deletedMediaPaths.contains(path)) return true;
+    final key = _normalizeMediaPath(path);
+    if (key.isEmpty) return false;
+    return _deletedMediaPaths.contains(key);
+  }
 
   Future<void> _pickProfileImage(ImageSource source) async {
     final file = await _picker.pickImage(source: source);
@@ -451,6 +510,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : _ProfileVisibilityTab.publicItems;
     });
     await _saveMedia();
+    if (reviewed.type == 'video') {
+      final token = await AuthSessionStorage.readToken();
+      if (token.isNotEmpty) {
+        await _authApi.createReel(
+          videoPath: reviewed.path,
+          caption: '',
+          privacy: reviewed.visibility == _ProfileMediaVisibility.private
+              ? 'private'
+              : 'public',
+          bearerToken: token,
+        );
+      }
+    }
   }
 
   Future<void> _showCreateMediaSheet() async {
@@ -547,6 +619,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     });
     _persistFollows();
+    _syncFollow(username);
+  }
+
+  Future<void> _syncFollow(String username) async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    await _authApi.followUser(
+      followData: <String, dynamic>{
+        'username': username,
+        'user': username,
+        'handle': username,
+      },
+      bearerToken: token,
+    );
   }
 
   void _toggleReelLike(_ProfileMediaItem item) {
@@ -562,6 +648,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     });
     _persistReelState();
+    _syncReelLike(item);
+  }
+
+  Future<void> _syncReelLike(_ProfileMediaItem item) async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    await _authApi.likeReel(
+      likeData: <String, dynamic>{
+        'reel_id': item.path,
+        'id': item.path,
+        'path': item.path,
+      },
+      bearerToken: token,
+    );
+  }
+
+  Future<void> _syncReelComment(_ProfileMediaItem item, String text) async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    await _authApi.commentReel(
+      commentData: <String, dynamic>{
+        'reel_id': item.path,
+        'id': item.path,
+        'path': item.path,
+        'comment': text,
+        'message': text,
+        'text': text,
+      },
+      bearerToken: token,
+    );
   }
 
   void _toggleReelSave(_ProfileMediaItem item) {
@@ -683,6 +799,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _reelComments[item.path]!.add(text);
             });
             _persistReelState();
+            _syncReelComment(item, text);
           },
           onAddShare: (item) {
             _addReelShare(item);
@@ -880,10 +997,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (shouldDelete != true || !mounted) return;
 
-    final index = _media.indexWhere((e) => e.path == item.path);
-    if (index == -1) return;
-    setState(() => _media.removeAt(index));
+    final removedChallenge =
+        _challengeReels.any((entry) => _sameMediaPath(entry.path, item.path));
+    _challengeReels.removeWhere((entry) => _sameMediaPath(entry.path, item.path));
+    final normalizedPath = _normalizeMediaPath(item.path);
+    setState(() {
+      _media.removeWhere((e) => _sameMediaPath(e.path, item.path));
+      _savedReels.remove(item.path);
+      _likedReels.remove(item.path);
+      _reelLikeCounts.remove(item.path);
+      _reelShareCounts.remove(item.path);
+      _reelComments.remove(item.path);
+      _deletedMediaPaths.add(item.path);
+      if (normalizedPath.isNotEmpty) {
+        _deletedMediaPaths.add(normalizedPath);
+      }
+    });
     await _saveMedia();
+    if (removedChallenge) {
+      await _saveChallengeReels();
+    }
 
     final file = File(item.path);
     if (file.existsSync()) {
@@ -981,7 +1114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .where((item) => item.visibility == 'public')
         .toList();
     final reels = <_ProfileMediaItem>[
-      ..._challengeReels,
+      ..._challengeReels.where((item) => !_isDeletedPath(item.path)),
       ...publicMedia.where((item) => item.type == 'video'),
     ];
     final privateMedia = effectiveMedia
@@ -2264,6 +2397,7 @@ class _CapturedMediaReviewScreenState
     try {
       await controller.initialize();
       await controller.setLooping(true);
+      await controller.setVolume(1);
       await controller.play();
       if (!mounted) {
         await controller.dispose();
@@ -2519,7 +2653,7 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
   Future<void> _init() async {
     final controller = VideoPlayerController.file(
       File(_item.path),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
     await controller.initialize();
     controller.setLooping(true);
@@ -2533,6 +2667,7 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
     });
     await controller.setVolume(1);
     await controller.play();
+    await controller.setVolume(1);
   }
 
   @override

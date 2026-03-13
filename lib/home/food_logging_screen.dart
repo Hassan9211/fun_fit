@@ -61,6 +61,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
   final List<_FeedPost> _publicPosts = <_FeedPost>[
     const _FeedPost(
+      id: 'food_1',
       author: 'Maude Hal',
       minutesAgo: 14,
       avatarAsset: 'assets/images/tammana.jpg',
@@ -69,6 +70,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       likes: 2,
     ),
     const _FeedPost(
+      id: 'food_2',
       author: 'Dianne Russell',
       minutesAgo: 24,
       avatarAsset: 'assets/images/nora.jpg',
@@ -77,6 +79,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       likes: 1,
     ),
     const _FeedPost(
+      id: 'food_3',
       author: 'Esther Howard',
       minutesAgo: 26,
       avatarAsset: 'assets/images/alina.jpg',
@@ -88,6 +91,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
   final List<_FeedPost> _myPosts = <_FeedPost>[
     const _FeedPost(
+      id: 'my_food_1',
       author: 'Maude Hal',
       minutesAgo: 14,
       avatarAsset: 'assets/images/tammana.jpg',
@@ -97,6 +101,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       isMine: true,
     ),
     const _FeedPost(
+      id: 'my_food_2',
       author: 'Maude Hal',
       minutesAgo: 14,
       avatarAsset: 'assets/images/tammana.jpg',
@@ -106,6 +111,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       isMine: true,
     ),
     const _FeedPost(
+      id: 'my_food_3',
       author: 'Maude Hal',
       minutesAgo: 14,
       avatarAsset: 'assets/images/tammana.jpg',
@@ -183,6 +189,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
             final isDisliked = (decoded['is_disliked'] as bool?) ?? false;
 
             return _FeedPost(
+              id: path,
               author: author,
               minutesAgo: 0,
               avatarFilePath: avatarFilePath,
@@ -265,6 +272,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     if (text.isEmpty) return;
 
     final newPost = _FeedPost(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
       author: _profileDisplayName,
       minutesAgo: 0,
       avatarFilePath: _profileImagePath.trim().isEmpty
@@ -339,9 +347,77 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     _isSavingPost = false;
 
     if (!mounted || result.success) return;
+
+    final recovered = await _refreshIfPostExists(post);
+    if (recovered) return;
+    if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(result.message)));
+  }
+
+  bool _isSamePost(_FeedPost a, _FeedPost b) {
+    if (a.id.isNotEmpty && b.id.isNotEmpty && a.id == b.id) {
+      return true;
+    }
+    final authorA = a.author.trim();
+    final authorB = b.author.trim();
+    final contentA = a.content.trim();
+    final contentB = b.content.trim();
+    if (authorA.isEmpty || authorB.isEmpty || contentA.isEmpty || contentB.isEmpty) {
+      return false;
+    }
+    if (authorA != authorB || contentA != contentB) return false;
+    final mediaA = (a.mediaPath ?? '').trim();
+    final mediaB = (b.mediaPath ?? '').trim();
+    if (mediaA.isEmpty && mediaB.isEmpty) return true;
+    return mediaA == mediaB;
+  }
+
+  Future<bool> _refreshIfPostExists(_FeedPost post) async {
+    final email = await AuthSessionStorage.readEmail();
+    final token = await AuthSessionStorage.readToken();
+
+    final result = await _authApi.fetchFoodLogData(
+      email: email.isEmpty ? null : email,
+      bearerToken: token.isEmpty ? null : token,
+    );
+    if (!mounted || !result.success) return false;
+
+    final payload = _FoodLogApiPayload.fromResponse(result.data);
+    final posts = <_FeedPost>[
+      ...?payload.publicPosts,
+      ...?payload.myPosts,
+    ];
+    if (posts.isEmpty) return false;
+
+    final found = posts.any((entry) => _isSamePost(entry, post));
+    if (!found) return false;
+
+    final prefs = await SharedPreferences.getInstance();
+    final mediaPosts = _readPublicMediaPosts(
+      prefs.getStringList(_kProfileMedia) ?? <String>[],
+      author: _profileDisplayName,
+      avatarFilePath: _profileImagePath.trim().isEmpty
+          ? null
+          : _profileImagePath,
+    );
+    if (!mounted) return true;
+
+    setState(() {
+      if (payload.publicPosts != null) {
+        _publicPosts
+          ..clear()
+          ..addAll(payload.publicPosts!);
+      }
+      if (payload.myPosts != null) {
+        _myPosts
+          ..clear()
+          ..addAll(payload.myPosts!);
+      }
+      _syncProfileMediaPosts(mediaPosts);
+    });
+    return true;
   }
 
   Future<void> _toggleLike(int index) async {
@@ -362,6 +438,15 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
       _publicPosts[index] = updatedPost;
     });
     await _savePostToApi(updatedPost);
+    if (post.id.isNotEmpty) {
+      final token = await AuthSessionStorage.readToken();
+      if (token.isNotEmpty) {
+        await _authApi.likeFoodLog(
+          likeData: <String, dynamic>{'food_log_id': post.id},
+          bearerToken: token,
+        );
+      }
+    }
   }
 
   Future<void> _toggleDislike(int index) async {
@@ -444,6 +529,18 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     });
     if (updatedPost != null) {
       await _savePostToApi(updatedPost!);
+      if (updatedPost!.id.isNotEmpty) {
+        final token = await AuthSessionStorage.readToken();
+        if (token.isNotEmpty) {
+          await _authApi.commentFoodLog(
+            commentData: <String, dynamic>{
+              'food_log_id': updatedPost!.id,
+              'comment': text,
+            },
+            bearerToken: token,
+          );
+        }
+      }
     }
   }
 
@@ -1189,6 +1286,7 @@ class _FeedVideoPreviewScreenState extends State<_FeedVideoPreviewScreen> {
 }
 
 class _FeedPost {
+  final String id;
   final String author;
   final int minutesAgo;
   final String? avatarAsset;
@@ -1203,6 +1301,7 @@ class _FeedPost {
   final bool isProfileMedia;
 
   const _FeedPost({
+    required this.id,
     required this.author,
     required this.minutesAgo,
     this.avatarAsset,
@@ -1225,6 +1324,9 @@ class _FeedPost {
     };
 
     return <String, dynamic>{
+      'id': id,
+      'food_log_id': id,
+      'post_id': id,
       'author': author,
       'name': author,
       'content': content,
@@ -1259,6 +1361,7 @@ class _FeedPost {
   }
 
   _FeedPost copyWith({
+    String? id,
     String? author,
     int? minutesAgo,
     String? avatarAsset,
@@ -1273,6 +1376,7 @@ class _FeedPost {
     bool? isProfileMedia,
   }) {
     return _FeedPost(
+      id: id ?? this.id,
       author: author ?? this.author,
       minutesAgo: minutesAgo ?? this.minutesAgo,
       avatarAsset: avatarAsset ?? this.avatarAsset,
@@ -1501,8 +1605,15 @@ class _FoodLogApiPayload {
             json,
             const <String>['media', 'media_path', 'mediaPath', 'path'],
           );
+          final id =
+              _firstNonEmptyString(
+                json,
+                const <String>['id', 'food_log_id', 'post_id', 'log_id'],
+              ) ??
+              '';
 
           return _FeedPost(
+            id: id,
             author:
                 _firstNonEmptyString(
                   json,

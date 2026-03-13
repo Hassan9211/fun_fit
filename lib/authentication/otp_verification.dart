@@ -35,23 +35,15 @@ class _OtpScreenState extends State<OtpScreen> {
 
   String get title {
     switch (widget.purpose) {
-      case OtpPurpose.signup:
-        return 'Verify Your Account';
       case OtpPurpose.forgotPassword:
         return 'Verify OTP';
-      case OtpPurpose.signin:
-        return 'Verify Your Account';
     }
   }
 
   String get subtitle {
     switch (widget.purpose) {
-      case OtpPurpose.signup:
-        return 'Enter the OTP sent for first time signup';
       case OtpPurpose.forgotPassword:
         return 'Enter the OTP sent to reset your password';
-      case OtpPurpose.signin:
-        return 'Enter the OTP sent to verify your account';
     }
   }
 
@@ -83,9 +75,7 @@ class _OtpScreenState extends State<OtpScreen> {
     }
 
     final purposeValue = switch (widget.purpose) {
-      OtpPurpose.signup => 'signup',
       OtpPurpose.forgotPassword => 'forgotPassword',
-      OtpPurpose.signin => 'signin',
     };
     final result = await _authApi.verifyOtp(
       email: email,
@@ -105,9 +95,6 @@ class _OtpScreenState extends State<OtpScreen> {
     setState(() => _isVerifying = false);
 
     switch (widget.purpose) {
-      case OtpPurpose.signup:
-        Get.offNamed(Routes.registrationSuccess);
-        break;
       case OtpPurpose.forgotPassword:
         final args = Get.arguments;
         final asChangePassword =
@@ -122,14 +109,6 @@ class _OtpScreenState extends State<OtpScreen> {
             'verifyData': result.data,
           },
         );
-        break;
-      case OtpPurpose.signin:
-        await AuthSessionStorage.markLoggedIn(
-          email: email,
-          responseData: result.data,
-        );
-        if (!mounted) return;
-        Get.offNamed(Routes.home);
         break;
     }
   }
