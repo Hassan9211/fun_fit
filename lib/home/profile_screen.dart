@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -70,11 +71,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final Map<String, int> _reelLikeCounts = <String, int>{};
   final Map<String, List<String>> _reelComments = <String, List<String>>{};
   final Map<String, int> _reelShareCounts = <String, int>{};
+  Timer? _reelLikeRefreshTimer;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+  }
+
+  @override
+  void dispose() {
+    _reelLikeRefreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadProfile() async {
@@ -97,7 +105,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ..clear()
           ..addAll(prefs.getStringList(_kReelFollows) ?? const <String>[]);
         _loadReelState(prefs);
-        _followers = prefs.getInt(_kFollowers) ?? 0;
+        final savedFollowers = prefs.getInt(_kFollowers) ?? 0;
+        _followers = savedFollowers;
+        if (_followedCreators.length > _followers) {
+          _followers = _followedCreators.length;
+        }
         _media = _readMedia(prefs.getStringList(_kProfileMedia) ?? <String>[])
             .where((item) => !_isDeletedPath(item.path))
             .toList(growable: true);
@@ -249,10 +261,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
               .toList(growable: true),
           local: localMediaSnapshot,
         ).where((item) => !_isDeletedPath(item.path)).toList(growable: true);
+        for (final item in _media) {
+          _reelLikeCounts[item.path] = item.likes;
+          if (item.isLiked) {
+            _likedReels.add(item.path);
+          } else {
+            _likedReels.remove(item.path);
+          }
+        }
       }
     });
 
     await _saveProfileLocally();
+    await _persistReelState();
   }
 
   Map<String, dynamic> _serializeProfileForApi() {
@@ -617,6 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } else {
         _followedCreators.add(username);
       }
+      _followers = _followedCreators.length;
     });
     _persistFollows();
     _syncFollow(username);
@@ -638,17 +660,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _toggleReelLike(_ProfileMediaItem item) {
     final key = item.path;
     final current = _reelLikeCounts[key] ?? item.likes;
+    final isCurrentlyLiked = _likedReels.contains(key);
+    final nextLikes = isCurrentlyLiked ? (current - 1).clamp(0, 1 << 30) : current + 1;
     setState(() {
-      if (_likedReels.contains(key)) {
+      if (isCurrentlyLiked) {
         _likedReels.remove(key);
-        _reelLikeCounts[key] = (current - 1).clamp(0, 1 << 30);
       } else {
         _likedReels.add(key);
-        _reelLikeCounts[key] = current + 1;
       }
+      _reelLikeCounts[key] = nextLikes;
+      _media = _updateReelLikesInList(_media, key, nextLikes, !isCurrentlyLiked);
+      _challengeReels = _updateReelLikesInList(
+        _challengeReels,
+        key,
+        nextLikes,
+        !isCurrentlyLiked,
+      );
     });
     _persistReelState();
     _syncReelLike(item);
+    _scheduleReelLikeRefresh();
+  }
+
+  void _scheduleReelLikeRefresh() {
+    _reelLikeRefreshTimer?.cancel();
+    _reelLikeRefreshTimer = Timer(const Duration(milliseconds: 300), () {
+      if (!mounted) return;
+      _refreshProfileFromApi();
+    });
+  }
+
+  List<_ProfileMediaItem> _updateReelLikesInList(
+    List<_ProfileMediaItem> items,
+    String key,
+    int likes,
+    bool isLiked,
+  ) {
+    var touched = false;
+    final updated = items.map((item) {
+      if (item.path != key) return item;
+      touched = true;
+      return item.copyWith(likes: likes, isLiked: isLiked);
+    }).toList(growable: false);
+    return touched ? updated : items;
   }
 
   Future<void> _syncReelLike(_ProfileMediaItem item) async {
@@ -709,6 +763,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _persistFollows() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_kReelFollows, _followedCreators.toList());
+    await prefs.setInt(_kFollowers, _followers);
   }
 
   void _loadReelState(SharedPreferences prefs) {

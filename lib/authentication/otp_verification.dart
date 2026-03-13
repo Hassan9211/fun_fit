@@ -77,10 +77,12 @@ class _OtpScreenState extends State<OtpScreen> {
     final purposeValue = switch (widget.purpose) {
       OtpPurpose.forgotPassword => 'forgotPassword',
     };
+    final otpToken = await AuthSessionStorage.readOtpToken();
     final result = await _authApi.verifyOtp(
       email: email,
       otp: otp,
       purpose: purposeValue,
+      token: otpToken.isEmpty ? null : otpToken,
     );
     if (!mounted) return;
 

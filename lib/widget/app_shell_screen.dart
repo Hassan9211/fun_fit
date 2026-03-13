@@ -31,7 +31,10 @@ class _AppShellScreenState extends State<AppShellScreen> {
     _controller =
         AppShellController.maybeFind() ??
         Get.put(AppShellController(widget.initialIndex));
-    _controller.setIndex(widget.initialIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _controller.setIndex(widget.initialIndex);
+    });
 
     _pages = const <Widget>[
       HomeScreen(),

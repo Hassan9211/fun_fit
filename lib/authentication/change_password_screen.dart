@@ -176,12 +176,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
+    final otpToken = await AuthSessionStorage.readOtpToken();
+    final verificationData = <String, dynamic>{
+      ...?_verificationData,
+      if (otpToken.trim().isNotEmpty) ...{
+        'token': otpToken,
+        'reset_token': otpToken,
+        'verification_token': otpToken,
+      },
+    };
+
     final result = await _authApi.resetPassword(
       email: email,
       otp: otp,
       newPassword: _newPasswordController.text,
       confirmPassword: _confirmPasswordController.text,
-      verificationData: _verificationData,
+      verificationData: verificationData,
     );
     if (!mounted) return;
     setState(() => _isSubmitting = false);

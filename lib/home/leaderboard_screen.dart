@@ -21,10 +21,14 @@ class LeaderboardScreen extends StatefulWidget {
 
 class _LeaderboardScreenState extends State<LeaderboardScreen> {
   static const String _kProfileImagePath = 'profile_image_path';
+  static const String _kProfileName = 'profile_name';
+  static const String _kProfileUsername = 'profile_username';
   static const String _kUserPoints = 'leaderboard_points';
 
   int _tab = 0;
   String _profileImagePath = '';
+  String _profileName = '';
+  String _profileUsername = '';
   int _userPoints = 34;
 
   final AuthApiService _authApi = AuthApiService();
@@ -100,15 +104,15 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
   @override
   void initState() {
     super.initState();
-    ProfileSyncService.changes.addListener(_loadProfileImage);
-    _loadProfileImage();
+    ProfileSyncService.changes.addListener(_loadProfileIdentity);
+    _loadProfileIdentity();
     _loadUserPoints();
     _loadLeaderboard();
   }
 
   @override
   void dispose() {
-    ProfileSyncService.changes.removeListener(_loadProfileImage);
+    ProfileSyncService.changes.removeListener(_loadProfileIdentity);
     super.dispose();
   }
 
@@ -139,11 +143,17 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     return hydrated;
   }
 
-  Future<void> _loadProfileImage() async {
+  Future<void> _loadProfileIdentity() async {
     final prefs = await SharedPreferences.getInstance();
     final savedPath = (prefs.getString(_kProfileImagePath) ?? '').trim();
+    final savedName = (prefs.getString(_kProfileName) ?? '').trim();
+    final savedUsername = (prefs.getString(_kProfileUsername) ?? '').trim();
     if (!mounted) return;
-    setState(() => _profileImagePath = savedPath);
+    setState(() {
+      _profileImagePath = savedPath;
+      _profileName = savedName;
+      _profileUsername = savedUsername;
+    });
   }
 
   Future<void> _loadUserPoints() async {
@@ -167,11 +177,18 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
     if (response == null) return const <_Leader>[];
     final raw = response['items'] ?? response['data'] ?? response['results'];
     final list = raw is List ? raw : (raw == null ? [] : [raw]);
+    final currentName = _profileName.trim().toLowerCase();
+    final currentUsername =
+        _profileUsername.trim().toLowerCase().replaceAll('@', '');
     return list
         .map<_Leader?>((item) {
           if (item is! Map) return null;
           final map = item.map((k, v) => MapEntry(k.toString(), v));
           final name = (map['name'] ?? map['user'] ?? '').toString().trim();
+          final username =
+              (map['username'] ?? map['user_name'] ?? map['handle'] ?? '')
+                  .toString()
+                  .trim();
           final pointsRaw = map['points'] ?? map['score'] ?? map['value'];
           final points = int.tryParse(pointsRaw?.toString() ?? '') ?? 0;
           final image =
@@ -179,8 +196,28 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                   .toString()
                   .trim();
           final gender = _parseGender(map['gender'] ?? map['sex']);
+          final rawMe = map['me'] ?? map['is_me'] ?? map['isMe'] ?? map['self'];
+          final normalizedName = name.toLowerCase();
+          final normalizedUsername =
+              username.toLowerCase().replaceAll('@', '');
+          final inferredMe =
+              rawMe == true ||
+              rawMe == 1 ||
+              rawMe?.toString().toLowerCase() == 'true' ||
+              normalizedName == 'you' ||
+              (currentName.isNotEmpty && normalizedName == currentName) ||
+              (currentUsername.isNotEmpty &&
+                  normalizedUsername == currentUsername);
           if (name.isEmpty) return null;
-          return _Leader(name, points, image, gender: gender);
+          return _Leader(
+            name,
+            points,
+            inferredMe && _profileImagePath.trim().isNotEmpty
+                ? _profileImagePath.trim()
+                : image,
+            gender: gender,
+            me: inferredMe,
+          );
         })
         .whereType<_Leader>()
         .toList(growable: false);
@@ -196,7 +233,19 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
   Future<void> _goProfile() async {
     await Get.toNamed(Routes.profile);
-    await _loadProfileImage();
+    await _loadProfileIdentity();
+  }
+
+  ImageProvider _avatarForLeader(
+    _Leader leader,
+    ImageProvider currentUserAvatar,
+  ) {
+    if (leader.me) return currentUserAvatar;
+    final raw = leader.image.trim();
+    final resolved = ProfileAvatarResolver.resolveNullable(raw);
+    if (resolved != null) return resolved;
+    if (raw.startsWith('assets/')) return AssetImage(raw);
+    return const AssetImage('assets/images/yoga.jpg');
   }
 
   @override
@@ -319,6 +368,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                             leader: top2,
                                             rank: 2,
                                             avatarRadius: 21,
+                                            avatarProvider:
+                                                _avatarForLeader(top2, headerAvatar),
                                           ),
                                           const SizedBox(width: 10),
                                           _TopCard(
@@ -326,12 +377,16 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                             rank: 1,
                                             avatarRadius: 26,
                                             isFirst: true,
+                                            avatarProvider:
+                                                _avatarForLeader(top1, headerAvatar),
                                           ),
                                           const SizedBox(width: 10),
                                           _TopCard(
                                             leader: top3,
                                             rank: 3,
                                             avatarRadius: 21,
+                                            avatarProvider:
+                                                _avatarForLeader(top3, headerAvatar),
                                           ),
                                         ],
                                       ),
@@ -376,7 +431,8 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                         child: _RankRow(
                                           leader: leader,
                                           rank: rank,
-                                          currentUserAvatar: headerAvatar,
+                                          avatarProvider:
+                                              _avatarForLeader(leader, headerAvatar),
                                         ),
                                       );
                                     },
@@ -432,11 +488,13 @@ class _TopCard extends StatelessWidget {
   final int rank;
   final double avatarRadius;
   final bool isFirst;
+  final ImageProvider avatarProvider;
 
   const _TopCard({
     required this.leader,
     required this.rank,
     required this.avatarRadius,
+    required this.avatarProvider,
     this.isFirst = false,
   });
 
@@ -461,7 +519,7 @@ class _TopCard extends StatelessWidget {
                 ),
                 child: CircleAvatar(
                   radius: avatarRadius,
-                  backgroundImage: AssetImage(leader.image),
+                  backgroundImage: avatarProvider,
                 ),
               ),
               Positioned(
@@ -576,12 +634,12 @@ class _TopCard extends StatelessWidget {
 class _RankRow extends StatelessWidget {
   final _Leader leader;
   final int rank;
-  final ImageProvider currentUserAvatar;
+  final ImageProvider avatarProvider;
 
   const _RankRow({
     required this.leader,
     required this.rank,
-    required this.currentUserAvatar,
+    required this.avatarProvider,
   });
 
   @override
@@ -611,9 +669,7 @@ class _RankRow extends StatelessWidget {
           ),
           CircleAvatar(
             radius: 12,
-            backgroundImage: leader.me
-                ? currentUserAvatar
-                : AssetImage(leader.image),
+            backgroundImage: avatarProvider,
           ),
           const SizedBox(width: 8),
           Expanded(

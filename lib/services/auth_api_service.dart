@@ -30,6 +30,7 @@ class AuthApiService {
   static const String _requestOtpPath = '/send_otp';
   static const String _verifyOtpPath = '/validate_otp';
   static const String _updatePasswordPath = '/update_password';
+  static const String _resetPasswordPath = '/reset_password';
   static const String _updateProfilePath = '/update_profile';
   static const String _updateFitnessLevelPath = '/update_fitness_level';
   static const String _userProfilePath = '/user_profile';
@@ -290,6 +291,7 @@ class AuthApiService {
     required String email,
     required String otp,
     required String purpose,
+    String? token,
   }) async {
     final purposeAliases = _purposeAliases(purpose);
     final normalizedEmail = email.trim();
@@ -304,13 +306,40 @@ class AuthApiService {
     payload['otp_purpose'] = purposeAliases.primary;
     payload['type'] = purposeAliases.primary;
     payload['purpose_alt'] = purposeAliases.secondary;
+    final normalizedToken = token?.trim();
+    if (normalizedToken != null && normalizedToken.isNotEmpty) {
+      payload['token'] = normalizedToken;
+      payload['verification_token'] = normalizedToken;
+      payload['verificationToken'] = normalizedToken;
+      payload['otp_token'] = normalizedToken;
+      payload['otpToken'] = normalizedToken;
+    }
 
     try {
-      return _postJson(
+      final primaryResult = await _postJson(
         path: _verifyOtpPath,
         payload: payload,
         actionName: 'OTP verify',
       );
+      if (primaryResult.success) {
+        return primaryResult;
+      }
+
+      if (primaryResult.statusCode == 404 || primaryResult.statusCode == 405) {
+        final fallbackPaths = <String>['/verify_otp', '/verifyOtp'];
+        for (final path in fallbackPaths) {
+          final fallbackResult = await _postJson(
+            path: path,
+            payload: payload,
+            actionName: 'OTP verify',
+          );
+          if (fallbackResult.success) {
+            return fallbackResult;
+          }
+        }
+      }
+
+      return primaryResult;
     } catch (_) {
       return _unexpectedError();
     }
@@ -362,6 +391,7 @@ class AuthApiService {
     required String confirmPassword,
     Map<String, dynamic>? verificationData,
   }) async {
+    final purposeAliases = _purposeAliases('forgotPassword');
     final normalizedEmail = email.trim();
     final normalizedOtp = otp.trim();
     final payload = <String, dynamic>{
@@ -375,6 +405,11 @@ class AuthApiService {
       'confirm_password': confirmPassword,
       'confirmPassword': confirmPassword,
       'password_confirmation': confirmPassword,
+      'purpose': purposeAliases.primary,
+      'otp_purpose': purposeAliases.primary,
+      'type': purposeAliases.primary,
+      'flow': purposeAliases.primary,
+      'purpose_alt': purposeAliases.secondary,
     };
 
     final resetToken = _extractValueByKeys(
@@ -394,11 +429,34 @@ class AuthApiService {
     }
 
     try {
-      return _postJson(
+      final primaryResult = await _postJson(
         path: _updatePasswordPath,
         payload: payload,
         actionName: 'Reset password',
       );
+      if (primaryResult.success) {
+        return primaryResult;
+      }
+
+      if (primaryResult.statusCode == 404 ||
+          primaryResult.statusCode == 405 ||
+          (primaryResult.statusCode == 500 &&
+              primaryResult.message ==
+                  'Unexpected error. Please try again.')) {
+        final fallbackPaths = <String>[_resetPasswordPath, '/resetPassword'];
+        for (final path in fallbackPaths) {
+          final fallbackResult = await _postJson(
+            path: path,
+            payload: payload,
+            actionName: 'Reset password',
+          );
+          if (fallbackResult.success) {
+            return fallbackResult;
+          }
+        }
+      }
+
+      return primaryResult;
     } catch (_) {
       return _unexpectedError();
     }
@@ -991,6 +1049,23 @@ class AuthApiService {
     }
   }
 
+  Future<AuthApiResult> fetchChallenges({String? bearerToken}) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _getJson(
+        path: _allChallengesPath,
+        actionName: 'Challenges',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
   Future<AuthApiResult> fetchGuides({
     Map<String, String>? queryParameters,
     String? bearerToken,
@@ -1549,6 +1624,10 @@ class AuthApiService {
     final attemptedUris = <Uri>[];
     Object? lastNetworkError;
 
+    int? lastStatusCode;
+    String? lastMessage;
+    Map<String, dynamic>? lastData;
+
     for (final candidateBaseUrl in _baseUrlCandidates) {
       final uri = _buildUri(path, baseUrlOverride: candidateBaseUrl);
       attemptedUris.add(uri);
@@ -1592,11 +1671,6 @@ class AuthApiService {
           );
         }
 
-        if (response.statusCode == 404) {
-          // Try next base URL candidate if the route is missing here.
-          continue;
-        }
-
         final decoded = _safeJsonDecode(response.body);
         final ok = response.statusCode >= 200 && response.statusCode < 300;
         final message =
@@ -1604,6 +1678,14 @@ class AuthApiService {
             (ok
                 ? '$actionName successful.'
                 : '$actionName failed with status ${response.statusCode}.');
+
+        if (response.statusCode == 404) {
+          // Try next base URL candidate if the route is missing here.
+          lastStatusCode = response.statusCode;
+          lastMessage = message;
+          lastData = decoded;
+          continue;
+        }
 
         return AuthApiResult(
           success: ok,
@@ -1652,6 +1734,16 @@ class AuthApiService {
             'Browser blocked request or API unreachable. '
             'Tried API URL: $attempted. If running Flutter Web, enable CORS on backend.',
         statusCode: 0,
+      );
+    }
+    if (lastStatusCode == 404) {
+      return AuthApiResult(
+        success: false,
+        message:
+            lastMessage ??
+            'Endpoint not found. Tried API URLs: $attempted.',
+        statusCode: lastStatusCode ?? 404,
+        data: lastData,
       );
     }
     return _unexpectedError();

@@ -50,6 +50,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
 
     await AuthSessionStorage.savePendingEmail(email);
+    final otpToken = AuthSessionStorage.extractToken(result.data);
+    if (otpToken != null && otpToken.trim().isNotEmpty) {
+      await AuthSessionStorage.saveOtpToken(otpToken);
+    }
     if (!mounted) return;
     setState(() => _isSubmitting = false);
 

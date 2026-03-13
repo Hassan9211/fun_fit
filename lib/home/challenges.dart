@@ -52,6 +52,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
 
   _ChallengesTab _selectedTab = _ChallengesTab.publicPosts;
   String _profileName = _defaultProfileName;
+  String _profileUsername = '';
   String _profileImagePath = '';
   final AuthApiService _authApi = AuthApiService();
 
@@ -111,6 +112,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     super.initState();
     ProfileSyncService.changes.addListener(_loadProfileData);
     _loadProfileData();
+    _loadChallengesFromApi();
   }
 
   @override
@@ -131,6 +133,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     final prefs = await SharedPreferences.getInstance();
     final savedName = (prefs.getString(_kProfileName) ?? '').trim();
     final savedImagePath = (prefs.getString(_kProfileImagePath) ?? '').trim();
+    final savedUsername = (prefs.getString(_kProfileUsername) ?? '').trim();
     if (!mounted) return;
 
     final resolvedName = savedName.isEmpty ? _defaultProfileName : savedName;
@@ -139,6 +142,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     setState(() {
       _profileName = resolvedName;
       _profileImagePath = savedImagePath;
+      _profileUsername = savedUsername;
       for (var i = 0; i < _myPosts.length; i++) {
         final post = _myPosts[i];
         _myPosts[i] = post.copyWith(
@@ -147,6 +151,267 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
         );
       }
     });
+  }
+
+  Future<void> _loadChallengesFromApi() async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    final result = await _authApi.fetchChallenges(bearerToken: token);
+    if (!mounted || !result.success) return;
+
+    final parsed = _parseChallengesResponse(result.data);
+    if (parsed.isEmpty) return;
+
+    final mine = parsed.where((post) => post.isMine).toList();
+    setState(() {
+      _publicPosts
+        ..clear()
+        ..addAll(parsed);
+      if (mine.isNotEmpty) {
+        _myPosts
+          ..clear()
+          ..addAll(mine);
+      }
+    });
+  }
+
+  List<_ChallengePost> _parseChallengesResponse(
+    Map<String, dynamic>? response,
+  ) {
+    if (response == null) return const <_ChallengePost>[];
+    final raw =
+        response['items'] ??
+        response['data'] ??
+        response['results'] ??
+        response['challenges'] ??
+        response['list'];
+    final list = _extractList(raw);
+    if (list.isEmpty) return const <_ChallengePost>[];
+
+    final currentName = _profileName.trim().toLowerCase();
+    final currentUsername = _normalizeUsername(_profileUsername);
+
+    final parsed = <_ChallengePost>[];
+    for (var i = 0; i < list.length; i++) {
+      final item = list[i];
+      if (item is! Map) continue;
+      final map = item.map((k, v) => MapEntry(k.toString(), v));
+
+      final author = _firstNonEmptyString(
+        map,
+        const <String>[
+          'author',
+          'user',
+          'name',
+          'uploader_name',
+          'username',
+          'user_name',
+        ],
+      );
+      final username = _firstNonEmptyString(
+        map,
+        const <String>['username', 'user_name', 'handle'],
+      );
+      final title = _firstNonEmptyString(
+        map,
+        const <String>['title', 'challenge_name', 'name'],
+      );
+      final description = _firstNonEmptyString(
+        map,
+        const <String>['description', 'details', 'body', 'text'],
+      );
+      final category = _firstNonEmptyString(
+        map,
+        const <String>['category', 'difficulty', 'level'],
+      );
+      final fitnessLevel = _firstNonEmptyString(
+        map,
+        const <String>['fitness_level', 'fitnessLevel', 'level'],
+      );
+      final mediaPath = _firstNonEmptyString(
+        map,
+        const <String>[
+          'media',
+          'media_path',
+          'image',
+          'image_url',
+          'video',
+          'video_url',
+        ],
+      );
+      final avatar = _firstNonEmptyString(
+        map,
+        const <String>[
+          'avatar',
+          'avatar_url',
+          'avatarUrl',
+          'profile_image',
+          'profileImage',
+          'user_avatar',
+        ],
+      );
+      final minutesAgo = _parseInt(
+        map['minutes_ago'] ?? map['minutesAgo'] ?? map['time_ago'],
+      );
+      final likes = _parseInt(
+        map['likes'] ??
+            map['like_count'] ??
+            map['likes_count'] ??
+            map['likeCount'],
+      );
+      final isAccepted = _parseBool(
+        map['is_accepted'] ?? map['accepted'] ?? map['isAccepted'],
+      );
+
+      final normalizedAuthor = author.toLowerCase();
+      final normalizedUsername = _normalizeUsername(username);
+      final isMine =
+          (currentName.isNotEmpty && normalizedAuthor == currentName) ||
+          (currentUsername.isNotEmpty &&
+              normalizedUsername == currentUsername) ||
+          _parseBool(map['is_mine'] ?? map['isMine'] ?? map['me']);
+
+      final mediaType = _inferMediaType(
+        _firstNonEmptyString(map, const <String>['media_type', 'type']),
+        mediaPath,
+      );
+
+      final idRaw =
+          _firstNonEmptyString(map, const <String>['id', 'challenge_id']);
+      final id = idRaw.isEmpty ? 'challenge_${i + 1}' : idRaw;
+
+      final replies = _parseReplies(map['comments'] ?? map['replies']);
+
+      final avatarAsset = avatar.startsWith('assets/') ? avatar : null;
+      final avatarFilePath = avatarAsset == null && avatar.isNotEmpty
+          ? avatar
+          : null;
+
+      if (title.trim().isEmpty && description.trim().isEmpty) {
+        continue;
+      }
+
+      parsed.add(
+        _ChallengePost(
+          id: id,
+          author: author.isEmpty ? _defaultProfileName : author,
+          minutesAgo: minutesAgo,
+          avatarAsset: avatarAsset,
+          avatarFilePath: avatarFilePath,
+          title: title.isEmpty ? 'Challenge' : title,
+          category: category.isEmpty ? 'General' : category,
+          fitnessLevel: fitnessLevel.isEmpty ? 'Beginner' : fitnessLevel,
+          description: description.isEmpty ? 'Join this challenge.' : description,
+          mediaPath: mediaPath.isEmpty ? null : mediaPath,
+          mediaType: mediaType,
+          likes: likes,
+          isMine: isMine,
+          isAccepted: isAccepted,
+          replies: replies,
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  List<dynamic> _extractList(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is Map) {
+      for (final key in const <String>['data', 'items', 'results', 'list']) {
+        final nested = raw[key];
+        if (nested is List) return nested;
+      }
+    }
+    return const <dynamic>[];
+  }
+
+  String _normalizeUsername(String value) {
+    return value.trim().toLowerCase().replaceAll('@', '');
+  }
+
+  String _firstNonEmptyString(
+    Map<String, dynamic> map,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+      if (value != null) {
+        final text = value.toString().trim();
+        if (text.isNotEmpty) return text;
+      }
+    }
+    return '';
+  }
+
+  bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final text = value?.toString().toLowerCase().trim();
+    return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  _MediaType _inferMediaType(String rawType, String rawPath) {
+    final type = rawType.toLowerCase();
+    final path = rawPath.toLowerCase();
+    if (type.contains('video') ||
+        path.endsWith('.mp4') ||
+        path.endsWith('.mov') ||
+        path.endsWith('.m4v') ||
+        path.endsWith('.webm')) {
+      return _MediaType.video;
+    }
+    if (type.contains('image') ||
+        path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.gif') ||
+        path.endsWith('.webp')) {
+      return _MediaType.image;
+    }
+    return _MediaType.none;
+  }
+
+  List<_PostReply> _parseReplies(dynamic raw) {
+    if (raw is! List) return const <_PostReply>[];
+    final replies = <_PostReply>[];
+    for (final item in raw) {
+      if (item is! Map) continue;
+      final map = item.map((k, v) => MapEntry(k.toString(), v));
+      final author = _firstNonEmptyString(
+        map,
+        const <String>['author', 'name', 'user', 'username'],
+      );
+      final text = _firstNonEmptyString(
+        map,
+        const <String>['comment', 'text', 'body'],
+      );
+      if (text.isEmpty) continue;
+      final minutesAgo =
+          _parseInt(map['minutes_ago'] ?? map['minutesAgo'] ?? map['time_ago']);
+      final avatar = _firstNonEmptyString(
+        map,
+        const <String>['avatar', 'avatar_url', 'avatarUrl'],
+      );
+      replies.add(
+        _PostReply(
+          author: author.isEmpty ? 'User' : author,
+          minutesAgo: minutesAgo,
+          text: text,
+          avatarFilePath: avatar.isEmpty ? null : avatar,
+        ),
+      );
+    }
+    return replies;
   }
 
   Future<void> _openProfile() async {

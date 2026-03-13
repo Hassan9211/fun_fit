@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthSessionStorage {
   static const String emailKey = 'auth_email';
   static const String tokenKey = 'auth_token';
+  static const String otpTokenKey = 'otp_token';
   static const String loggedInKey = 'is_logged_in';
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -12,6 +13,16 @@ class AuthSessionStorage {
   static Future<void> savePendingEmail(String email) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(emailKey, email.trim());
+  }
+
+  static Future<void> saveOtpToken(String token) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(otpTokenKey, token.trim());
+  }
+
+  static Future<void> clearOtpToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(otpTokenKey);
   }
 
   static Future<void> markLoggedIn({
@@ -76,6 +87,11 @@ class AuthSessionStorage {
     return (prefs.getString(emailKey) ?? '').trim();
   }
 
+  static Future<String> readOtpToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getString(otpTokenKey) ?? '').trim();
+  }
+
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool(loggedInKey) ?? false;
@@ -91,6 +107,7 @@ class AuthSessionStorage {
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(emailKey);
+    await prefs.remove(otpTokenKey);
     await prefs.remove(loggedInKey);
     await _secureStorage.delete(key: tokenKey);
   }

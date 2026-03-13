@@ -13,6 +13,8 @@ class SubscriptionScreen extends StatefulWidget {
 
 class _SubscriptionScreenState extends State<SubscriptionScreen> {
   bool _isPremiumTab = false;
+  bool _isSubmitting = false;
+  int _selectedDurationDays = 30;
   final ScrollController _scrollController = ScrollController();
   final AuthApiService _authApi = AuthApiService();
 
@@ -65,13 +67,13 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     });
   }
 
-  Future<void> _showFreePlanSubscribedPopup() async {
+  Future<void> _showResultPopup(String title, String message) async {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Subscribed'),
-          content: const Text('You have been subscribed free plan for 7 days'),
+          title: Text(title),
+          content: Text(message),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
@@ -83,26 +85,129 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     );
   }
 
+  Future<int?> _pickDuration() async {
+    const options = <int, String>{
+      30: 'Monthly',
+      90: 'Quarterly',
+      365: 'Yearly',
+    };
+
+    return showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        int selected = _selectedDurationDays;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Choose duration'),
+              content: DropdownButtonFormField<int>(
+                initialValue: selected,
+                items: options.entries
+                    .map(
+                      (entry) => DropdownMenuItem<int>(
+                        value: entry.key,
+                        child: Text(entry.value),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => selected = value);
+                },
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(null),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(selected),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _formatDate(DateTime value) {
+    final year = value.year.toString().padLeft(4, '0');
+    final month = value.month.toString().padLeft(2, '0');
+    final day = value.day.toString().padLeft(2, '0');
+    return '$year-$month-$day';
+  }
+
   Future<void> _onContinuePressed(bool isPremium) async {
+    if (_isSubmitting) return;
     if (isPremium) {
       _openPremiumSection();
-      final token = await AuthSessionStorage.readToken();
-      if (token.isNotEmpty) {
-        await _authApi.createSubscription(
-          data: <String, dynamic>{'plan': 'premium'},
-          bearerToken: token,
-        );
+    }
+
+    int durationDays = _selectedDurationDays;
+    if (isPremium) {
+      final picked = await _pickDuration();
+      if (picked == null) return;
+      durationDays = picked;
+      if (mounted) {
+        setState(() => _selectedDurationDays = picked);
       }
-      return;
     }
-    final token = await AuthSessionStorage.readToken();
-    if (token.isNotEmpty) {
-      await _authApi.updateSubscription(
-        data: <String, dynamic>{'plan': 'basic'},
-        bearerToken: token,
+
+    setState(() => _isSubmitting = true);
+    try {
+      final token = await AuthSessionStorage.readToken();
+      if (token.isEmpty) {
+        await _showResultPopup(
+          'Login required',
+          'Please sign in to continue.',
+        );
+        return;
+      }
+
+      final now = DateTime.now();
+      final startDate = _formatDate(now);
+      final endDate = _formatDate(now.add(Duration(days: durationDays)));
+      final date = startDate;
+      final duration = durationDays.toString();
+
+      final result = isPremium
+          ? await _authApi.createSubscription(
+              data: <String, dynamic>{
+                'plan': 'premium',
+                'status': 'active',
+                'duration': duration,
+                'start_date': startDate,
+                'end_date': endDate,
+                'date': date,
+              },
+              bearerToken: token,
+            )
+          : await _authApi.updateSubscription(
+              data: <String, dynamic>{
+                'plan': 'basic',
+                'status': 'active',
+                'duration': duration,
+                'start_date': startDate,
+                'end_date': endDate,
+                'date': date,
+              },
+              bearerToken: token,
+            );
+
+      await _showResultPopup(
+        result.success ? 'Subscribed' : 'Subscription failed',
+        result.message,
       );
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
-    await _showFreePlanSubscribedPopup();
   }
 
   @override
@@ -194,18 +299,31 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed: () =>
-                                      _onContinuePressed(isPremium),
+                                  onPressed: _isSubmitting
+                                      ? null
+                                      : () => _onContinuePressed(isPremium),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: AppColors.primary,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text(
-                                    'Continue',
-                                    style: TextStyle(color: Colors.white),
-                                  ),
+                                  child: _isSubmitting
+                                      ? const SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            valueColor:
+                                                AlwaysStoppedAnimation<Color>(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        )
+                                      : const Text(
+                                          'Continue',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
                                 ),
                               ),
                             ],
