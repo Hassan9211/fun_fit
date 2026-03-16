@@ -132,6 +132,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _showStatusMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<bool> _ensureCameraPermission() async {
     if (!Platform.isAndroid && !Platform.isIOS) return true;
     final status = await Permission.camera.request();
@@ -272,7 +277,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             uploaderUsername: _displayUsername,
           ),
         )
-        .toList(growable: false);
+        .toList(growable: true);
     await prefs.setString(_kProfileName, _name);
     await prefs.setString(_kProfileUsername, _username);
     await prefs.setString(_kProfileBio, _bio);
@@ -689,8 +694,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _uploadProfileMedia(_ProfileMediaItem item) async {
     final token = await AuthSessionStorage.readToken();
     if (token.isEmpty) return;
+    final AuthApiResult result;
     if (item.type == 'video') {
-      await _authApi.createReel(
+      result = await _authApi.createReel(
         videoPath: item.path,
         caption: '',
         privacy: item.visibility == _ProfileMediaVisibility.private
@@ -699,11 +705,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         bearerToken: token,
       );
     } else {
-      await _authApi.updateProfileImage(
+      result = await _authApi.updateProfileImage(
         imagePath: item.path,
         bearerToken: token,
       );
     }
+
+    if (!result.success) {
+      _showStatusMessage(result.message.isNotEmpty
+          ? result.message
+          : 'Unable to upload media');
+      return;
+    }
+
+    await _refreshProfileFromApi();
   }
 
   Future<void> _showCreateMediaSheet() async {
@@ -1246,6 +1261,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _performDeleteMedia(_ProfileMediaItem item) async {
+    final prevMedia = List<_ProfileMediaItem>.from(_media);
+    final prevChallenge = List<_ProfileMediaItem>.from(_challengeReels);
+    final prevSaved = Set<String>.from(_savedReels);
+    final prevLiked = Set<String>.from(_likedReels);
+    final prevDeleted = Set<String>.from(_deletedMediaPaths);
+    final prevLikeCounts = Map<String, int>.from(_reelLikeCounts);
+    final prevShareCounts = Map<String, int>.from(_reelShareCounts);
+    final prevComments = Map<String, List<String>>.from(_reelComments);
+
     final removedChallenge =
         _challengeReels.any((entry) => _sameMediaPath(entry.path, item.path));
     _challengeReels.removeWhere((entry) => _sameMediaPath(entry.path, item.path));
@@ -1277,16 +1301,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'type': item.type,
         'visibility': item.visibility,
       };
+      final AuthApiResult result;
       if (item.type == 'video') {
-        await _authApi.deleteReel(
+        result = await _authApi.deleteReel(
           deleteData: payload,
           bearerToken: token,
         );
       } else {
-        await _authApi.deleteProfileMedia(
+        result = await _authApi.deleteProfileMedia(
           deleteData: payload,
           bearerToken: token,
         );
+      }
+
+      if (!result.success) {
+        setState(() {
+          _media = prevMedia;
+          _challengeReels = prevChallenge;
+          _savedReels
+            ..clear()
+            ..addAll(prevSaved);
+          _likedReels
+            ..clear()
+            ..addAll(prevLiked);
+          _deletedMediaPaths
+            ..clear()
+            ..addAll(prevDeleted);
+          _reelLikeCounts
+            ..clear()
+            ..addAll(prevLikeCounts);
+          _reelShareCounts
+            ..clear()
+            ..addAll(prevShareCounts);
+          _reelComments
+            ..clear()
+            ..addAll(prevComments);
+        });
+        await _saveProfileLocally();
+        _showStatusMessage(result.message.isNotEmpty
+            ? result.message
+            : 'Unable to delete media');
+        return;
       }
     }
 
@@ -1296,6 +1351,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await file.delete();
       } catch (_) {}
     }
+
+    await _refreshProfileFromApi();
   }
 
   Future<void> _editProfile() async {
