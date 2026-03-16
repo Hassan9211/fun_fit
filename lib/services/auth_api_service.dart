@@ -22,9 +22,9 @@ class AuthApiResult {
 class AuthApiService {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.2.114:8000/api',
+    defaultValue: 'http://192.168.2.104:8000/api',
   );
-  static const String _legacyLanBaseUrl = 'http://192.168.2.114:8000/api';
+  static const String _legacyLanBaseUrl = 'http://192.168.2.104:8000/api';
   static const String _signupPath = '/register';
   static const String _loginPath = '/login';
   static const String _requestOtpPath = '/send_otp';
