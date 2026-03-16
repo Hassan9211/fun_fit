@@ -6,6 +6,26 @@ class AuthSessionStorage {
   static const String tokenKey = 'auth_token';
   static const String otpTokenKey = 'otp_token';
   static const String loggedInKey = 'is_logged_in';
+  static const List<String> _userCacheKeys = [
+    'profile_media_items',
+    'challenge_reels_items',
+    'profile_name',
+    'profile_username',
+    'profile_bio',
+    'profile_social_link',
+    'profile_image_path',
+    'profile_favorite_videos',
+    'profile_deleted_media_paths',
+    'profile_reel_likes',
+    'profile_reel_liked_set',
+    'profile_reel_comments',
+    'profile_reel_shares',
+    'profile_reel_followed',
+    'profile_followers_count',
+    'leaderboard_points',
+    'local_challenges',
+    'random_challenges',
+  ];
   static const FlutterSecureStorage _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
@@ -30,7 +50,13 @@ class AuthSessionStorage {
     Map<String, dynamic>? responseData,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(emailKey, email.trim());
+    final previousEmail = (prefs.getString(emailKey) ?? '').trim();
+    final nextEmail = email.trim();
+    if (previousEmail.isNotEmpty &&
+        previousEmail.toLowerCase() != nextEmail.toLowerCase()) {
+      await clearUserCache();
+    }
+    await prefs.setString(emailKey, nextEmail);
     await prefs.setBool(loggedInKey, true);
 
     final token = extractToken(responseData);
@@ -106,9 +132,17 @@ class AuthSessionStorage {
 
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
+    await clearUserCache();
     await prefs.remove(emailKey);
     await prefs.remove(otpTokenKey);
     await prefs.remove(loggedInKey);
     await _secureStorage.delete(key: tokenKey);
+  }
+
+  static Future<void> clearUserCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    for (final key in _userCacheKeys) {
+      await prefs.remove(key);
+    }
   }
 }

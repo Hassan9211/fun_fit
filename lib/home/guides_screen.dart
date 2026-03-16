@@ -34,27 +34,6 @@ class _GuideVideoItem {
   });
 }
 
-const List<_GuideVideoItem> _fallbackGuideVideoPlaylist = <_GuideVideoItem>[
-  _GuideVideoItem(
-    title: 'Lower Body Training',
-    videoPath: 'assets/videos/LowerBodyTraning.mp4',
-    imagePath: 'assets/images/pilates.jpg',
-    meta: '5 Min',
-  ),
-  _GuideVideoItem(
-    title: 'Hand Training',
-    videoPath: 'assets/videos/HandTraning.mp4',
-    imagePath: 'assets/images/weightlifting.jpg',
-    meta: '4 Min',
-  ),
-  _GuideVideoItem(
-    title: 'Challenge Tutorial',
-    videoPath: 'assets/videos/ChallangeTetorial.mp4',
-    imagePath: 'assets/images/yoga.jpg',
-    meta: 'Tutorial',
-  ),
-];
-
 class GuidesScreen extends StatefulWidget {
   const GuidesScreen({super.key});
 
@@ -68,62 +47,11 @@ class _GuidesScreenState extends State<GuidesScreen> {
   _GuidesMainTab _activeTab = _GuidesMainTab.forYou;
   _ChatTopic _activeTopic = _ChatTopic.food;
   final AuthApiService _authApi = AuthApiService();
-  List<_GuideVideoItem> _guideVideoPlaylist =
-      List<_GuideVideoItem>.from(_fallbackGuideVideoPlaylist);
-  final List<_InviteNotification> _inviteNotifications =
-      <_InviteNotification>[
-        const _InviteNotification(
-          id: 'invite_1',
-          senderName: 'Angelina',
-          roomName: 'Body Weight',
-          ago: '8h',
-        ),
-      ];
+  List<_GuideVideoItem> _guideVideoPlaylist = <_GuideVideoItem>[];
+  final List<_InviteNotification> _inviteNotifications = <_InviteNotification>[];
 
-  final List<_DiscussionPost> _posts = <_DiscussionPost>[
-    const _DiscussionPost(
-      id: 'food_1',
-      name: 'Marsha Fisher',
-      ago: '12 min',
-      message:
-          'Sharing a high-protein breakfast idea: boiled eggs, avocado toast, and Greek yogurt for a clean start.',
-      likes: 2,
-      type: _ChatTopic.food,
-      avatar: 'assets/images/nora.jpg',
-    ),
-    const _DiscussionPost(
-      id: 'food_2',
-      name: 'Dianne Russell',
-      ago: '18 min',
-      message:
-          'If your goal is fat loss, keep dinner lighter and add more fiber, salad, and grilled protein.',
-      likes: 4,
-      type: _ChatTopic.food,
-      avatar: 'assets/images/alina.jpg',
-    ),
-    const _DiscussionPost(
-      id: 'challenge_1',
-      name: 'Coach Nora',
-      ago: '10 min',
-      message:
-          '7-Day Push-Up Challenge: complete 3 sets daily and post your progress in the room.',
-      likes: 6,
-      type: _ChatTopic.challenge,
-      avatar: 'assets/images/tammana.jpg',
-      isAccepted: false,
-    ),
-    const _DiscussionPost(
-      id: 'challenge_2',
-      name: 'Alex Reid',
-      ago: '22 min',
-      message:
-          'Core Burner Challenge: hold a plank for 45 seconds x 4 rounds. Accept if you are in.',
-      likes: 3,
-      type: _ChatTopic.challenge,
-      avatar: 'assets/images/alina.jpg',
-      isAccepted: false,
-    ),
-  ];
+  final List<_DiscussionPost> _posts = <_DiscussionPost>[];
+  final List<_DiscussionPost> _challengePosts = <_DiscussionPost>[];
 
   @override
   void initState() {
@@ -131,6 +59,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
     ProfileSyncService.changes.addListener(_loadProfileImage);
     _loadProfileImage();
     _loadGuides();
+    _loadChallenges();
   }
 
   @override
@@ -152,8 +81,158 @@ class _GuidesScreenState extends State<GuidesScreen> {
     final result = await _authApi.fetchGuides(bearerToken: token);
     if (!mounted || !result.success) return;
     final items = _parseGuides(result.data);
-    if (items.isEmpty) return;
     setState(() => _guideVideoPlaylist = items);
+  }
+
+  Future<void> _loadChallenges() async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    final result = await _authApi.fetchChallenges(bearerToken: token);
+    if (!mounted || !result.success) return;
+    final parsed = _parseChallenges(result.data);
+    setState(() {
+      _challengePosts
+        ..clear()
+        ..addAll(parsed);
+    });
+  }
+
+  List<_DiscussionPost> _parseChallenges(Map<String, dynamic>? response) {
+    if (response == null) return const <_DiscussionPost>[];
+    final raw =
+        response['items'] ??
+        response['data'] ??
+        response['results'] ??
+        response['challenges'] ??
+        response['list'];
+    final list = _extractList(raw);
+    if (list.isEmpty) return const <_DiscussionPost>[];
+
+    final parsed = <_DiscussionPost>[];
+    for (var i = 0; i < list.length; i++) {
+      final item = list[i];
+      if (item is! Map) continue;
+      final map = item.map((k, v) => MapEntry(k.toString(), v));
+      final idRaw = _firstNonEmptyString(map, const <String>[
+        'id',
+        'challenge_id',
+      ]);
+      final id = idRaw.isEmpty ? 'challenge_${i + 1}' : idRaw;
+      final author = _firstNonEmptyString(
+        map,
+        const <String>[
+          'author',
+          'user',
+          'name',
+          'uploader_name',
+          'username',
+          'user_name',
+          'handle',
+        ],
+      );
+      final title = _firstNonEmptyString(
+        map,
+        const <String>['title', 'challenge_name', 'name'],
+      );
+      final description = _firstNonEmptyString(
+        map,
+        const <String>['description', 'details', 'body', 'text'],
+      );
+      final category = _firstNonEmptyString(
+        map,
+        const <String>['category', 'difficulty', 'level'],
+      );
+      final fitnessLevel = _firstNonEmptyString(
+        map,
+        const <String>['fitness_level', 'fitnessLevel', 'level'],
+      );
+      final avatar = _firstNonEmptyString(
+        map,
+        const <String>[
+          'avatar',
+          'avatar_url',
+          'avatarUrl',
+          'profile_image',
+          'profileImage',
+          'user_avatar',
+        ],
+      );
+      final minutesAgo = _parseInt(
+        map['minutes_ago'] ?? map['minutesAgo'] ?? map['time_ago'],
+      );
+      final likes = _parseInt(
+        map['likes'] ??
+            map['like_count'] ??
+            map['likes_count'] ??
+            map['likeCount'],
+      );
+      final isAccepted = _parseBool(
+        map['is_accepted'] ?? map['accepted'] ?? map['isAccepted'],
+      );
+
+      final parts = <String>[];
+      if (title.isNotEmpty) parts.add(title);
+      if (description.isNotEmpty) parts.add(description);
+      final meta = <String>[category, fitnessLevel]
+          .where((value) => value.isNotEmpty)
+          .join(' • ');
+      if (meta.isNotEmpty) parts.add(meta);
+      final message = parts.join('\n').trim();
+      if (message.isEmpty) continue;
+
+      parsed.add(
+        _DiscussionPost(
+          id: id,
+          name: author.isEmpty ? 'Coach' : author,
+          ago: minutesAgo > 0 ? '$minutesAgo min' : 'Now',
+          message: message,
+          likes: likes,
+          type: _ChatTopic.challenge,
+          avatar: avatar.isEmpty ? 'assets/images/tammana.jpg' : avatar,
+          isAccepted: isAccepted,
+        ),
+      );
+    }
+
+    return parsed;
+  }
+
+  List<dynamic> _extractList(dynamic raw) {
+    if (raw is List) return raw;
+    if (raw is Map) {
+      for (final key in const <String>['data', 'items', 'results', 'list']) {
+        final nested = raw[key];
+        if (nested is List) return nested;
+      }
+    }
+    return const <dynamic>[];
+  }
+
+  String _firstNonEmptyString(Map<String, dynamic> map, List<String> keys) {
+    for (final key in keys) {
+      final value = map[key];
+      if (value is String && value.trim().isNotEmpty) {
+        return value.trim();
+      }
+      if (value != null) {
+        final text = value.toString().trim();
+        if (text.isNotEmpty) return text;
+      }
+    }
+    return '';
+  }
+
+  int _parseInt(dynamic value) {
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _parseBool(dynamic value) {
+    if (value is bool) return value;
+    if (value is num) return value != 0;
+    final text = value?.toString().toLowerCase().trim();
+    return text == 'true' || text == '1' || text == 'yes';
   }
 
   List<_GuideVideoItem> _parseGuides(Map<String, dynamic>? response) {
@@ -287,13 +366,20 @@ class _GuidesScreenState extends State<GuidesScreen> {
       return _ForYouTab(playlist: _guideVideoPlaylist);
     }
     if (_activeTab == _GuidesMainTab.explore) {
+      final explorePosts = <_DiscussionPost>[
+        ..._posts,
+        ..._challengePosts,
+      ];
       return _ExploreTab(
-        posts: _posts,
+        posts: explorePosts,
         onLike: _toggleLike,
         onDislike: _toggleDislike,
         onReply: _openReplyDialog,
       );
     }
+    final chatPosts = _activeTopic == _ChatTopic.challenge
+        ? _challengePosts
+        : _posts;
     return _ChatTab(
       selectedTopic: _activeTopic,
       onTopicChanged: (topic) => setState(() => _activeTopic = topic),
@@ -301,9 +387,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
           .where((notification) => !notification.isRead)
           .length,
       onOpenNotifications: _openInviteNotifications,
-      posts: _posts
-          .where((e) => e.type == _activeTopic)
-          .toList(growable: false),
+      posts: chatPosts,
       onLike: _toggleLike,
       onDislike: _toggleDislike,
       onReply: _openReplyDialog,
@@ -316,15 +400,21 @@ class _GuidesScreenState extends State<GuidesScreen> {
     _DiscussionPost Function(_DiscussionPost) updater,
   ) {
     final index = _posts.indexWhere((post) => post.id == id);
-    if (index == -1) return;
-    _posts[index] = updater(_posts[index]);
+    if (index != -1) {
+      _posts[index] = updater(_posts[index]);
+      return;
+    }
+    final challengeIndex =
+        _challengePosts.indexWhere((post) => post.id == id);
+    if (challengeIndex != -1) {
+      _challengePosts[challengeIndex] =
+          updater(_challengePosts[challengeIndex]);
+    }
   }
 
   void _toggleLike(String id) {
-    final index = _posts.indexWhere((post) => post.id == id);
-    if (index == -1) return;
-
-    final post = _posts[index];
+    final post = _findPostById(id);
+    if (post == null) return;
     var likes = post.likes;
     var nextReaction = _DiscussionReaction.like;
 
@@ -347,10 +437,8 @@ class _GuidesScreenState extends State<GuidesScreen> {
   }
 
   void _toggleDislike(String id) {
-    final index = _posts.indexWhere((post) => post.id == id);
-    if (index == -1) return;
-
-    final post = _posts[index];
+    final post = _findPostById(id);
+    if (post == null) return;
     var likes = post.likes;
     var nextReaction = _DiscussionReaction.dislike;
 
@@ -413,12 +501,20 @@ class _GuidesScreenState extends State<GuidesScreen> {
   }
 
   void _toggleAccept(String id) {
-    final index = _posts.indexWhere((post) => post.id == id);
-    if (index == -1) return;
-
+    final post = _findPostById(id);
+    if (post == null) return;
     setState(() {
       _updatePostById(id, (old) => old.copyWith(isAccepted: !old.isAccepted));
     });
+  }
+
+  _DiscussionPost? _findPostById(String id) {
+    final index = _posts.indexWhere((post) => post.id == id);
+    if (index != -1) return _posts[index];
+    final challengeIndex =
+        _challengePosts.indexWhere((post) => post.id == id);
+    if (challengeIndex != -1) return _challengePosts[challengeIndex];
+    return null;
   }
 
   Future<void> _openInviteNotifications() async {
@@ -621,10 +717,11 @@ class _ForYouTab extends StatelessWidget {
   const _ForYouTab({required this.playlist});
 
   void _openPlayer(BuildContext context, int index) {
+    if (playlist.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _GuidesVideoPlayerScreen(
-          playlist: playlist.isEmpty ? _fallbackGuideVideoPlaylist : playlist,
+          playlist: playlist,
           initialIndex: index,
         ),
       ),
@@ -633,50 +730,42 @@ class _ForYouTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final items =
-        playlist.isEmpty ? _fallbackGuideVideoPlaylist : playlist;
-    final firstTwo = items.take(2).toList(growable: false);
+    if (playlist.isEmpty) {
+      return Center(
+        child: Text(
+          'No guides yet.',
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
+
+    final firstTwo = playlist.take(2).toList(growable: false);
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
       children: [
-        const _SectionHeading(title: 'Recommended Meal'),
-        const SizedBox(height: 8),
-        const _MediaCard(
-          imagePath: 'assets/images/nutbutter.jpg',
-          title: 'Nut Butter Toast With Boiled Eggs',
-          subtitle: '1648kcl',
-          height: 126,
-        ),
-        const SizedBox(height: 14),
         const _SectionHeading(title: 'Workout Videos'),
         const SizedBox(height: 8),
         _WorkoutStrip(
           items: firstTwo,
           onOpenVideo: (index) => _openPlayer(context, index),
         ),
-        const SizedBox(height: 14),
-        const _MutedSectionLabel(label: 'Challenge Tutorial Guide'),
-        const SizedBox(height: 8),
-        if (items.length > 2)
+        if (playlist.length > 2) ...[
+          const SizedBox(height: 14),
+          const _MutedSectionLabel(label: 'Challenge Tutorial Guide'),
+          const SizedBox(height: 8),
           _MediaCard(
-            imagePath: items[2].imagePath,
-            videoPath: items[2].videoPath,
-            title: items[2].title,
-            subtitle: items[2].meta,
-            height: 104,
-            showPlay: true,
-            onTap: () => _openPlayer(context, 2),
-          )
-        else
-          _MediaCard(
-            imagePath: 'assets/images/yoga.jpg',
-            videoPath: 'assets/videos/ChallangeTetorial.mp4',
-            title: 'Challenge Tutorial',
-            subtitle: '',
+            imagePath: playlist[2].imagePath,
+            videoPath: playlist[2].videoPath,
+            title: playlist[2].title,
+            subtitle: playlist[2].meta,
             height: 104,
             showPlay: true,
             onTap: () => _openPlayer(context, 2),
           ),
+        ],
       ],
     );
   }
@@ -742,17 +831,29 @@ class _WorkoutStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final list = items.isEmpty ? _fallbackGuideVideoPlaylist : items;
+    if (items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'No workout videos yet.',
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 12,
+          ),
+        ),
+      );
+    }
+
     return SizedBox(
       height: 114,
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: [
-          ...list.asMap().entries.map((entry) {
+          ...items.asMap().entries.map((entry) {
             final index = entry.key;
             final item = entry.value;
             return Padding(
-              padding: EdgeInsets.only(right: index == list.length - 1 ? 0 : 8),
+              padding: EdgeInsets.only(right: index == items.length - 1 ? 0 : 8),
               child: _WorkoutVideoCard(
                 title: item.title,
                 imagePath: item.imagePath,
@@ -1519,6 +1620,17 @@ class _ExploreTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (posts.isEmpty) {
+      return Center(
+        child: Text(
+          'No posts yet.',
+          style: TextStyle(
+            color: AppColors.textSecondaryFor(context),
+            fontSize: 13,
+          ),
+        ),
+      );
+    }
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
       itemCount: posts.length,
@@ -1587,24 +1699,35 @@ class _ChatTab extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
-            itemCount: posts.length,
-            itemBuilder: (context, index) => _DiscussionCard(
-              post: posts[index],
-              onLike: () => onLike(posts[index].id),
-              onDislike: () => onDislike(posts[index].id),
-              onReply: () => onReply(posts[index].id),
-              onAccept: posts[index].type == _ChatTopic.challenge
-                  ? () => onAccept(posts[index].id)
-                  : null,
-              onOpen: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => _GuidesChatRoomScreen(post: posts[index]),
+          child: posts.isEmpty
+              ? Center(
+                  child: Text(
+                    'No posts yet.',
+                    style: TextStyle(
+                      color: AppColors.textSecondaryFor(context),
+                      fontSize: 13,
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) => _DiscussionCard(
+                    post: posts[index],
+                    onLike: () => onLike(posts[index].id),
+                    onDislike: () => onDislike(posts[index].id),
+                    onReply: () => onReply(posts[index].id),
+                    onAccept: posts[index].type == _ChatTopic.challenge
+                        ? () => onAccept(posts[index].id)
+                        : null,
+                    onOpen: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            _GuidesChatRoomScreen(post: posts[index]),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ),
         ),
       ],
     );

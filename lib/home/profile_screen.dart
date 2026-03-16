@@ -1185,6 +1185,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         playIconSize: 26,
                         muted: muted,
                         showPlayOverlay: showPlayOverlay,
+                        enablePlayback: false,
                       ),
                 Positioned(
                   top: 4,
@@ -2267,11 +2268,13 @@ class _ReelsScreen extends StatefulWidget {
 class _ReelsScreenState extends State<_ReelsScreen> {
   late final PageController _controller;
   bool _showHeart = false;
+  int _activeIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _controller = PageController();
+    _activeIndex = 0;
   }
 
   @override
@@ -2371,7 +2374,7 @@ class _ReelsScreenState extends State<_ReelsScreen> {
               scrollDirection: Axis.vertical,
               controller: _controller,
               physics: const ClampingScrollPhysics(),
-              allowImplicitScrolling: true,
+              onPageChanged: (index) => setState(() => _activeIndex = index),
               itemCount: widget.reels.length,
               itemBuilder: (context, index) {
                 final item = widget.reels[index];
@@ -2386,6 +2389,7 @@ class _ReelsScreenState extends State<_ReelsScreen> {
                 final liked = widget.isLiked(key);
                 final saved = widget.isSaved(key);
 
+                final isActive = index == _activeIndex;
                 return RepaintBoundary(
                   child: Stack(
                     fit: StackFit.expand,
@@ -2403,10 +2407,11 @@ class _ReelsScreenState extends State<_ReelsScreen> {
                         child: FileVideoPreview(
                           path: item.path,
                           fit: BoxFit.cover,
-                          autoplay: true,
+                          autoplay: isActive,
                           showPlayOverlay: false,
                           playIconSize: 42,
                           muted: false,
+                          enablePlayback: isActive,
                         ),
                       ),
                       if (_showHeart)

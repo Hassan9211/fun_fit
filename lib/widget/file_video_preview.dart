@@ -11,6 +11,7 @@ class FileVideoPreview extends StatefulWidget {
   final double playIconSize;
   final Widget? fallback;
   final bool muted;
+  final bool enablePlayback;
 
   const FileVideoPreview({
     super.key,
@@ -21,6 +22,7 @@ class FileVideoPreview extends StatefulWidget {
     this.playIconSize = 36,
     this.fallback,
     this.muted = true,
+    this.enablePlayback = true,
   });
 
   @override
@@ -34,7 +36,21 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
   @override
   void initState() {
     super.initState();
-    _init();
+    if (widget.enablePlayback) {
+      _init();
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant FileVideoPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.enablePlayback && !widget.enablePlayback) {
+      _controller?.dispose();
+      _controller = null;
+      _failed = false;
+    } else if (!oldWidget.enablePlayback && widget.enablePlayback) {
+      _init();
+    }
   }
 
   Future<void> _init() async {
@@ -80,16 +96,20 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
     final controller = _controller;
     final fallback =
         widget.fallback ??
-        const ColoredBox(
-          color: Color(0xFF111111),
+        ColoredBox(
+          color: const Color(0xFF111111),
           child: Center(
             child: Icon(
               Icons.play_circle_fill_rounded,
               color: Colors.white,
-              size: 36,
+              size: widget.playIconSize,
             ),
           ),
         );
+
+    if (!widget.enablePlayback) {
+      return fallback;
+    }
 
     if (_failed || controller == null || !controller.value.isInitialized) {
       return fallback;

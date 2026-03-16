@@ -319,14 +319,28 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
     setState(() {
       if (payload.publicPosts != null) {
+        final localPublic =
+            _publicPosts.where((post) => !post.isProfileMedia).toList();
         _publicPosts
           ..clear()
-          ..addAll(payload.publicPosts!);
+          ..addAll(
+            _mergeRemoteWithLocal(
+              remote: payload.publicPosts!,
+              local: localPublic,
+            ),
+          );
       }
       if (payload.myPosts != null) {
+        final localMine =
+            _myPosts.where((post) => !post.isProfileMedia).toList();
         _myPosts
           ..clear()
-          ..addAll(payload.myPosts!);
+          ..addAll(
+            _mergeRemoteWithLocal(
+              remote: payload.myPosts!,
+              local: localMine,
+            ),
+          );
       }
       _syncProfileMediaPosts(mediaPosts);
     });
@@ -374,6 +388,24 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     return mediaA == mediaB;
   }
 
+  List<_FeedPost> _mergeRemoteWithLocal({
+    required List<_FeedPost> remote,
+    required List<_FeedPost> local,
+  }) {
+    if (local.isEmpty) return remote;
+    if (remote.isEmpty) return local;
+
+    final merged = <_FeedPost>[];
+    for (final localPost in local) {
+      final exists = remote.any((entry) => _isSamePost(entry, localPost));
+      if (!exists) {
+        merged.add(localPost);
+      }
+    }
+    merged.addAll(remote);
+    return merged;
+  }
+
   Future<bool> _refreshIfPostExists(_FeedPost post) async {
     final email = await AuthSessionStorage.readEmail();
     final token = await AuthSessionStorage.readToken();
@@ -406,14 +438,28 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
 
     setState(() {
       if (payload.publicPosts != null) {
+        final localPublic =
+            _publicPosts.where((post) => !post.isProfileMedia).toList();
         _publicPosts
           ..clear()
-          ..addAll(payload.publicPosts!);
+          ..addAll(
+            _mergeRemoteWithLocal(
+              remote: payload.publicPosts!,
+              local: localPublic,
+            ),
+          );
       }
       if (payload.myPosts != null) {
+        final localMine =
+            _myPosts.where((post) => !post.isProfileMedia).toList();
         _myPosts
           ..clear()
-          ..addAll(payload.myPosts!);
+          ..addAll(
+            _mergeRemoteWithLocal(
+              remote: payload.myPosts!,
+              local: localMine,
+            ),
+          );
       }
       _syncProfileMediaPosts(mediaPosts);
     });
@@ -563,7 +609,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
             : const Color(0xFFF2F2F2);
         return Scaffold(
           backgroundColor: const Color(0xFF080808),
-          resizeToAvoidBottomInset: false,
+          resizeToAvoidBottomInset: true,
           body: SafeArea(
             child: Center(
               child: ConstrainedBox(
@@ -1158,6 +1204,7 @@ class _FeedMediaAttachment extends StatelessWidget {
                 path: mediaPath,
                 fit: BoxFit.cover,
                 playIconSize: 34,
+                enablePlayback: false,
               ),
               Positioned.fill(
                 child: DecoratedBox(

@@ -607,7 +607,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       _publicPosts.insert(0, newPost);
       _selectedTab = _ChallengesTab.myPosts;
     });
-    await _saveLocalChallenge(draft);
+    await _saveLocalChallenge(draft, includeInRandom: true);
     final token = await AuthSessionStorage.readToken();
     if (token.isNotEmpty) {
       await _authApi.createChallenge(
@@ -659,6 +659,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
       });
       randomExisting.insert(0, jsonEncode(payload));
       await prefs.setStringList(_kRandomChallenges, randomExisting);
+      ProfileSyncService.notifyChanged();
     }
 
     if (draft.mediaType == _MediaType.video && draft.mediaPath.isNotEmpty) {
