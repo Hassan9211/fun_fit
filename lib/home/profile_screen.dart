@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
@@ -126,6 +127,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _refreshProfileFromApi();
   }
 
+  void _showPermissionError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<bool> _ensureCameraPermission() async {
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+    final status = await Permission.camera.request();
+    return status.isGranted;
+  }
+
+  Future<bool> _ensureGalleryPermission({required bool isVideo}) async {
+    if (!Platform.isAndroid && !Platform.isIOS) return true;
+
+    final statuses = await <Permission>[
+      Permission.photos,
+      Permission.videos,
+      Permission.storage,
+    ].request();
+
+    final photosGranted = statuses[Permission.photos]?.isGranted ?? false;
+    final videosGranted = statuses[Permission.videos]?.isGranted ?? false;
+    final storageGranted = statuses[Permission.storage]?.isGranted ?? false;
+
+    if (isVideo) {
+      return videosGranted || storageGranted || photosGranted;
+    }
+    return photosGranted || storageGranted;
+  }
+
   List<_ProfileMediaItem> _readMedia(List<String> raw) {
     return raw
         .map((item) {
@@ -164,6 +195,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return copied.path;
     } catch (_) {
       return sourcePath;
+    }
+  }
+
+  Future<String> _persistPickedFile(
+    XFile file, {
+    required bool isVideo,
+  }) async {
+    try {
+      final dir = await getApplicationDocumentsDirectory();
+      final mediaDir = Directory('${dir.path}/profile_media');
+      if (!await mediaDir.exists()) {
+        await mediaDir.create(recursive: true);
+      }
+      final dotIndex = file.path.lastIndexOf('.');
+      final extension = dotIndex >= 0
+          ? file.path.substring(dotIndex)
+          : (isVideo ? '.mp4' : '.jpg');
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      final prefix = isVideo ? 'vid' : 'img';
+      final targetPath = '${mediaDir.path}/$prefix$timestamp$extension';
+
+      try {
+        final sourceFile = File(file.path);
+        if (sourceFile.existsSync()) {
+          final copied = await sourceFile.copy(targetPath);
+          return copied.path;
+        }
+      } catch (_) {}
+
+      final bytes = await file.readAsBytes();
+      final targetFile = File(targetPath);
+      await targetFile.writeAsBytes(bytes, flush: true);
+      return targetFile.path;
+    } catch (_) {
+      return file.path;
     }
   }
 
@@ -422,6 +488,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _pickProfileImage(ImageSource source) async {
+    if (source == ImageSource.camera) {
+      final ok = await _ensureCameraPermission();
+      if (!ok) {
+        _showPermissionError('Camera permission is required.');
+        return;
+      }
+    } else {
+      final ok = await _ensureGalleryPermission(isVideo: false);
+      if (!ok) {
+        _showPermissionError('Gallery permission is required.');
+        return;
+      }
+    }
     final file = await _picker.pickImage(source: source);
     if (!mounted) return;
     if (file == null) return;
@@ -479,9 +558,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _addCapturedMedia({required bool isVideo}) async {
     final nav = Navigator.of(context);
-    final file = isVideo
-        ? null
-        : await _picker.pickImage(source: ImageSource.camera);
+    final ok = await _ensureCameraPermission();
+    if (!ok) {
+      _showPermissionError('Camera permission is required.');
+      return;
+    }
+    final file =
+        isVideo ? null : await _picker.pickImage(source: ImageSource.camera);
     if (!mounted) return;
     final videoPath = isVideo
         ? await nav.push<String>(
@@ -494,7 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final persistedPath = isVideo
         ? await _persistCapturedFile(videoPath!, isVideo: true)
-        : await _persistCapturedFile(file!.path, isVideo: false);
+        : await _persistPickedFile(file!, isVideo: false);
     if (!mounted) return;
 
     final defaultVisibility =
@@ -531,18 +614,95 @@ class _ProfileScreenState extends State<ProfileScreen> {
           : _ProfileVisibilityTab.publicItems;
     });
     await _saveMedia();
-    if (reviewed.type == 'video') {
-      final token = await AuthSessionStorage.readToken();
-      if (token.isNotEmpty) {
-        await _authApi.createReel(
-          videoPath: reviewed.path,
-          caption: '',
-          privacy: reviewed.visibility == _ProfileMediaVisibility.private
-              ? 'private'
-              : 'public',
-          bearerToken: token,
-        );
-      }
+    await _uploadProfileMedia(reviewed);
+  }
+
+  Future<void> _addGalleryMedia({required bool isVideo}) async {
+    final ok = await _ensureGalleryPermission(isVideo: isVideo);
+    if (!ok) {
+      _showPermissionError('Gallery permission is required.');
+      return;
+    }
+    final file = isVideo
+        ? await _picker.pickVideo(source: ImageSource.gallery)
+        : await _picker.pickImage(source: ImageSource.gallery);
+    if (!mounted || file == null) return;
+
+    final persistedPath = await _persistPickedFile(
+      file,
+      isVideo: isVideo,
+    );
+    if (!mounted) return;
+
+    final defaultVisibility =
+        _selectedVisibilityTab == _ProfileVisibilityTab.privateItems
+            ? _ProfileMediaVisibility.private
+            : _ProfileMediaVisibility.public;
+    final draft = _ProfileMediaItem(
+      path: persistedPath,
+      type: isVideo ? 'video' : 'image',
+      likes: 0,
+      dislikes: 0,
+      shares: 0,
+      isSaved: false,
+      isLiked: false,
+      isDisliked: false,
+      uploaderName: _displayName,
+      uploaderUsername: _displayUsername,
+      visibility: defaultVisibility,
+    );
+
+    final reviewed = await Navigator.of(context).push<_ProfileMediaItem>(
+      MaterialPageRoute(
+        builder: (_) => _CapturedMediaReviewScreen(item: draft),
+      ),
+    );
+    if (reviewed == null || !mounted) return;
+
+    setState(() {
+      _media.insert(0, reviewed);
+      _selectedVisibilityTab =
+          reviewed.visibility == _ProfileMediaVisibility.private
+              ? _ProfileVisibilityTab.privateItems
+              : _ProfileVisibilityTab.publicItems;
+    });
+    await _saveMedia();
+    await _uploadProfileMedia(reviewed);
+  }
+
+  Future<void> _addVideoFromGallery() async {
+    await _addGalleryMedia(isVideo: true);
+  }
+
+  Future<void> _recordVideo() async {
+    await _addCapturedMedia(isVideo: true);
+  }
+
+  Future<void> _deleteMedia(_ProfileMediaItem item) async {
+    await _performDeleteMedia(item);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Media deleted')),
+    );
+  }
+
+  Future<void> _uploadProfileMedia(_ProfileMediaItem item) async {
+    final token = await AuthSessionStorage.readToken();
+    if (token.isEmpty) return;
+    if (item.type == 'video') {
+      await _authApi.createReel(
+        videoPath: item.path,
+        caption: '',
+        privacy: item.visibility == _ProfileMediaVisibility.private
+            ? 'private'
+            : 'public',
+        bearerToken: token,
+      );
+    } else {
+      await _authApi.updateProfileImage(
+        imagePath: item.path,
+        bearerToken: token,
+      );
     }
   }
 
@@ -565,11 +725,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: const Text('Choose Photo'),
+                  onTap: () async {
+                    Navigator.of(sheet).pop();
+                    await _addGalleryMedia(isVideo: false);
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.videocam_outlined),
                   title: const Text('Record Video'),
                   onTap: () async {
                     Navigator.of(sheet).pop();
                     await _addCapturedMedia(isVideo: true);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.video_library_outlined),
+                  title: const Text('Choose Video'),
+                  onTap: () async {
+                    Navigator.of(sheet).pop();
+                    await _addGalleryMedia(isVideo: true);
                   },
                 ),
               ],
@@ -993,6 +1169,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         showPlayOverlay: showPlayOverlay,
                       ),
                 Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    iconSize: 18,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 28,
+                      height: 28,
+                    ),
+                    onPressed: () => _deleteMedia(item),
+                  ),
+                ),
+                Positioned(
                   left: 6,
                   bottom: 6,
                   child: _VisibilityBadge(visibility: item.visibility),
@@ -1052,6 +1242,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (shouldDelete != true || !mounted) return;
 
+    await _performDeleteMedia(item);
+  }
+
+  Future<void> _performDeleteMedia(_ProfileMediaItem item) async {
     final removedChallenge =
         _challengeReels.any((entry) => _sameMediaPath(entry.path, item.path));
     _challengeReels.removeWhere((entry) => _sameMediaPath(entry.path, item.path));
@@ -1071,6 +1265,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _saveMedia();
     if (removedChallenge) {
       await _saveChallengeReels();
+    }
+
+    final token = await AuthSessionStorage.readToken();
+    if (token.isNotEmpty) {
+      final payload = <String, dynamic>{
+        'path': item.path,
+        'media_path': item.path,
+        'file_path': item.path,
+        'media': item.path,
+        'type': item.type,
+        'visibility': item.visibility,
+      };
+      if (item.type == 'video') {
+        await _authApi.deleteReel(
+          deleteData: payload,
+          bearerToken: token,
+        );
+      } else {
+        await _authApi.deleteProfileMedia(
+          deleteData: payload,
+          bearerToken: token,
+        );
+      }
     }
 
     final file = File(item.path);

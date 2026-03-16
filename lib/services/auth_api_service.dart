@@ -47,6 +47,8 @@ class AuthApiService {
   static const String _addRecipePath = '/add_recipe';
   static const String _getRecipesPath = '/get_recipes';
   static const String _updateProfileImgPath = '/update_profile_img';
+  static const String _deleteProfileMediaPath = '/delete_profile_media';
+  static const String _deleteReelPath = '/delete_reel';
   static const String _followPath = '/follow';
   static const String _updateFcmPath = '/update_fcm';
   static const String _createSubscriptionPath = '/create_subscription';
@@ -883,6 +885,48 @@ class AuthApiService {
       bearerToken: bearerToken,
       actionName: 'Update profile image',
     );
+  }
+
+  Future<AuthApiResult> deleteProfileMedia({
+    required Map<String, dynamic> deleteData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _deleteProfileMediaPath,
+        payload: deleteData,
+        actionName: 'Delete profile media',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
+  }
+
+  Future<AuthApiResult> deleteReel({
+    required Map<String, dynamic> deleteData,
+    String? bearerToken,
+  }) async {
+    final extraHeaders = <String, String>{};
+    final token = bearerToken?.trim();
+    if (token != null && token.isNotEmpty) {
+      extraHeaders['Authorization'] = 'Bearer $token';
+    }
+    try {
+      return _postJson(
+        path: _deleteReelPath,
+        payload: deleteData,
+        actionName: 'Delete reel',
+        extraHeaders: extraHeaders,
+      );
+    } catch (_) {
+      return _unexpectedError();
+    }
   }
 
   Future<AuthApiResult> followUser({
