@@ -675,14 +675,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _uploadProfileMedia(reviewed);
   }
 
-  Future<void> _addVideoFromGallery() async {
-    await _addGalleryMedia(isVideo: true);
-  }
-
-  Future<void> _recordVideo() async {
-    await _addCapturedMedia(isVideo: true);
-  }
-
   Future<void> _deleteMedia(_ProfileMediaItem item) async {
     await _performDeleteMedia(item);
     if (!mounted) return;
