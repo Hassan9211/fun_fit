@@ -750,6 +750,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
         );
         return Scaffold(
           backgroundColor: const Color(0xFF080808),
+          resizeToAvoidBottomInset: false,
           extendBody: true,
           floatingActionButton: SizedBox(
             width: 42,
@@ -1158,6 +1159,7 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
         final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          resizeToAvoidBottomInset: false,
           body: SafeArea(
             top: false,
             bottom: false,

@@ -127,15 +127,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _refreshProfileFromApi();
   }
 
-  void _showPermissionError(String message) {
+  void _showSnack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 90),
+      ),
+    );
   }
 
-  void _showStatusMessage(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
-  }
+  void _showPermissionError(String message) => _showSnack(message);
+
+  void _showStatusMessage(String message) => _showSnack(message);
 
   Future<bool> _ensureCameraPermission() async {
     if (!Platform.isAndroid && !Platform.isIOS) return true;
@@ -307,10 +314,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final localMediaSnapshot = List<_ProfileMediaItem>.from(_media);
 
     setState(() {
-      if (payload.name != null) {
+      if (payload.name != null && payload.name!.trim().isNotEmpty) {
         _name = payload.name!;
       }
-      if (payload.username != null) {
+      if (payload.username != null && payload.username!.trim().isNotEmpty) {
         _username = payload.username!;
       }
       if (payload.bio != null) {
@@ -319,7 +326,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (payload.socialLink != null) {
         _socialLink = payload.socialLink!;
       }
-      if (payload.profileImagePath != null) {
+      if (payload.profileImagePath != null &&
+          payload.profileImagePath!.trim().isNotEmpty) {
         _profileImagePath = payload.profileImagePath!;
       }
       if (payload.followers != null) {
@@ -415,9 +423,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _isSavingProfile = false;
 
     if (!mounted || result.success || !showError) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result.message)));
+    _showStatusMessage(result.message);
   }
 
   Future<void> _saveMedia() async {
@@ -676,19 +682,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _deleteMedia(_ProfileMediaItem item) async {
+    final shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Media'),
+        content: const Text('Do you want to delete this photo/video?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
+    if (shouldDelete != true || !mounted) return;
+
     await _performDeleteMedia(item);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Media deleted')),
-    );
+    _showStatusMessage('Media deleted');
   }
 
   Future<void> _uploadProfileMedia(_ProfileMediaItem item) async {
     final token = await AuthSessionStorage.readToken();
     if (token.isEmpty) return;
-    final AuthApiResult result;
     if (item.type == 'video') {
-      result = await _authApi.createReel(
+      await _authApi.createReel(
         videoPath: item.path,
         caption: '',
         privacy: item.visibility == _ProfileMediaVisibility.private
@@ -697,20 +719,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         bearerToken: token,
       );
     } else {
-      result = await _authApi.updateProfileImage(
+      await _authApi.updateProfileImage(
         imagePath: item.path,
         bearerToken: token,
       );
     }
-
-    if (!result.success) {
-      _showStatusMessage(result.message.isNotEmpty
-          ? result.message
-          : 'Unable to upload media');
-      return;
-    }
-
-    await _refreshProfileFromApi();
   }
 
   Future<void> _showCreateMediaSheet() async {
@@ -766,9 +779,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _openMedia(_ProfileMediaItem item) async {
     final file = File(item.path);
     if (!file.existsSync()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Media file not found on device')),
-      );
+      _showStatusMessage('Media file not found on device');
       return;
     }
 
@@ -1253,15 +1264,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _performDeleteMedia(_ProfileMediaItem item) async {
-    final prevMedia = List<_ProfileMediaItem>.from(_media);
-    final prevChallenge = List<_ProfileMediaItem>.from(_challengeReels);
-    final prevSaved = Set<String>.from(_savedReels);
-    final prevLiked = Set<String>.from(_likedReels);
-    final prevDeleted = Set<String>.from(_deletedMediaPaths);
-    final prevLikeCounts = Map<String, int>.from(_reelLikeCounts);
-    final prevShareCounts = Map<String, int>.from(_reelShareCounts);
-    final prevComments = Map<String, List<String>>.from(_reelComments);
-
     final removedChallenge =
         _challengeReels.any((entry) => _sameMediaPath(entry.path, item.path));
     _challengeReels.removeWhere((entry) => _sameMediaPath(entry.path, item.path));
@@ -1293,47 +1295,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'type': item.type,
         'visibility': item.visibility,
       };
-      final AuthApiResult result;
       if (item.type == 'video') {
-        result = await _authApi.deleteReel(
+        await _authApi.deleteReel(
           deleteData: payload,
           bearerToken: token,
         );
       } else {
-        result = await _authApi.deleteProfileMedia(
+        await _authApi.deleteProfileMedia(
           deleteData: payload,
           bearerToken: token,
         );
-      }
-
-      if (!result.success) {
-        setState(() {
-          _media = prevMedia;
-          _challengeReels = prevChallenge;
-          _savedReels
-            ..clear()
-            ..addAll(prevSaved);
-          _likedReels
-            ..clear()
-            ..addAll(prevLiked);
-          _deletedMediaPaths
-            ..clear()
-            ..addAll(prevDeleted);
-          _reelLikeCounts
-            ..clear()
-            ..addAll(prevLikeCounts);
-          _reelShareCounts
-            ..clear()
-            ..addAll(prevShareCounts);
-          _reelComments
-            ..clear()
-            ..addAll(prevComments);
-        });
-        await _saveProfileLocally();
-        _showStatusMessage(result.message.isNotEmpty
-            ? result.message
-            : 'Unable to delete media');
-        return;
       }
     }
 
@@ -1343,8 +1314,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         await file.delete();
       } catch (_) {}
     }
-
-    await _refreshProfileFromApi();
   }
 
   Future<void> _editProfile() async {
@@ -1451,6 +1420,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         elevation: 0,

@@ -563,6 +563,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
             : const Color(0xFFF2F2F2);
         return Scaffold(
           backgroundColor: const Color(0xFF080808),
+          resizeToAvoidBottomInset: false,
           body: SafeArea(
             child: Center(
               child: ConstrainedBox(

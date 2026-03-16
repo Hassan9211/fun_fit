@@ -216,6 +216,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
       backgroundColor: isDark
           ? const Color(0xFF050505)
           : const Color(0xFF080808),
+      resizeToAvoidBottomInset: false,
       extendBody: true,
       body: SafeArea(
         bottom: false,
@@ -1967,6 +1968,7 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
       backgroundColor: isDark
           ? const Color(0xFF101010)
           : const Color(0xFFF1F1F1),
+      resizeToAvoidBottomInset: false,
       appBar: AppBar(
         backgroundColor: isDark ? const Color(0xFF141414) : Colors.white,
         foregroundColor: AppColors.textPrimaryFor(context),
