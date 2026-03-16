@@ -525,6 +525,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
       galleryLabel: 'Choose From Gallery',
       onCamera: () => _pickProfileImage(ImageSource.camera),
       onGallery: () => _pickProfileImage(ImageSource.gallery),
+      viewLabel: 'View Profile Photo',
+      onView: _viewProfilePhoto,
+    );
+  }
+
+  Future<void> _viewProfilePhoto() async {
+    final path = _profileImagePath.trim();
+    if (path.isEmpty) {
+      _showStatusMessage('No profile photo set');
+      return;
+    }
+    final provider = ProfileAvatarResolver.resolve(
+      path,
+      fallback: const NetworkImage(_defaultImageUrl),
+    );
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(14),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: Image(image: provider, fit: BoxFit.contain),
+            ),
+            Positioned(
+              right: 8,
+              top: 8,
+              child: IconButton(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -533,6 +570,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String galleryLabel,
     required Future<void> Function() onCamera,
     required Future<void> Function() onGallery,
+    String? viewLabel,
+    Future<void> Function()? onView,
   }) async {
     await showModalBottomSheet<void>(
       context: context,
@@ -559,6 +598,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await onGallery();
                   },
                 ),
+                if (onView != null && viewLabel != null)
+                  ListTile(
+                    leading: const Icon(Icons.image_outlined),
+                    title: Text(viewLabel),
+                    onTap: () async {
+                      Navigator.of(sheet).pop();
+                      await onView();
+                    },
+                  ),
               ],
             ),
           ),
