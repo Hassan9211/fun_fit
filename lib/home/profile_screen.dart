@@ -19,6 +19,7 @@ import '../widget/app_colors.dart';
 import '../widget/file_video_preview.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/record_with_audio_screen.dart';
+import '../widget/app_pull_to_refresh.dart';
 
 enum _ProfileVisibilityTab { publicItems, privateItems, savedItems }
 
@@ -542,6 +543,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     await showDialog<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(14),
         child: Stack(
@@ -575,6 +577,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }) async {
     await showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (sheet) {
         return SafeArea(
           child: Padding(
@@ -732,6 +735,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _deleteMedia(_ProfileMediaItem item) async {
     final shouldDelete = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) => AlertDialog(
         title: const Text('Delete Media'),
         content: const Text('Do you want to delete this photo/video?'),
@@ -760,7 +764,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (item.type == 'video') {
       await _authApi.createReel(
         videoPath: item.path,
-        caption: '',
+        caption: item.caption.trim().isEmpty ? null : item.caption,
         privacy: item.visibility == _ProfileMediaVisibility.private
             ? 'private'
             : 'public',
@@ -777,6 +781,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _showCreateMediaSheet() async {
     await showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (sheet) {
         return SafeArea(
           child: Padding(
@@ -834,6 +839,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (item.type == 'image') {
       await showDialog<void>(
         context: context,
+        barrierColor: Colors.transparent,
         builder: (context) => Dialog(
           insetPadding: const EdgeInsets.all(14),
           child: Stack(
@@ -1110,6 +1116,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final followers = _followedCreators.toList()..sort();
     showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       backgroundColor: AppColors.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
@@ -1195,121 +1202,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
     bool showPlayOverlay = true,
   }) {
     if (items.isEmpty) {
-      return Center(
-        child: Text(
-          emptyMessage,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: AppColors.textSecondaryFor(context),
-            fontSize: 13,
-          ),
+      return AppPullToRefresh(
+        onRefresh: _loadProfile,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(8, 24, 8, 90),
+          children: [
+            Center(
+              child: Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.textSecondaryFor(context),
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }
-    return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: items.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: gridCount,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return GestureDetector(
-          onTap: () => _openMedia(item),
-          onLongPress: () => _showMediaActions(item),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                item.type == 'image'
-                    ? Image.file(File(item.path), fit: BoxFit.cover)
-                    : FileVideoPreview(
-                        path: item.path,
-                        fit: BoxFit.cover,
-                        playIconSize: 26,
-                        muted: muted,
-                        showPlayOverlay: showPlayOverlay,
-                        enablePlayback: false,
+    return AppPullToRefresh(
+      onRefresh: _loadProfile,
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(8, 8, 8, 90),
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: items.length,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: gridCount,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
+        ),
+        itemBuilder: (context, index) {
+          final item = items[index];
+          return GestureDetector(
+            onTap: () => _openMedia(item),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  item.type == 'image'
+                      ? Image.file(File(item.path), fit: BoxFit.cover)
+                      : FileVideoPreview(
+                          path: item.path,
+                          fit: BoxFit.cover,
+                          playIconSize: 26,
+                          muted: muted,
+                          showPlayOverlay: showPlayOverlay,
+                          enablePlayback: false,
+                        ),
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      iconSize: 18,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints.tightFor(
+                        width: 28,
+                        height: 28,
                       ),
-                Positioned(
-                  top: 4,
-                  right: 4,
-                  child: IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    iconSize: 18,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 28,
-                      height: 28,
+                      onPressed: () => _deleteMedia(item),
                     ),
-                    onPressed: () => _deleteMedia(item),
                   ),
-                ),
-                Positioned(
-                  left: 6,
-                  bottom: 6,
-                  child: _VisibilityBadge(visibility: item.visibility),
-                ),
-              ],
+                  Positioned(
+                    left: 6,
+                    bottom: 6,
+                    child: _VisibilityBadge(visibility: item.visibility),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _showMediaActions(_ProfileMediaItem item) async {
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      builder: (sheet) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete_outline),
-                  title: const Text('Delete'),
-                  onTap: () => Navigator.of(sheet).pop('delete'),
-                ),
-                ListTile(
-                  leading: const Icon(Icons.close),
-                  title: const Text('Cancel'),
-                  onTap: () => Navigator.of(sheet).pop('cancel'),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (choice != 'delete' || !mounted) return;
-
-    final shouldDelete = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Media'),
-        content: const Text('Do you want to delete this photo/video?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
-          ),
-        ],
+          );
+        },
       ),
     );
-    if (shouldDelete != true || !mounted) return;
-
-    await _performDeleteMedia(item);
   }
 
   Future<void> _performDeleteMedia(_ProfileMediaItem item) async {
@@ -1375,6 +1343,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final result = await showDialog<Map<String, String>>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) => AlertDialog(
         title: const Text('Edit Profile'),
         content: SizedBox(
@@ -2002,17 +1971,25 @@ class _ProfileApiPayload {
     // Profile grid currently renders local file media only.
     if (!File(path).existsSync()) return null;
 
-    final type =
-        firstNonEmptyString(json, const <String>[
-          'type',
-          'media_type',
-          'mediaType',
-        ]) ??
-        _guessMediaType(path);
+      final type =
+          firstNonEmptyString(json, const <String>[
+            'type',
+            'media_type',
+            'mediaType',
+          ]) ??
+          _guessMediaType(path);
+      final caption = firstNonEmptyString(json, const <String>[
+        'caption',
+        'description',
+        'title',
+        'challenge_name',
+        'challengeName',
+        'text',
+      ]);
 
-    return _ProfileMediaItem(
-      path: path,
-      type: type == 'video' ? 'video' : 'image',
+      return _ProfileMediaItem(
+        path: path,
+        type: type == 'video' ? 'video' : 'image',
       likes:
           asInt(
             firstRawValue(json, const <String>[
@@ -2046,14 +2023,14 @@ class _ProfileApiPayload {
       isLiked: _asBool(
         firstRawValue(json, const <String>['is_liked', 'isLiked', 'liked']),
       ),
-      isDisliked: _asBool(
-        firstRawValue(json, const <String>[
-          'is_disliked',
-          'isDisliked',
-          'disliked',
-        ]),
-      ),
-      uploaderName:
+        isDisliked: _asBool(
+          firstRawValue(json, const <String>[
+            'is_disliked',
+            'isDisliked',
+            'disliked',
+          ]),
+        ),
+        uploaderName:
           firstNonEmptyString(json, const <String>[
             'uploader_name',
             'uploaderName',
@@ -2061,21 +2038,22 @@ class _ProfileApiPayload {
             'name',
           ]) ??
           'User',
-      uploaderUsername:
-          firstNonEmptyString(json, const <String>[
-            'uploader_username',
-            'uploaderUsername',
-            'username',
-            'handle',
-          ]) ??
-          '@user',
-      visibility: _ProfileMediaVisibility.normalize(
-        firstNonEmptyString(json, const <String>[
-              'visibility',
-              'privacy',
-              'scope',
+        uploaderUsername:
+            firstNonEmptyString(json, const <String>[
+              'uploader_username',
+              'uploaderUsername',
+              'username',
+              'handle',
             ]) ??
-            _ProfileMediaVisibility.public,
+            '@user',
+        caption: caption ?? '',
+        visibility: _ProfileMediaVisibility.normalize(
+          firstNonEmptyString(json, const <String>[
+                'visibility',
+                'privacy',
+                'scope',
+              ]) ??
+              _ProfileMediaVisibility.public,
       ),
     );
   }
@@ -2221,7 +2199,7 @@ class _VisibilityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isPrivate ? const Color(0xCC7C2D12) : const Color(0xCC166534),
+        color: isPrivate ? AppColors.cCC7C2D12 : AppColors.cCC166534,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -2336,6 +2314,7 @@ class _ReelsScreenState extends State<_ReelsScreen> {
     final existing = widget.commentsFor(item.path);
     final submitted = await showModalBottomSheet<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
@@ -2525,19 +2504,32 @@ class _ReelsScreenState extends State<_ReelsScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 4),
-                                  Text(
-                                    item.uploaderUsername.isEmpty
-                                        ? '@user'
-                                        : '@${item.uploaderUsername}',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
+                                    Text(
+                                      item.uploaderUsername.isEmpty
+                                          ? '@user'
+                                          : '@${item.uploaderUsername}',
+                                      style: const TextStyle(
+                                        color: Colors.white70,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    if (item.caption.trim().isNotEmpty) ...[
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        item.caption.trim(),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
                               ),
-                            ),
                             Column(
                               children: [
                                 _ReelActionButton(
@@ -2623,6 +2615,7 @@ class _ProfileMediaItem {
   final bool isDisliked;
   final String uploaderName;
   final String uploaderUsername;
+  final String caption;
   final String visibility;
   final String source;
 
@@ -2638,6 +2631,7 @@ class _ProfileMediaItem {
     required this.uploaderName,
     required this.uploaderUsername,
     required this.visibility,
+    this.caption = '',
     this.source = '',
   });
 
@@ -2653,6 +2647,7 @@ class _ProfileMediaItem {
       isDisliked: (json['is_disliked'] as bool?) ?? false,
       uploaderName: (json['uploader_name'] ?? '').toString(),
       uploaderUsername: (json['uploader_username'] ?? '').toString(),
+      caption: (json['caption'] ?? '').toString(),
       visibility: _ProfileMediaVisibility.normalize(
         (json['visibility'] ?? '').toString(),
       ),
@@ -2672,6 +2667,7 @@ class _ProfileMediaItem {
       'is_disliked': isDisliked,
       'uploader_name': uploaderName,
       'uploader_username': uploaderUsername,
+      'caption': caption,
       'visibility': visibility,
       'source': source,
     };
@@ -2688,6 +2684,7 @@ class _ProfileMediaItem {
     bool? isDisliked,
     String? uploaderName,
     String? uploaderUsername,
+    String? caption,
     String? visibility,
     String? source,
   }) {
@@ -2702,6 +2699,7 @@ class _ProfileMediaItem {
       isDisliked: isDisliked ?? this.isDisliked,
       uploaderName: uploaderName ?? this.uploaderName,
       uploaderUsername: uploaderUsername ?? this.uploaderUsername,
+      caption: caption ?? this.caption,
       visibility: _ProfileMediaVisibility.normalize(
         visibility ?? this.visibility,
       ),
@@ -2809,8 +2807,8 @@ class _CapturedMediaReviewScreenState
                       borderRadius: BorderRadius.circular(18),
                       child: Container(
                         color: isDark
-                            ? const Color(0xFF111111)
-                            : const Color(0xFFF2F2F2),
+                            ? AppColors.cFF111111
+                            : AppColors.cFFF2F2F2,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [
@@ -3198,27 +3196,40 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
               left: 14,
               right: 90,
               bottom: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _VisibilityBadge(visibility: _item.visibility),
-                  const SizedBox(height: 8),
-                  Text(
-                    _item.uploaderName,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 15,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _VisibilityBadge(visibility: _item.visibility),
+                    const SizedBox(height: 8),
+                    Text(
+                      _item.uploaderName,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _item.uploaderUsername,
-                    style: const TextStyle(color: Colors.white70, fontSize: 13),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      _item.uploaderUsername,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                    if (_item.caption.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _item.caption.trim(),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
-            ),
           ],
         ),
       ),

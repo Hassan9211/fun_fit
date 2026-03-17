@@ -16,6 +16,7 @@ import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/app_pull_to_refresh.dart';
 import '../widget/record_with_audio_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -535,6 +536,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final isDark = AppColors.isDark(context);
     showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       backgroundColor: AppColors.surface(context),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
@@ -585,17 +587,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 460.0
         : 400.0;
     final isCompact = width < 370;
-    final panelColor = const Color(0xFFF5F5F5);
-    const panelTextColor = Color(0xFF222222);
-    const panelHintColor = Color(0xFF7A7A7A);
-    const panelCardColor = Color(0xFFEFEFEF);
+    final panelColor = AppColors.cFFF5F5F5;
+    const panelTextColor = AppColors.cFF222222;
+    const panelHintColor = AppColors.cFF7A7A7A;
+    const panelCardColor = AppColors.cFFEFEFEF;
     final avatarImage = ProfileAvatarResolver.resolve(
       _profileImagePath,
       fallback: const NetworkImage(_defaultProfileImageUrl),
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
+      backgroundColor: AppColors.cFF080808,
       extendBody: true,
       body: SafeArea(
         bottom: false,
@@ -616,7 +618,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'Welcome',
                               style: const TextStyle(
-                                color: Color(0xFFE5E7EB),
+                                color: AppColors.cFFE5E7EB,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -673,9 +675,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                       width: 9,
                                       height: 9,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFFFF4D4D),
+                                        color: AppColors.cFFFF4D4D,
                                         border: Border.all(
-                                          color: const Color(0xFF080808),
+                                          color: AppColors.cFF080808,
                                           width: 1.2,
                                         ),
                                         shape: BoxShape.circle,
@@ -696,9 +698,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         top: Radius.circular(14),
                       ),
                     ),
-                    child: ListView(
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
-                      children: [
+                    child: AppPullToRefresh(
+                      onRefresh: _loadHomeData,
+                      child: ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
+                        children: [
                         InkWell(
                           borderRadius: BorderRadius.circular(16),
                           onTap: _openFitnessLevelSelector,
@@ -778,7 +783,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Text(
                                 'Current Challenges',
                                 style: const TextStyle(
-                                  color: Color(0xFF646464),
+                                  color: AppColors.cFF646464,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -830,7 +835,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Text(
                               'View all',
                               style: const TextStyle(
-                                color: Color(0xFF9B9B9B),
+                                color: AppColors.cFF9B9B9B,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -883,7 +888,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     Text(
                                       _recommendedMeal.caloriesText,
                                       style: TextStyle(
-                                        color: Color(0xFFDADADA),
+                                        color: AppColors.cFFDADADA,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w600,
                                       ),
@@ -894,7 +899,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -923,9 +929,9 @@ class _HomeScreenState extends State<HomeScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F3F3),
+        color: AppColors.cFFF3F3F3,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E5E5)),
+        border: Border.all(color: AppColors.cFFE5E5E5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -962,7 +968,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1D1D1D),
+                          color: AppColors.cFF1D1D1D,
                         ),
                       ),
                     ),
@@ -970,7 +976,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       challenge.duration,
                       style: const TextStyle(
-                        color: Color(0xFF8A8A8A),
+                        color: AppColors.cFF8A8A8A,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -983,7 +989,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF8E8E8E),
+                    color: AppColors.cFF8E8E8E,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.18,
@@ -994,7 +1000,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Remaining: ${challenge.formatRemainingTime()}',
                     style: const TextStyle(
-                      color: Color(0xFF4A4A4A),
+                      color: AppColors.cFF4A4A4A,
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1006,8 +1012,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: LinearProgressIndicator(
                     minHeight: 8,
                     value: challenge.progress,
-                    backgroundColor: const Color(0xFFE0E0E0),
-                    valueColor: const AlwaysStoppedAnimation(Color(0xFF22C1CC)),
+                    backgroundColor: AppColors.cFFE0E0E0,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.cFF22C1CC),
                   ),
                 ),
               ],
@@ -1022,7 +1028,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Icon(
                 Icons.close_rounded,
                 size: 18,
-                color: Color(0xFF202020),
+                color: AppColors.cFF202020,
               ),
             ),
           ),
@@ -1106,6 +1112,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     if (widget.onDiscard == null) return;
     final shouldDiscard = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) => AlertDialog(
         title: const Text('Discard Challenge'),
         content: const Text('Are you sure you want to discard this challenge?'),
@@ -1156,11 +1163,14 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
   }
 
   Future<void> _recordChallenge(BuildContext context) async {
+    final challengeName = _current?.title ?? widget.challenge?.title ?? '';
     final path = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const RecordWithAudioScreen()),
+      MaterialPageRoute(
+        builder: (_) => RecordWithAudioScreen(challengeName: challengeName),
+      ),
     );
     if (!context.mounted || path == null || path.isEmpty) return;
-    await _saveChallengeVideoToReels(path);
+    await _saveChallengeVideoToReels(path, challengeName: challengeName);
     if (!context.mounted) return;
     final fileName = path.split(RegExp(r'[\\\\/]')).last;
     ScaffoldMessenger.of(
@@ -1168,11 +1178,24 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     ).showSnackBar(SnackBar(content: Text('Video selected: $fileName')));
   }
 
-  Future<void> _saveChallengeVideoToReels(String path) async {
+  String _buildChallengeCaption(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return '';
+    final lower = trimmed.toLowerCase();
+    final suffix = lower.contains('challenge') ? '' : ' challenge';
+    return 'Completed $trimmed$suffix';
+  }
+
+  Future<void> _saveChallengeVideoToReels(
+    String path, {
+    required String challengeName,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final mediaRaw = prefs.getStringList(_kChallengeReels) ?? <String>[];
     final name = (prefs.getString(_kProfileName) ?? '').trim();
     final username = (prefs.getString(_kProfileUsername) ?? '').trim();
+    final trimmedChallenge = challengeName.trim();
+    final caption = _buildChallengeCaption(trimmedChallenge);
 
     final payload = <String, dynamic>{
       'path': path,
@@ -1187,6 +1210,12 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
       'uploader_username': username,
       'visibility': 'public',
       'source': 'challenge',
+      if (caption.isNotEmpty) 'caption': caption,
+      if (trimmedChallenge.isNotEmpty) ...{
+        'challenge_name': trimmedChallenge,
+        'challengeName': trimmedChallenge,
+        'title': trimmedChallenge,
+      },
     };
 
     mediaRaw.insert(0, jsonEncode(payload));
@@ -1211,10 +1240,10 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const panelColor = Color(0xFFF5F5F5);
-    const panelTextColor = Color(0xFF222222);
-    const panelHintColor = Color(0xFF7A7A7A);
-    const panelCardColor = Color(0xFFEFEFEF);
+    const panelColor = AppColors.cFFF5F5F5;
+    const panelTextColor = AppColors.cFF222222;
+    const panelHintColor = AppColors.cFF7A7A7A;
+    const panelCardColor = AppColors.cFFEFEFEF;
     final data = _current;
     final remaining = data?.formatRemainingTime();
     final canStop = data != null && data.isRunning;
@@ -1222,10 +1251,10 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     final isCompleted = data != null && data.isCompleted;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080808),
+      backgroundColor: AppColors.cFF080808,
       extendBody: true,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF080808),
+        backgroundColor: AppColors.cFF080808,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, size: 18),
@@ -1245,9 +1274,14 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
             color: panelColor,
             borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
           ),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 96),
-            children: [
+          child: AppPullToRefresh(
+            onRefresh: () async {
+              _refreshFromParent();
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 96),
+              children: [
               const Text(
                 'Choose Random Challenge',
                 style: TextStyle(
@@ -1285,7 +1319,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
               const Text(
                 'Current Challenges',
                 style: TextStyle(
-                  color: Color(0xFF646464),
+                  color: AppColors.cFF646464,
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                 ),
@@ -1301,14 +1335,14 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFE2E2E2)),
+                    border: Border.all(color: AppColors.cFFE2E2E2),
                   ),
                   child: Row(
                     children: [
                       const Icon(
                         Icons.timer_outlined,
                         size: 16,
-                        color: Color(0xFF1EA7A4),
+                        color: AppColors.cFF1EA7A4,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -1360,7 +1394,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                     decoration: BoxDecoration(
                       color: panelCardColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E2E2)),
+                      border: Border.all(color: AppColors.cFFE2E2E2),
                     ),
                     child: Row(
                       children: [
@@ -1401,7 +1435,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                                   Text(
                                     data.duration,
                                     style: const TextStyle(
-                                      color: Color(0xFF8A8A8A),
+                                      color: AppColors.cFF8A8A8A,
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1414,7 +1448,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  color: Color(0xFF8E8E8E),
+                                  color: AppColors.cFF8E8E8E,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   height: 1.18,
@@ -1426,9 +1460,9 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                                 child: LinearProgressIndicator(
                                   minHeight: 8,
                                   value: data.progress,
-                                  backgroundColor: const Color(0xFFE0E0E0),
+                                  backgroundColor: AppColors.cFFE0E0E0,
                                   valueColor: const AlwaysStoppedAnimation(
-                                    Color(0xFF22C1CC),
+                                    AppColors.cFF22C1CC,
                                   ),
                                 ),
                               ),
@@ -1496,7 +1530,7 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                             'nearly touches the ground, then push back up. '
                             'Upload a video for verification.',
                   style: const TextStyle(
-                    color: Color(0xFF4A4A4A),
+                    color: AppColors.cFF4A4A4A,
                     fontSize: 12.5,
                     height: 1.3,
                   ),
@@ -1542,7 +1576,8 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
                   ),
                 ),
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1559,8 +1594,8 @@ class _RandomChallengeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = isActive ? const Color(0xFFE6F7FA) : Colors.white;
-    final border = isActive ? const Color(0xFF22C1CC) : const Color(0xFFE2E2E2);
+    final background = isActive ? AppColors.cFFE6F7FA : Colors.white;
+    final border = isActive ? AppColors.cFF22C1CC : AppColors.cFFE2E2E2;
 
     return Container(
       padding: const EdgeInsets.all(8),
@@ -1608,7 +1643,7 @@ class _RandomChallengeTile extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1D1D1D),
+                          color: AppColors.cFF1D1D1D,
                         ),
                       ),
                     ),
@@ -1616,7 +1651,7 @@ class _RandomChallengeTile extends StatelessWidget {
                     Text(
                       challenge.duration,
                       style: const TextStyle(
-                        color: Color(0xFF8A8A8A),
+                        color: AppColors.cFF8A8A8A,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1629,7 +1664,7 @@ class _RandomChallengeTile extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: Color(0xFF8E8E8E),
+                    color: AppColors.cFF8E8E8E,
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     height: 1.18,

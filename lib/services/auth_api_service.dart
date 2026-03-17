@@ -553,7 +553,7 @@ class AuthApiService {
         extraHeaders: extraHeaders,
       );
 
-      final notifications = _extractList(notificationsResult.data);
+      final notifications = _extractNotificationList(notificationsResult.data);
       final challenges = _extractList(challengesResult.data);
 
       return AuthApiResult(
@@ -1543,6 +1543,32 @@ class AuthApiService {
       for (final key in const <String>['data', 'items', 'results', 'list']) {
         final nested = value[key];
         if (nested is List) return nested;
+      }
+    }
+    return null;
+  }
+
+  List<dynamic>? _extractNotificationList(dynamic value) {
+    if (value == null) return null;
+    if (value is List) return value;
+    if (value is Map) {
+      for (final key in const <String>[
+        'notifications',
+        'notification_list',
+        'notificationList',
+        'alerts',
+      ]) {
+        final direct = value[key];
+        if (direct is List) return direct;
+        final nestedFromDirect = _extractNotificationList(direct);
+        if (nestedFromDirect != null) return nestedFromDirect;
+      }
+      final generic = _extractList(value);
+      if (generic != null) return generic;
+      for (final key in const <String>['data', 'result', 'payload']) {
+        final nested = value[key];
+        final nestedList = _extractNotificationList(nested);
+        if (nestedList != null) return nestedList;
       }
     }
     return null;

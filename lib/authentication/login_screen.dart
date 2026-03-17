@@ -314,7 +314,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       _socialButton(
                         icon: Icons.telegram,
-                        color: const Color(0xFF0EA5E9),
+                        color: AppColors.cFF0EA5E9,
                         onTap: () {},
                         context: context,
                       ),
@@ -322,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       _socialButton(
                         icon: Icons.facebook,
-                        color: const Color(0xFF1877F2),
+                        color: AppColors.cFF1877F2,
                         onTap: () {},
                         context: context,
                       ),
@@ -385,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen> {
           color: ctx == null ? Colors.white : AppColors.surface(ctx),
           border: Border.all(
             color: ctx == null
-                ? const Color(0xFFE5E7EB)
+                ? AppColors.cFFE5E7EB
                 : AppColors.borderLightFor(ctx),
           ),
         ),

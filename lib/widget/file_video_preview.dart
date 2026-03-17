@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:fun_fit/widget/app_colors.dart';
 import 'package:video_player/video_player.dart';
 
 class FileVideoPreview extends StatefulWidget {
@@ -97,7 +98,7 @@ class _FileVideoPreviewState extends State<FileVideoPreview> {
     final fallback =
         widget.fallback ??
         ColoredBox(
-          color: const Color(0xFF111111),
+          color: AppColors.cFF111111,
           child: Center(
             child: Icon(
               Icons.play_circle_fill_rounded,

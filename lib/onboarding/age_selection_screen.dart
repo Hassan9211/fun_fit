@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 
 class AgeSelectionScreen extends StatefulWidget {
@@ -127,7 +128,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                                   width: 140,
                                   height: 42,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF3F4F6),
+                                    color: AppColors.cFFF3F4F6,
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                 ),

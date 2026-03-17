@@ -17,6 +17,7 @@ import '../widget/app_colors.dart';
 import '../widget/app_section_header.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/getx.dart';
+import '../widget/app_pull_to_refresh.dart';
 import '../widget/record_with_audio_screen.dart';
 
 class ChallengesScreen extends StatelessWidget {
@@ -515,7 +516,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     final token = await AuthSessionStorage.readToken();
     if (token.isNotEmpty) {
       await _authApi.acceptChallenge(
-        data: <String, dynamic>{'challenge_id': id},
+        data: _buildAcceptChallengePayload(post),
         bearerToken: token,
       );
     }
@@ -525,6 +526,7 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     final controller = TextEditingController();
     final shouldSubmit = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) {
         return AlertDialog(
           title: const Text('Reply'),
@@ -697,6 +699,35 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
     return '10 mins';
   }
 
+  Map<String, dynamic> _buildAcceptChallengePayload(_ChallengePost post) {
+    final duration = _inferDuration(post.description);
+    final media = (post.mediaPath ?? '').trim();
+    final payload = <String, dynamic>{
+      'challenge_id': post.id,
+      'challengeId': post.id,
+      'challenge_name': post.title,
+      'title': post.title,
+      'name': post.title,
+      'level': post.fitnessLevel,
+      'fitness_level': post.fitnessLevel,
+      'category': post.category,
+      'difficulty': post.category,
+      'description': post.description,
+      'time': duration,
+      'duration': duration,
+      'media': media.isEmpty ? null : media,
+      'media_path': media.isEmpty ? null : media,
+      'media_url': media.isEmpty ? null : media,
+      'type': 'public',
+      'status': 'active',
+    };
+    payload.removeWhere(
+      (key, value) =>
+          value == null || (value is String && value.trim().isEmpty),
+    );
+    return payload;
+  }
+
   Future<void> _saveAcceptedChallengeToRandom(_ChallengePost post) async {
     final prefs = await SharedPreferences.getInstance();
     final randomExisting = prefs.getStringList(_kRandomChallenges) ?? <String>[];
@@ -743,14 +774,14 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
         final colorScheme = Theme.of(context).colorScheme;
         final isDark = AppColors.isDark(context);
         final panelColor = isDark
-            ? const Color(0xFF171717)
-            : const Color(0xFFF2F2F2);
+            ? AppColors.cFF171717
+            : AppColors.cFFF2F2F2;
         final avatarProvider = ProfileAvatarResolver.resolve(
           _profileImagePath,
           fallback: const AssetImage('assets/images/alina.jpg'),
         );
         return Scaffold(
-          backgroundColor: const Color(0xFF080808),
+          backgroundColor: AppColors.cFF080808,
           resizeToAvoidBottomInset: false,
           extendBody: true,
           floatingActionButton: SizedBox(
@@ -851,41 +882,49 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
                               Expanded(
                                 child: Stack(
                                   children: [
-                                    ListView.separated(
-                                      padding: const EdgeInsets.fromLTRB(
-                                        12,
-                                        6,
-                                        12,
-                                        92,
-                                      ),
-                                      itemCount: _visiblePosts.length,
-                                      separatorBuilder: (_, _) =>
-                                          const SizedBox(height: 12),
-                                      itemBuilder: (context, index) {
-                                        final post = _visiblePosts[index];
-                                        final isPublic =
-                                            _selectedTab ==
-                                            _ChallengesTab.publicPosts;
-                                        return AnimatedReveal(
-                                          delay: Duration(
-                                            milliseconds:
-                                                130 + ((index % 8) * 32),
-                                          ),
-                                          child: _ChallengePostTile(
-                                            post: post,
-                                            onLike: isPublic
-                                                ? () => _toggleLike(post.id)
-                                                : null,
-                                            onDislike: isPublic
-                                                ? () => _toggleDislike(post.id)
-                                                : null,
-                                            onReply: () =>
-                                                _openReplyDialog(post.id),
-                                            onAccept: () =>
-                                                _toggleAccept(post.id),
-                                          ),
-                                        );
+                                    AppPullToRefresh(
+                                      onRefresh: () async {
+                                        await _loadProfileData();
+                                        await _loadChallengesFromApi();
                                       },
+                                      child: ListView.separated(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: const EdgeInsets.fromLTRB(
+                                          12,
+                                          6,
+                                          12,
+                                          92,
+                                        ),
+                                        itemCount: _visiblePosts.length,
+                                        separatorBuilder: (_, _) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, index) {
+                                          final post = _visiblePosts[index];
+                                          final isPublic =
+                                              _selectedTab ==
+                                              _ChallengesTab.publicPosts;
+                                          return AnimatedReveal(
+                                            delay: Duration(
+                                              milliseconds:
+                                                  130 + ((index % 8) * 32),
+                                            ),
+                                            child: _ChallengePostTile(
+                                              post: post,
+                                              onLike: isPublic
+                                                  ? () => _toggleLike(post.id)
+                                                  : null,
+                                              onDislike: isPublic
+                                                  ? () => _toggleDislike(post.id)
+                                                  : null,
+                                              onReply: () =>
+                                                  _openReplyDialog(post.id),
+                                              onAccept: () =>
+                                                  _toggleAccept(post.id),
+                                            ),
+                                          );
+                                        },
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -977,6 +1016,7 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
   Future<void> _pickMedia() async {
     await showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
       ),
@@ -1034,11 +1074,14 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
               source: ImageSource.camera,
               imageQuality: 85,
             );
-      final videoPath = isVideo
-          ? await nav.push<String>(
-              MaterialPageRoute(builder: (_) => const RecordWithAudioScreen()),
-            )
-          : null;
+        final videoPath = isVideo
+            ? await nav.push<String>(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      RecordWithAudioScreen(challengeName: _nameController.text),
+                ),
+              )
+            : null;
       if (!mounted) return;
       if (!isVideo && file == null) return;
       if (isVideo && (videoPath == null || videoPath.isEmpty)) return;
@@ -1443,7 +1486,7 @@ class _ChallengePostTile extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 12.5,
-              backgroundColor: const Color(0xFFF4D1D8),
+              backgroundColor: AppColors.cFFF4D1D8,
               backgroundImage: avatarImage,
               child: avatarImage == null
                   ? Text(
@@ -1475,13 +1518,13 @@ class _ChallengePostTile extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(height: 7),
-        Text(
-          post.title,
-          style: TextStyle(
-            color: AppColors.textPrimaryFor(context),
-            fontWeight: FontWeight.w700,
-            fontSize: 28,
+          const SizedBox(height: 7),
+          Text(
+            post.title.trim().isEmpty ? 'Challenge' : post.title,
+            style: TextStyle(
+              color: AppColors.textPrimaryFor(context),
+              fontWeight: FontWeight.w700,
+              fontSize: 28,
             height: 1.1,
           ),
         ),
@@ -1611,13 +1654,13 @@ class _DetailChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFEBF9F0),
+        color: AppColors.cFFEBF9F0,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: Color(0xFF2E7D32),
+          color: AppColors.cFF2E7D32,
           fontWeight: FontWeight.w600,
           fontSize: 9.6,
         ),

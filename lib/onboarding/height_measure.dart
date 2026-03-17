@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 
 class HeightSelectionScreen extends StatefulWidget {
@@ -44,6 +45,7 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
 
     final value = await showDialog<String>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) {
         return AlertDialog(
           title: Text('Set height in $unit'),
@@ -243,7 +245,7 @@ class _HeightUnitSwitch extends StatelessWidget {
       height: 30,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: AppColors.cFFF3F4F6,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -313,8 +315,8 @@ class _HeightPill extends StatelessWidget {
       width: 126,
       height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: AppColors.cFFF3F4F6,
+        border: Border.all(color: AppColors.cFFE5E7EB),
         borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.center,

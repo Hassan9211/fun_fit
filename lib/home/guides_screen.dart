@@ -8,6 +8,7 @@ import '../services/profile_sync_service.dart';
 import '../services/auth_api_service.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
+import '../widget/app_pull_to_refresh.dart';
 import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
@@ -42,7 +43,11 @@ class GuidesScreen extends StatefulWidget {
 }
 
 class _GuidesScreenState extends State<GuidesScreen> {
+  static const String _kProfileName = 'profile_name';
+  static const String _kProfileUsername = 'profile_username';
   static const String _kProfileImagePath = 'profile_image_path';
+  String _profileName = '';
+  String _profileUsername = '';
   String _profileImagePath = '';
   _GuidesMainTab _activeTab = _GuidesMainTab.forYou;
   _ChatTopic _activeTopic = _ChatTopic.food;
@@ -56,23 +61,44 @@ class _GuidesScreenState extends State<GuidesScreen> {
   @override
   void initState() {
     super.initState();
-    ProfileSyncService.changes.addListener(_loadProfileImage);
-    _loadProfileImage();
-    _loadGuides();
-    _loadChallenges();
+    ProfileSyncService.changes.addListener(_handleProfileChange);
+    _initScreen();
   }
 
   @override
   void dispose() {
-    ProfileSyncService.changes.removeListener(_loadProfileImage);
+    ProfileSyncService.changes.removeListener(_handleProfileChange);
     super.dispose();
   }
 
-  Future<void> _loadProfileImage() async {
+  Future<void> _initScreen() async {
+    await _loadProfileData();
+    _loadGuides();
+    _loadChallenges();
+  }
+
+  void _handleProfileChange() {
+    _loadProfileData();
+    _loadChallenges();
+  }
+
+  Future<void> _handleRefresh() async {
+    await _loadProfileData();
+    await _loadGuides();
+    await _loadChallenges();
+  }
+
+  Future<void> _loadProfileData() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedName = (prefs.getString(_kProfileName) ?? '').trim();
+    final savedUsername = (prefs.getString(_kProfileUsername) ?? '').trim();
     final savedPath = (prefs.getString(_kProfileImagePath) ?? '').trim();
     if (!mounted) return;
-    setState(() => _profileImagePath = savedPath);
+    setState(() {
+      _profileName = savedName;
+      _profileUsername = savedUsername;
+      _profileImagePath = savedPath;
+    });
   }
 
   Future<void> _loadGuides() async {
@@ -130,6 +156,10 @@ class _GuidesScreenState extends State<GuidesScreen> {
           'handle',
         ],
       );
+      final username = _firstNonEmptyString(
+        map,
+        const <String>['username', 'user_name', 'handle'],
+      );
       final title = _firstNonEmptyString(
         map,
         const <String>['title', 'challenge_name', 'name'],
@@ -180,15 +210,23 @@ class _GuidesScreenState extends State<GuidesScreen> {
       final message = parts.join('\n').trim();
       if (message.isEmpty) continue;
 
+      final isMine = _isCurrentUser(author, username);
+      final displayName =
+          author.isNotEmpty ? author : (_profileName.isNotEmpty ? _profileName : 'Coach');
+      final resolvedAvatar =
+          isMine && _profileImagePath.trim().isNotEmpty
+          ? _profileImagePath
+          : (avatar.isEmpty ? 'assets/images/tammana.jpg' : avatar);
+
       parsed.add(
         _DiscussionPost(
           id: id,
-          name: author.isEmpty ? 'Coach' : author,
+          name: displayName,
           ago: minutesAgo > 0 ? '$minutesAgo min' : 'Now',
           message: message,
           likes: likes,
           type: _ChatTopic.challenge,
-          avatar: avatar.isEmpty ? 'assets/images/tammana.jpg' : avatar,
+          avatar: resolvedAvatar,
           isAccepted: isAccepted,
         ),
       );
@@ -233,6 +271,22 @@ class _GuidesScreenState extends State<GuidesScreen> {
     if (value is num) return value != 0;
     final text = value?.toString().toLowerCase().trim();
     return text == 'true' || text == '1' || text == 'yes';
+  }
+
+  String _normalizeUsername(String value) {
+    return value.trim().toLowerCase().replaceAll('@', '');
+  }
+
+  bool _isCurrentUser(String author, String username) {
+    final name = _profileName.trim().toLowerCase();
+    final user = _normalizeUsername(_profileUsername);
+    final authorNorm = author.trim().toLowerCase();
+    final usernameNorm = _normalizeUsername(username);
+    if (name.isNotEmpty && authorNorm == name) return true;
+    if (user.isNotEmpty && (usernameNorm == user || authorNorm == user)) {
+      return true;
+    }
+    return false;
   }
 
   List<_GuideVideoItem> _parseGuides(Map<String, dynamic>? response) {
@@ -293,8 +347,8 @@ class _GuidesScreenState extends State<GuidesScreen> {
 
     return Scaffold(
       backgroundColor: isDark
-          ? const Color(0xFF050505)
-          : const Color(0xFF080808),
+          ? AppColors.cFF050505
+          : AppColors.cFF080808,
       resizeToAvoidBottomInset: false,
       extendBody: true,
       body: SafeArea(
@@ -309,15 +363,15 @@ class _GuidesScreenState extends State<GuidesScreen> {
                   avatarProvider: avatarProvider,
                   onTapProfile: () async {
                     await Get.toNamed(Routes.profile);
-                    await _loadProfileImage();
+                    await _loadProfileData();
                   },
                 ),
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
                       color: isDark
-                          ? const Color(0xFF121212)
-                          : const Color(0xFFF2F2F2),
+                          ? AppColors.cFF121212
+                          : AppColors.cFFF2F2F2,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(14),
                       ),
@@ -332,7 +386,12 @@ class _GuidesScreenState extends State<GuidesScreen> {
                                 setState(() => _activeTab = tab),
                           ),
                         ),
-                        Expanded(child: _buildBody()),
+                        Expanded(
+                          child: AppPullToRefresh(
+                            onRefresh: _handleRefresh,
+                            child: _buildBody(),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -346,7 +405,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
         width: 42,
         height: 42,
         child: FloatingActionButton(
-          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          backgroundColor: isDark ? AppColors.cFF1E1E1E : Colors.white,
           elevation: 2,
           onPressed: () {},
           child: Icon(
@@ -460,6 +519,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
     final controller = TextEditingController();
     final shouldReply = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) {
         return AlertDialog(
           title: const Text('Reply'),
@@ -635,10 +695,10 @@ class _GuidesTabs extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B1B1B) : const Color(0xFFE8E8E8),
+        color: isDark ? AppColors.cFF1B1B1B : AppColors.cFFE8E8E8,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? const Color(0xFF2A2A2A) : Colors.transparent,
+          color: isDark ? AppColors.cFF2A2A2A : Colors.transparent,
         ),
       ),
       child: Row(
@@ -692,7 +752,7 @@ class _TabChip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? (isDark ? const Color(0xFFF3F4F6) : Colors.black)
+              ? (isDark ? AppColors.cFFF3F4F6 : Colors.black)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
         ),
@@ -731,19 +791,27 @@ class _ForYouTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (playlist.isEmpty) {
-      return Center(
-        child: Text(
-          'No guides yet.',
-          style: TextStyle(
-            color: AppColors.textSecondaryFor(context),
-            fontSize: 13,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(
+              'No guides yet.',
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
+                fontSize: 13,
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
 
     final firstTwo = playlist.take(2).toList(growable: false);
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
       children: [
         const _SectionHeading(title: 'Workout Videos'),
@@ -782,7 +850,7 @@ class _MutedSectionLabel extends StatelessWidget {
     return Text(
       label,
       style: TextStyle(
-        color: isDark ? const Color(0xFFB5B5B5) : const Color(0xFF707070),
+        color: isDark ? AppColors.cFFB5B5B5 : AppColors.cFF707070,
         fontSize: 11,
         fontWeight: FontWeight.w700,
       ),
@@ -804,7 +872,7 @@ class _SectionHeading extends StatelessWidget {
           child: Text(
             title,
             style: TextStyle(
-              color: isDark ? const Color(0xFFB5B5B5) : const Color(0xFF707070),
+              color: isDark ? AppColors.cFFB5B5B5 : AppColors.cFF707070,
               fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
@@ -813,7 +881,7 @@ class _SectionHeading extends StatelessWidget {
         Text(
           'View all',
           style: TextStyle(
-            color: isDark ? const Color(0xFF8B8B8B) : const Color(0xFFA7A7A7),
+            color: isDark ? AppColors.cFF8B8B8B : AppColors.cFFA7A7A7,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),
@@ -934,7 +1002,7 @@ class _MediaCard extends StatelessWidget {
                     child: Center(
                       child: CircleAvatar(
                         radius: 15,
-                        backgroundColor: Color(0xD7000000),
+                        backgroundColor: AppColors.cD7000000,
                         child: Icon(
                           Icons.play_arrow_rounded,
                           color: Colors.white,
@@ -965,7 +1033,7 @@ class _MediaCard extends StatelessWidget {
                         Text(
                           subtitle,
                           style: const TextStyle(
-                            color: Color(0xFFE6E6E6),
+                            color: AppColors.cFFE6E6E6,
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
                           ),
@@ -1067,7 +1135,7 @@ class _WorkoutVideoCard extends StatelessWidget {
                       const SizedBox(width: 5),
                       const CircleAvatar(
                         radius: 11,
-                        backgroundColor: Color(0xCC000000),
+                        backgroundColor: AppColors.cCC000000,
                         child: Icon(
                           Icons.play_arrow_rounded,
                           color: Colors.white,
@@ -1293,7 +1361,7 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
         : 0.0;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF050505) : Colors.black,
+      backgroundColor: isDark ? AppColors.cFF050505 : Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
@@ -1355,7 +1423,7 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
                 Text(
                   _currentItem.meta,
                   style: const TextStyle(
-                    color: Color(0xFFB8B8B8),
+                    color: AppColors.cFFB8B8B8,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -1390,7 +1458,7 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
                       Text(
                         _formatDuration(position),
                         style: const TextStyle(
-                          color: Color(0xFFB8B8B8),
+                          color: AppColors.cFFB8B8B8,
                           fontSize: 11,
                         ),
                       ),
@@ -1398,7 +1466,7 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
                       Text(
                         _formatDuration(duration),
                         style: const TextStyle(
-                          color: Color(0xFFB8B8B8),
+                          color: AppColors.cFFB8B8B8,
                           fontSize: 11,
                         ),
                       ),
@@ -1506,7 +1574,7 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
                                   Text(
                                     item.meta,
                                     style: const TextStyle(
-                                      color: Color(0xFFB8B8B8),
+                                      color: AppColors.cFFB8B8B8,
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -1621,17 +1689,25 @@ class _ExploreTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (posts.isEmpty) {
-      return Center(
-        child: Text(
-          'No posts yet.',
-          style: TextStyle(
-            color: AppColors.textSecondaryFor(context),
-            fontSize: 13,
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(
+              'No posts yet.',
+              style: TextStyle(
+                color: AppColors.textSecondaryFor(context),
+                fontSize: 13,
+              ),
+            ),
           ),
-        ),
+        ],
       );
     }
     return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
       itemCount: posts.length,
       itemBuilder: (context, index) => _DiscussionCard(
@@ -1700,16 +1776,24 @@ class _ChatTab extends StatelessWidget {
         ),
         Expanded(
           child: posts.isEmpty
-              ? Center(
-                  child: Text(
-                    'No posts yet.',
-                    style: TextStyle(
-                      color: AppColors.textSecondaryFor(context),
-                      fontSize: 13,
+              ? ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
+                  children: [
+                    const SizedBox(height: 120),
+                    Center(
+                      child: Text(
+                        'No posts yet.',
+                        style: TextStyle(
+                          color: AppColors.textSecondaryFor(context),
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 )
               : ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(12, 0, 12, 88),
                   itemCount: posts.length,
                   itemBuilder: (context, index) => _DiscussionCard(
@@ -1756,7 +1840,7 @@ class _ChatNotificationButton extends StatelessWidget {
             width: 36,
             height: 32,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              color: isDark ? AppColors.cFF1E1E1E : Colors.white,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(color: AppColors.borderLightFor(context)),
             ),
@@ -1776,10 +1860,10 @@ class _ChatNotificationButton extends StatelessWidget {
                   vertical: 1.5,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
+                  color: AppColors.cFF111827,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(
-                    color: isDark ? const Color(0xFF121212) : Colors.white,
+                    color: isDark ? AppColors.cFF121212 : Colors.white,
                     width: 1.1,
                   ),
                 ),
@@ -1822,8 +1906,8 @@ class _TopicChip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? (isDark ? const Color(0xFFF3F4F6) : Colors.black)
-              : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+              ? (isDark ? AppColors.cFFF3F4F6 : Colors.black)
+              : (isDark ? AppColors.cFF1E1E1E : Colors.white),
           borderRadius: BorderRadius.circular(7),
           border: Border.all(color: AppColors.borderLightFor(context)),
         ),
@@ -1872,7 +1956,7 @@ class _DiscussionCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.fromLTRB(10, 10, 8, 8),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1B1B1B) : Colors.white,
+          color: isDark ? AppColors.cFF1B1B1B : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderLightFor(context)),
         ),
@@ -1883,7 +1967,10 @@ class _DiscussionCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 12,
-                  backgroundImage: AssetImage(post.avatar),
+                  backgroundImage: ProfileAvatarResolver.resolve(
+                    post.avatar,
+                    fallback: const AssetImage('assets/images/tammana.jpg'),
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
@@ -1955,7 +2042,7 @@ class _DiscussionCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10.2,
                         color: post.isAccepted
-                            ? const Color(0xFF15803D)
+                            ? AppColors.cFF15803D
                             : AppColors.textMutedFor(context),
                         fontWeight: FontWeight.w700,
                       ),
@@ -1982,7 +2069,7 @@ class _DiscussionCard extends StatelessWidget {
                     Icons.thumb_down_alt_outlined,
                     size: 14,
                     color: post.reaction == _DiscussionReaction.dislike
-                        ? const Color(0xFFB42318)
+                        ? AppColors.cFFB42318
                         : AppColors.textMutedFor(context),
                   ),
                 ),
@@ -2089,11 +2176,11 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
     final isDark = AppColors.isDark(context);
     return Scaffold(
       backgroundColor: isDark
-          ? const Color(0xFF101010)
-          : const Color(0xFFF1F1F1),
+          ? AppColors.cFF101010
+          : AppColors.cFFF1F1F1,
       resizeToAvoidBottomInset: false,
       appBar: AppBar(
-        backgroundColor: isDark ? const Color(0xFF141414) : Colors.white,
+        backgroundColor: isDark ? AppColors.cFF141414 : Colors.white,
         foregroundColor: AppColors.textPrimaryFor(context),
         titleSpacing: 0,
         title: Text(
@@ -2107,8 +2194,8 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
             ),
             style: TextButton.styleFrom(
               backgroundColor: isDark
-                  ? const Color(0xFF242424)
-                  : const Color(0xFFF3F3F3),
+                  ? AppColors.cFF242424
+                  : AppColors.cFFF3F3F3,
               foregroundColor: AppColors.textPrimaryFor(context),
               minimumSize: const Size(54, 28),
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -2128,7 +2215,7 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
             'Today',
             style: TextStyle(
               fontSize: 10,
-              color: Color(0xFF7A7A7A),
+              color: AppColors.cFF7A7A7A,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -2151,8 +2238,8 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? const Color(0xFF1D1D1D)
-                          : const Color(0xFFEFEFEF),
+                          ? AppColors.cFF1D1D1D
+                          : AppColors.cFFEFEFEF,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
                         color: AppColors.borderLightFor(context),
@@ -2184,7 +2271,7 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
                     onPressed: _send,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isDark
-                          ? const Color(0xFFF3F4F6)
+                          ? AppColors.cFFF3F4F6
                           : Colors.black,
                       padding: EdgeInsets.zero,
                       shape: RoundedRectangleBorder(
@@ -2224,8 +2311,8 @@ class _ChatBubble extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
           decoration: BoxDecoration(
             color: msg.mine
-                ? (isDark ? const Color(0xFF173123) : const Color(0xFFE5F5E8))
-                : (isDark ? const Color(0xFF222222) : const Color(0xFFE8E8E8)),
+                ? (isDark ? AppColors.cFF173123 : AppColors.cFFE5F5E8)
+                : (isDark ? AppColors.cFF222222 : AppColors.cFFE8E8E8),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Column(
@@ -2359,7 +2446,7 @@ class _GuideInviteNotificationsScreenState
                         const Text(
                           'All',
                           style: TextStyle(
-                            color: Color(0xFF202020),
+                            color: AppColors.cFF202020,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                           ),
@@ -2371,13 +2458,13 @@ class _GuideInviteNotificationsScreenState
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F3F5),
+                            color: AppColors.cFFF1F3F5,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             '${_notifications.length}',
                             style: const TextStyle(
-                              color: Color(0xFF475467),
+                              color: AppColors.cFF475467,
                               fontSize: 9.5,
                               fontWeight: FontWeight.w700,
                               height: 1,
@@ -2390,7 +2477,7 @@ class _GuideInviteNotificationsScreenState
                     TextButton(
                       onPressed: _unreadCount == 0 ? null : _markAllAsRead,
                       style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF344054),
+                        foregroundColor: AppColors.cFF344054,
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -2409,7 +2496,7 @@ class _GuideInviteNotificationsScreenState
                       icon: const Icon(
                         Icons.settings_outlined,
                         size: 18,
-                        color: Color(0xFF667085),
+                        color: AppColors.cFF667085,
                       ),
                     ),
                   ],
@@ -2423,21 +2510,21 @@ class _GuideInviteNotificationsScreenState
                     width: 35,
                     height: 2.2,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF111111),
+                      color: AppColors.cFF111111,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
                 ),
               ),
               const SizedBox(height: 8),
-              const Divider(height: 1, color: Color(0xFFE4E7EC)),
+              const Divider(height: 1, color: AppColors.cFFE4E7EC),
               Expanded(
                 child: _notifications.isEmpty
                     ? const Center(
                         child: Text(
                           'No notifications yet',
                           style: TextStyle(
-                            color: Color(0xFF667085),
+                            color: AppColors.cFF667085,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
@@ -2447,7 +2534,10 @@ class _GuideInviteNotificationsScreenState
                         padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
                         itemCount: _notifications.length,
                         separatorBuilder: (_, _) =>
-                            const Divider(height: 22, color: Color(0xFFE4E7EC)),
+                            const Divider(
+                              height: 22,
+                              color: AppColors.cFFE4E7EC,
+                            ),
                         itemBuilder: (context, index) {
                           final notification = _notifications[index];
                           return _InviteNotificationCard(
@@ -2495,8 +2585,8 @@ class _InviteNotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = notification.status;
     final statusColor = status == _InviteNotificationStatus.accepted
-        ? const Color(0xFF067647)
-        : const Color(0xFFB42318);
+        ? AppColors.cFF067647
+        : AppColors.cFFB42318;
     final statusLabel = status == _InviteNotificationStatus.accepted
         ? 'Invitation accepted'
         : 'Invitation declined';
@@ -2511,8 +2601,8 @@ class _InviteNotificationCard extends StatelessWidget {
               height: 7,
               decoration: BoxDecoration(
                 color: notification.isRead
-                    ? const Color(0xFFD0D5DD)
-                    : const Color(0xFF101828),
+                    ? AppColors.cFFD0D5DD
+                    : AppColors.cFF101828,
                 shape: BoxShape.circle,
               ),
             ),
@@ -2521,7 +2611,7 @@ class _InviteNotificationCard extends StatelessWidget {
               child: Text(
                 'Invitation',
                 style: TextStyle(
-                  color: Color(0xFF101828),
+                  color: AppColors.cFF101828,
                   fontSize: 12.2,
                   fontWeight: FontWeight.w700,
                 ),
@@ -2530,7 +2620,7 @@ class _InviteNotificationCard extends StatelessWidget {
             Text(
               notification.ago,
               style: const TextStyle(
-                color: Color(0xFF667085),
+                color: AppColors.cFF667085,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2539,7 +2629,7 @@ class _InviteNotificationCard extends StatelessWidget {
             const Icon(
               Icons.more_horiz_rounded,
               size: 18,
-              color: Color(0xFF667085),
+              color: AppColors.cFF667085,
             ),
           ],
         ),
@@ -2549,7 +2639,7 @@ class _InviteNotificationCard extends StatelessWidget {
           child: Text(
             '${notification.senderName} invite you to join "${notification.roomName}"\nroom',
             style: const TextStyle(
-              color: Color(0xFF667085),
+              color: AppColors.cFF667085,
               fontSize: 11.4,
               fontWeight: FontWeight.w500,
               height: 1.35,
@@ -2592,8 +2682,8 @@ class _InviteNotificationCard extends StatelessWidget {
                         child: OutlinedButton(
                           onPressed: onDecline,
                           style: OutlinedButton.styleFrom(
-                            foregroundColor: const Color(0xFF344054),
-                            side: const BorderSide(color: Color(0xFFD0D5DD)),
+                            foregroundColor: AppColors.cFF344054,
+                            side: const BorderSide(color: AppColors.cFFD0D5DD),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(4),
                             ),
@@ -2617,13 +2707,13 @@ class _InviteNotificationCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: status == _InviteNotificationStatus.accepted
-                        ? const Color(0xFFF0FDF4)
-                        : const Color(0xFFFEF3F2),
+                        ? AppColors.cFFF0FDF4
+                        : AppColors.cFFFEF3F2,
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(
                       color: status == _InviteNotificationStatus.accepted
-                          ? const Color(0xFFA6F4C5)
-                          : const Color(0xFFFDA29B),
+                          ? AppColors.cFFA6F4C5
+                          : AppColors.cFFFDA29B,
                     ),
                   ),
                   child: Text(
@@ -2649,8 +2739,8 @@ class InviteFriendScreen extends StatelessWidget {
     final isDark = AppColors.isDark(context);
     return Scaffold(
       backgroundColor: isDark
-          ? const Color(0xFF101010)
-          : const Color(0xFFF2F2F2),
+          ? AppColors.cFF101010
+          : AppColors.cFFF2F2F2,
       appBar: AppBar(
         backgroundColor: Colors.black,
         foregroundColor: Colors.white,
@@ -2684,7 +2774,7 @@ class _SearchBox extends StatelessWidget {
       height: 35,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1D1D1D) : const Color(0xFFF0F0F0),
+        color: isDark ? AppColors.cFF1D1D1D : AppColors.cFFF0F0F0,
         borderRadius: BorderRadius.circular(7),
         border: Border.all(color: AppColors.borderLightFor(context)),
       ),
@@ -2724,7 +2814,7 @@ class _InviteTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(10, 8, 6, 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1B1B1B) : const Color(0xFFF8F8F8),
+        color: isDark ? AppColors.cFF1B1B1B : AppColors.cFFF8F8F8,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.borderLightFor(context)),
       ),

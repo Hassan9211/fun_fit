@@ -60,6 +60,22 @@ class AppTheme {
           borderSide: BorderSide(color: AppColors.inputFocusBorder),
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.cD9FFFFFF,
+        contentTextStyle: const TextStyle(color: AppColors.textPrimary),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.cE6FFFFFF,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+        ),
+      ),
       useMaterial3: true,
     );
   }
@@ -67,20 +83,20 @@ class AppTheme {
   static ThemeData get darkTheme {
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: const Color(0xFF0B0B0B),
+      scaffoldBackgroundColor: AppColors.cFF0B0B0B,
       colorScheme: const ColorScheme.dark(
-        primary: Color(0xFFFFFFFF),
-        onPrimary: Color(0xFF111111),
-        secondary: Color(0xFFE5E7EB),
-        onSecondary: Color(0xFF111111),
-        surface: Color(0xFF171717),
-        onSurface: Color(0xFFE5E7EB),
+        primary: AppColors.cFFFFFFFF,
+        onPrimary: AppColors.cFF111111,
+        secondary: AppColors.cFFE5E7EB,
+        onSecondary: AppColors.cFF111111,
+        surface: AppColors.cFF171717,
+        onSurface: AppColors.cFFE5E7EB,
         error: AppColors.danger,
         onError: AppColors.white,
       ),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Color(0xFF111111),
-        foregroundColor: Color(0xFFE5E7EB),
+        backgroundColor: AppColors.cFF111111,
+        foregroundColor: AppColors.cFFE5E7EB,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
@@ -104,19 +120,35 @@ class AppTheme {
       ),
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
-        fillColor: Color(0xFF1F2937),
-        hintStyle: TextStyle(color: Color(0xFF9CA3AF)),
+        fillColor: AppColors.cFF1F2937,
+        hintStyle: TextStyle(color: AppColors.cFF9CA3AF),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
-          borderSide: BorderSide(color: Color(0xFF374151)),
+          borderSide: BorderSide(color: AppColors.cFF374151),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
-          borderSide: BorderSide(color: Color(0xFF374151)),
+          borderSide: BorderSide(color: AppColors.cFF374151),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.all(Radius.circular(10)),
-          borderSide: BorderSide(color: Color(0xFFE5E7EB)),
+          borderSide: BorderSide(color: AppColors.cFFE5E7EB),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.cD91F2937,
+        contentTextStyle: const TextStyle(color: AppColors.cFFE5E7EB),
+        elevation: 0,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(16)),
+        ),
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColors.cE61F2937,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
       useMaterial3: true,

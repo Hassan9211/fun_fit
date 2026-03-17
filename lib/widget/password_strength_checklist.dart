@@ -103,7 +103,7 @@ class _RuleItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = met ? const Color(0xFF16A34A) : const Color(0xFF9CA3AF);
+    final color = met ? AppColors.cFF16A34A : AppColors.cFF9CA3AF;
     return Padding(
       padding: const EdgeInsets.only(top: 2),
       child: Row(

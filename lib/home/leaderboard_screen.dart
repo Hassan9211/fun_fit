@@ -11,6 +11,7 @@ import '../widget/app_colors.dart';
 import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/app_pull_to_refresh.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -276,10 +277,10 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
             ? 460.0
             : 420.0;
         final panelColor = AppColors.isDark(context)
-            ? const Color(0xFF171717)
-            : const Color(0xFFF2F2F2);
+            ? AppColors.cFF171717
+            : AppColors.cFFF2F2F2;
         return Scaffold(
-          backgroundColor: const Color(0xFF080808),
+          backgroundColor: AppColors.cFF080808,
           extendBody: true,
           floatingActionButton: SizedBox(
             width: 42,
@@ -410,32 +411,43 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
                                     color: AppColors.surfaceMuted(context),
                                     borderRadius: BorderRadius.circular(16),
                                   ),
-                                  child: ListView.separated(
-                                    padding: const EdgeInsets.fromLTRB(
-                                      8,
-                                      0,
-                                      8,
-                                      78,
-                                    ),
-                                    itemCount: rest.length,
-                                    separatorBuilder: (_, _) =>
-                                        const SizedBox(height: 8),
-                                    itemBuilder: (context, index) {
-                                      final leader = rest[index];
-                                      final rank = index + 4;
-                                      return AnimatedReveal(
-                                        delay: Duration(
-                                          milliseconds:
-                                              120 + ((index % 7) * 30),
-                                        ),
-                                        child: _RankRow(
-                                          leader: leader,
-                                          rank: rank,
-                                          avatarProvider:
-                                              _avatarForLeader(leader, headerAvatar),
-                                        ),
-                                      );
+                                  child: AppPullToRefresh(
+                                    onRefresh: () async {
+                                      await _loadProfileIdentity();
+                                      await _loadUserPoints();
+                                      await _loadLeaderboard();
                                     },
+                                    child: ListView.separated(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        8,
+                                        0,
+                                        8,
+                                        78,
+                                      ),
+                                      itemCount: rest.length,
+                                      separatorBuilder: (_, _) =>
+                                          const SizedBox(height: 8),
+                                      itemBuilder: (context, index) {
+                                        final leader = rest[index];
+                                        final rank = index + 4;
+                                        return AnimatedReveal(
+                                          delay: Duration(
+                                            milliseconds:
+                                                120 + ((index % 7) * 30),
+                                          ),
+                                          child: _RankRow(
+                                            leader: leader,
+                                            rank: rank,
+                                            avatarProvider: _avatarForLeader(
+                                              leader,
+                                              headerAvatar,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
                                   ),
                                 ),
                               ),
@@ -576,7 +588,7 @@ class _TopCard extends StatelessWidget {
               const Icon(
                 Icons.bolt_rounded,
                 size: 10,
-                color: Color(0xFF1EA7A4),
+                color: AppColors.cFF1EA7A4,
               ),
               const SizedBox(width: 2),
               Text(
@@ -618,13 +630,13 @@ class _TopCard extends StatelessWidget {
       case _Badge.star:
       case _Badge.medal:
       case _Badge.spark:
-        return const Color(0xFFF3C623);
+        return AppColors.cFFF3C623;
       case _Badge.diamond:
-        return const Color(0xFF73B8F3);
+        return AppColors.cFF73B8F3;
       case _Badge.sword:
-        return const Color(0xFF8E8E8E);
+        return AppColors.cFF8E8E8E;
       case _Badge.cloud:
-        return const Color(0xFFE5E7EB);
+        return AppColors.cFFE5E7EB;
       case _Badge.none:
         return Colors.transparent;
     }
@@ -735,13 +747,13 @@ class _RankRow extends StatelessWidget {
       case _Badge.star:
       case _Badge.medal:
       case _Badge.spark:
-        return const Color(0xFFF3C623);
+        return AppColors.cFFF3C623;
       case _Badge.diamond:
-        return const Color(0xFF73B8F3);
+        return AppColors.cFF73B8F3;
       case _Badge.sword:
-        return const Color(0xFF8E8E8E);
+        return AppColors.cFF8E8E8E;
       case _Badge.cloud:
-        return const Color(0xFFE5E7EB);
+        return AppColors.cFFE5E7EB;
       case _Badge.none:
         return Colors.transparent;
     }

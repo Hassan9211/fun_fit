@@ -7,6 +7,8 @@ import 'package:fun_fit/settings/subscription_screen.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
+import '../widget/app_pull_to_refresh.dart';
+import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/theme_controller.dart';
@@ -18,6 +20,7 @@ class SettingsScreen extends StatelessWidget {
     final themeController = Get.find<ThemeController>();
     await showModalBottomSheet<void>(
       context: context,
+      barrierColor: Colors.transparent,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
@@ -75,6 +78,7 @@ class SettingsScreen extends StatelessWidget {
     if (!context.mounted) return;
     await showDialog<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Logout'),
@@ -106,117 +110,135 @@ class SettingsScreen extends StatelessWidget {
         final width = constraints.maxWidth;
         final isDesktop = width >= 1100;
         final isTablet = width >= 700 && width < 1100;
-        final hPadding = isDesktop
-            ? 36.0
-            : isTablet
-            ? 28.0
-            : 20.0;
         final contentMaxWidth = isDesktop
-            ? 1040.0
+            ? 520.0
             : isTablet
-            ? 900.0
-            : width;
+            ? 460.0
+            : 400.0;
+        final isDark = AppColors.isDark(context);
+        final avatarProvider = const AssetImage('assets/images/alina.jpg');
+        Future<void> handleRefresh() async {
+          await Future<void>.delayed(const Duration(milliseconds: 250));
+        }
 
         return Scaffold(
-          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          backgroundColor:
+              isDark ? AppColors.cFF050505 : AppColors.cFF080808,
+          resizeToAvoidBottomInset: false,
+          extendBody: true,
           body: SafeArea(
-            top: false,
             bottom: false,
             child: Center(
-              child: SizedBox(
-                width: contentMaxWidth,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
                 child: Column(
                   children: [
-                    const AnimatedReveal(child: _SettingsHeader()),
+                    AnimatedReveal(
+                      child: AppSectionHeader(
+                        title: 'Settings',
+                        avatarProvider: avatarProvider,
+                        onTapProfile: () {},
+                        showAvatar: false,
+                      ),
+                    ),
                     Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          hPadding,
-                          16,
-                          hPadding,
-                          24,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.cFF121212
+                              : AppColors.cFFF2F2F2,
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(14),
+                          ),
                         ),
-                        children: [
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 50),
-                            child: _SettingsActionTile(
-                              label: 'Profile Settings',
-                              icon: Icons.edit_outlined,
-                              onTap: () => Get.toNamed(Routes.profile),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 60),
-                            child: _SettingsActionTile(
-                              label: 'Subscription',
-                              icon: Icons.edit_outlined,
-                              onTap: () =>
-                                  Get.to(() => const SubscriptionScreen()),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 70),
-                            child: _SettingsActionTile(
-                              label: 'Change Fitness Level',
-                              icon: Icons.edit_outlined,
-                              onTap: () => Get.toNamed(Routes.fitnessLevel),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 90),
-                            child: _SettingsActionTile(
-                              label: 'Help',
-                              icon: Icons.help_outline,
-                              onTap: () => Get.to(() => const HelpScreen()),
-                              trailing: const SizedBox.shrink(),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 100),
-                            child: _SettingsActionTile(
-                              label: 'Language Preferences',
-                              icon: Icons.edit_outlined,
-                              onTap: () => Get.to(
-                                () => const LanguagePreferencesScreen(),
+                        child: AppPullToRefresh(
+                          onRefresh: handleRefresh,
+                          child: ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                            children: [
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 50),
+                              child: _SettingsActionTile(
+                                label: 'Profile Settings',
+                                icon: Icons.edit_outlined,
+                                onTap: () => Get.toNamed(Routes.profile),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 110),
-                            child: _SettingsActionTile(
-                              label: 'Change Theme',
-                              icon: Icons.edit_outlined,
-                              onTap: () => _showThemeOptions(context),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 120),
-                            child: _SettingsActionTile(
-                              label: 'Change Password',
-                              icon: Icons.edit_outlined,
-                              onTap: () => Get.toNamed(
-                                Routes.forgotPassword,
-                                arguments: {'asChangePassword': true},
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 60),
+                              child: _SettingsActionTile(
+                                label: 'Subscription',
+                                icon: Icons.edit_outlined,
+                                onTap: () =>
+                                    Get.to(() => const SubscriptionScreen()),
                               ),
                             ),
-                          ),
-                          const SizedBox(height: 12),
-                          AnimatedReveal(
-                            delay: const Duration(milliseconds: 160),
-                            child: _SettingsActionTile(
-                              label: 'Logout',
-                              icon: Icons.logout,
-                              onTap: () => _showLogoutDialog(context),
-                              trailing: const SizedBox.shrink(),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 70),
+                              child: _SettingsActionTile(
+                                label: 'Change Fitness Level',
+                                icon: Icons.edit_outlined,
+                                onTap: () => Get.toNamed(Routes.fitnessLevel),
+                              ),
                             ),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 90),
+                              child: _SettingsActionTile(
+                                label: 'Help',
+                                icon: Icons.help_outline,
+                                onTap: () => Get.to(() => const HelpScreen()),
+                                trailing: const SizedBox.shrink(),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 100),
+                              child: _SettingsActionTile(
+                                label: 'Language Preferences',
+                                icon: Icons.edit_outlined,
+                                onTap: () => Get.to(
+                                  () => const LanguagePreferencesScreen(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 110),
+                              child: _SettingsActionTile(
+                                label: 'Change Theme',
+                                icon: Icons.edit_outlined,
+                                onTap: () => _showThemeOptions(context),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 120),
+                              child: _SettingsActionTile(
+                                label: 'Change Password',
+                                icon: Icons.edit_outlined,
+                                onTap: () => Get.toNamed(
+                                  Routes.forgotPassword,
+                                  arguments: {'asChangePassword': true},
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            AnimatedReveal(
+                              delay: const Duration(milliseconds: 160),
+                              child: _SettingsActionTile(
+                                label: 'Logout',
+                                icon: Icons.logout,
+                                onTap: () => _showLogoutDialog(context),
+                                trailing: const SizedBox.shrink(),
+                              ),
+                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ],
@@ -224,48 +246,26 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
           ),
-          floatingActionButton: FloatingActionButton(
-            backgroundColor: AppColors.primary,
-            onPressed: () {},
-            child: const Icon(Icons.add, color: Colors.white),
+          floatingActionButton: SizedBox(
+            width: 42,
+            height: 42,
+            child: FloatingActionButton(
+              backgroundColor:
+                  isDark ? AppColors.cFF1E1E1E : Colors.white,
+              elevation: 2,
+              onPressed: () {},
+              child: Icon(
+                Icons.add,
+                color: AppColors.textPrimaryFor(context),
+                size: 20,
+              ),
+            ),
           ),
           floatingActionButtonLocation:
               FloatingActionButtonLocation.centerDocked,
           bottomNavigationBar: const HomeBottomNav(selected: 'Settings'),
         );
       },
-    );
-  }
-}
-
-class _SettingsHeader extends StatelessWidget {
-  const _SettingsHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 36, 16, 30),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 34),
-          const Expanded(
-            child: Text(
-              'Settings',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: AppColors.white,
-                fontWeight: FontWeight.w800,
-                fontSize: 17,
-              ),
-            ),
-          ),
-          const SizedBox(width: 34),
-        ],
-      ),
     );
   }
 }

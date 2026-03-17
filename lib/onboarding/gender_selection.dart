@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
@@ -131,7 +132,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
     required double fontSize,
     required VoidCallback onTap,
   }) {
-    final bgColor = isSelected ? Colors.black : const Color(0xFFF3F4F6);
+    final bgColor = isSelected ? Colors.black : AppColors.cFFF3F4F6;
     final textColor = isSelected ? Colors.white : Colors.black87;
 
     return InkWell(
@@ -144,7 +145,7 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
           color: bgColor,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: isSelected ? Colors.black : const Color(0xFFE5E7EB),
+            color: isSelected ? Colors.black : AppColors.cFFE5E7EB,
             width: 1.2,
           ),
         ),

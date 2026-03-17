@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+import '../widget/app_colors.dart';
 import '../services/auth_api_service.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/app_button.dart';
@@ -74,6 +75,7 @@ class _WeightSelectionScreenState extends State<WeightSelectionScreen> {
 
     final value = await showDialog<String>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) {
         return AlertDialog(
           title: Text('Set weight in $unit'),
@@ -255,7 +257,7 @@ class _UnitSwitch extends StatelessWidget {
       height: 30,
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
+        color: AppColors.cFFF3F4F6,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
@@ -325,8 +327,8 @@ class _WeightPill extends StatelessWidget {
       width: 126,
       height: 42,
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F4F6),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        color: AppColors.cFFF3F4F6,
+        border: Border.all(color: AppColors.cFFE5E7EB),
         borderRadius: BorderRadius.circular(20),
       ),
       alignment: Alignment.center,

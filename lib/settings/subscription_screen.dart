@@ -70,6 +70,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
   Future<void> _showResultPopup(String title, String message) async {
     await showDialog<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(title),
@@ -94,6 +95,7 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
 
     return showDialog<int>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (dialogContext) {
         int selected = _selectedDurationDays;
         return StatefulBuilder(
@@ -433,7 +435,7 @@ class _PriceCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Color(0xFFDDE6FF),
+              color: AppColors.cFFDDE6FF,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -450,7 +452,7 @@ class _PriceCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: const TextStyle(color: Color(0xFFDDE6FF), fontSize: 11),
+            style: const TextStyle(color: AppColors.cFFDDE6FF, fontSize: 11),
           ),
         ],
       ),

@@ -11,6 +11,7 @@ import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
 import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
+import '../widget/app_pull_to_refresh.dart';
 import '../widget/file_video_preview.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
@@ -521,6 +522,7 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
     final controller = TextEditingController();
     final submit = await showDialog<bool>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) {
         return AlertDialog(
           title: const Text('Reply'),
@@ -605,10 +607,10 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
         final colorScheme = Theme.of(context).colorScheme;
         final isDark = AppColors.isDark(context);
         final panelColor = isDark
-            ? const Color(0xFF171717)
-            : const Color(0xFFF2F2F2);
+            ? AppColors.cFF171717
+            : AppColors.cFFF2F2F2;
         return Scaffold(
-          backgroundColor: const Color(0xFF080808),
+          backgroundColor: AppColors.cFF080808,
           resizeToAvoidBottomInset: true,
           body: SafeArea(
             child: Center(
@@ -721,38 +723,44 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                                 ),
                               ),
                               Expanded(
-                                child: ListView.separated(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    12,
-                                    4,
-                                    12,
-                                    10,
-                                  ),
-                                  itemCount: _visiblePosts.length,
-                                  separatorBuilder: (_, _) =>
-                                      const SizedBox(height: 10),
-                                  itemBuilder: (context, index) {
-                                    final isPublic =
-                                        _selectedTab == _FeedTab.publicPosts;
-                                    return AnimatedReveal(
-                                      delay: Duration(
-                                        milliseconds: 130 + ((index % 8) * 30),
-                                      ),
-                                      child: _PostTile(
-                                        post: _visiblePosts[index],
-                                        onLike: isPublic
-                                            ? () => _toggleLike(index)
-                                            : null,
-                                        onDislike: isPublic
-                                            ? () => _toggleDislike(index)
-                                            : null,
-                                        onReply: () => _openReplyDialog(
-                                          isPublic: isPublic,
-                                          index: index,
+                                child: AppPullToRefresh(
+                                  onRefresh: _loadProfileData,
+                                  child: ListView.separated(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      4,
+                                      12,
+                                      10,
+                                    ),
+                                    itemCount: _visiblePosts.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(height: 10),
+                                    itemBuilder: (context, index) {
+                                      final isPublic = _selectedTab ==
+                                          _FeedTab.publicPosts;
+                                      return AnimatedReveal(
+                                        delay: Duration(
+                                          milliseconds:
+                                              130 + ((index % 8) * 30),
                                         ),
-                                      ),
-                                    );
-                                  },
+                                        child: _PostTile(
+                                          post: _visiblePosts[index],
+                                          onLike: isPublic
+                                              ? () => _toggleLike(index)
+                                              : null,
+                                          onDislike: isPublic
+                                              ? () => _toggleDislike(index)
+                                              : null,
+                                          onReply: () => _openReplyDialog(
+                                            isPublic: isPublic,
+                                            index: index,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                               AnimatedReveal(
@@ -921,7 +929,7 @@ class _PostTile extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 12.5,
-              backgroundColor: const Color(0xFFF4D1D8),
+              backgroundColor: AppColors.cFFF4D1D8,
               backgroundImage: avatarImage,
               child: avatarImage == null
                   ? Text(
@@ -1138,6 +1146,7 @@ class _FeedMediaAttachment extends StatelessWidget {
     if (!file.existsSync()) return;
     await showDialog<void>(
       context: context,
+      barrierColor: Colors.transparent,
       builder: (context) => Dialog(
         insetPadding: const EdgeInsets.all(14),
         child: Stack(
