@@ -19,6 +19,7 @@ import '../widget/home_bottom_nav.dart';
 import '../widget/getx.dart';
 import '../widget/app_pull_to_refresh.dart';
 import '../widget/record_with_audio_screen.dart';
+import '../widget/responsive_layout.dart';
 
 class ChallengesScreen extends StatelessWidget {
   const ChallengesScreen({super.key});
@@ -763,14 +764,12 @@ class _ChallengesFeedState extends State<_ChallengesFeed> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 520.0
-            : isTablet
-            ? 460.0
-            : 400.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: 400,
+          tablet: 460,
+          desktop: 520,
+        );
         final colorScheme = Theme.of(context).colorScheme;
         final isDark = AppColors.isDark(context);
         final panelColor = isDark
@@ -1179,25 +1178,23 @@ class _AddChallengeScreenState extends State<AddChallengeScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isCompact = width < 360;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 520.0
-            : isTablet
-            ? 460.0
-            : 400.0;
-        final headerTopPadding = isDesktop
-            ? 30.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final headerBottomPadding = isDesktop
-            ? 24.0
-            : isTablet
-            ? 27.0
-            : 30.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final isCompact = info.width < 360;
+        final contentMaxWidth = info.maxWidth(
+          mobile: 400,
+          tablet: 460,
+          desktop: 520,
+        );
+        final headerTopPadding = info.value(
+          mobile: 36,
+          tablet: 34,
+          desktop: 30,
+        );
+        final headerBottomPadding = info.value(
+          mobile: 30,
+          tablet: 27,
+          desktop: 24,
+        );
         final cardMargin = isCompact ? 6.0 : 8.0;
 
         final colorScheme = Theme.of(context).colorScheme;

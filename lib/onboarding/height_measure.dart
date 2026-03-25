@@ -5,6 +5,7 @@ import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class HeightSelectionScreen extends StatefulWidget {
   const HeightSelectionScreen({super.key});
@@ -92,25 +93,13 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 420.0
-            : isTablet
-            ? 380.0
-            : width;
-
-        final titleSize = isDesktop
-            ? 38.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final buttonFont = isDesktop
-            ? 16.0
-            : isTablet
-            ? 15.0
-            : 14.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.isMobile
+            ? info.width
+            : info.maxWidth(mobile: info.width, tablet: 400, desktop: 460);
+        final titleSize = info.value(mobile: 32, tablet: 34, desktop: 38);
+        final buttonFont = info.value(mobile: 14, tablet: 15, desktop: 16);
+        final backButtonSize = info.value(mobile: 30, tablet: 32, desktop: 34);
 
         final mainValue = isCmSelected
             ? selectedHeightCm.round().toString()
@@ -134,8 +123,8 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          width: 30,
-                          height: 30,
+                          width: backButtonSize,
+                          height: backButtonSize,
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.06),
                             shape: BoxShape.circle,
@@ -195,7 +184,12 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        0,
+                        24,
+                        info.value(mobile: 28, tablet: 34, desktop: 40),
+                      ),
                       child: AppButton(
                         label: 'Next',
                         onPressed: () {
@@ -209,7 +203,7 @@ class _HeightSelectionScreenState extends State<HeightSelectionScreen> {
                           Get.toNamed(Routes.weight, arguments: onboardingData);
                         },
                         width: double.infinity,
-                        height: 48,
+                        height: info.value(mobile: 48, tablet: 50, desktop: 52),
                         backgroundColor: Colors.black,
                         borderRadius: 8,
                         fontSize: buttonFont,
@@ -312,33 +306,35 @@ class _HeightPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 126,
-      height: 42,
+      constraints: const BoxConstraints(minWidth: 126),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       decoration: BoxDecoration(
         color: AppColors.cFFF3F4F6,
         border: Border.all(color: AppColors.cFFE5E7EB),
         borderRadius: BorderRadius.circular(20),
       ),
-      alignment: Alignment.center,
-      child: RichText(
-        text: TextSpan(
-          text: value,
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.w700,
-            fontSize: 34,
-            height: 1,
-          ),
-          children: [
-            TextSpan(
-              text: ' $unit',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.black45,
-              ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: RichText(
+          text: TextSpan(
+            text: value,
+            style: const TextStyle(
+              color: Colors.black,
+              fontWeight: FontWeight.w700,
+              fontSize: 34,
+              height: 1,
             ),
-          ],
+            children: [
+              TextSpan(
+                text: ' $unit',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black45,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

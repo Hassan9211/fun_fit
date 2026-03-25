@@ -5,6 +5,7 @@ import 'package:fun_fit/widget/app_colors.dart';
 import 'package:fun_fit/widget/app_button.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:fun_fit/widget/password_strength_checklist.dart';
+import 'package:fun_fit/widget/responsive_layout.dart';
 import 'package:get/get.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -212,18 +213,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        double paddingH = width * 0.06;
+        final info = ResponsiveInfo.fromConstraints(constraints);
         final pageTitle = _isResetFlow && !_asChangePassword
             ? 'Reset Password'
             : 'Change Password';
         final buttonLabel = _isResetFlow ? 'Reset Password' : 'Update Password';
-
-        if (width >= 1200) {
-          paddingH = width * 0.25;
-        } else if (width >= 800) {
-          paddingH = width * 0.15;
-        }
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -241,100 +235,127 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
             elevation: 0,
             scrolledUnderElevation: 0,
           ),
-          body: SingleChildScrollView(
-            padding: EdgeInsets.fromLTRB(paddingH, 20, paddingH, 24),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!_isResetFlow) ...[
-                    TextFormField(
-                      controller: _currentPasswordController,
-                      focusNode: _currentPasswordFocusNode,
-                      obscureText: _obscureCurrent,
-                      onChanged: (_) => setState(() {}),
-                      validator: (value) => value == null || value.trim().isEmpty
-                          ? 'Current password required'
-                          : null,
-                      decoration: _fieldDecoration(
-                        context: context,
-                        hint: 'Current Password',
-                        icon: Icons.lock_outline,
-                        obscureText: _obscureCurrent,
-                        onToggle: () {
-                          setState(() => _obscureCurrent = !_obscureCurrent);
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 460,
+                tabletMaxWidth: 520,
+                desktopMaxWidth: 560,
+                padding: info.pagePadding(
+                  mobileHorizontal: 16,
+                  tabletHorizontal: 24,
+                  desktopHorizontal: 32,
+                  mobileVertical: 20,
+                  tabletVertical: 28,
+                  desktopVertical: 32,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!_isResetFlow) ...[
+                        TextFormField(
+                          controller: _currentPasswordController,
+                          focusNode: _currentPasswordFocusNode,
+                          obscureText: _obscureCurrent,
+                          onChanged: (_) => setState(() {}),
+                          validator: (value) =>
+                              value == null || value.trim().isEmpty
+                              ? 'Current password required'
+                              : null,
+                          decoration: _fieldDecoration(
+                            context: context,
+                            hint: 'Current Password',
+                            icon: Icons.lock_outline,
+                            obscureText: _obscureCurrent,
+                            onToggle: () {
+                              setState(() => _obscureCurrent = !_obscureCurrent);
+                            },
+                          ),
+                        ),
+                        if (_currentPasswordFocusNode.hasFocus) ...[
+                          const SizedBox(height: 12),
+                          PasswordStrengthChecklist(
+                            password: _currentPasswordController.text,
+                            title: 'Current password pattern',
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                      ],
+                      TextFormField(
+                        controller: _newPasswordController,
+                        focusNode: _newPasswordFocusNode,
+                        obscureText: _obscureNew,
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) =>
+                            PasswordPolicy.validateStrong(value),
+                        decoration: _fieldDecoration(
+                          context: context,
+                          hint: 'New Password',
+                          icon: Icons.lock,
+                          obscureText: _obscureNew,
+                          onToggle: () {
+                            setState(() => _obscureNew = !_obscureNew);
+                          },
+                        ),
+                      ),
+                      if (_newPasswordFocusNode.hasFocus) ...[
+                        const SizedBox(height: 12),
+                        PasswordStrengthChecklist(
+                          password: _newPasswordController.text,
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        focusNode: _confirmPasswordFocusNode,
+                        obscureText: _obscureConfirm,
+                        onChanged: (_) => setState(() {}),
+                        validator: (value) {
+                          final strongCheck = PasswordPolicy.validateStrong(value);
+                          if (strongCheck != null) return strongCheck;
+                          if (value != _newPasswordController.text) {
+                            return 'Confirm password does not match';
+                          }
+                          return null;
                         },
+                        decoration: _fieldDecoration(
+                          context: context,
+                          hint: 'Confirm Password',
+                          icon: Icons.lock_reset,
+                          obscureText: _obscureConfirm,
+                          onToggle: () {
+                            setState(() => _obscureConfirm = !_obscureConfirm);
+                          },
+                        ),
                       ),
-                    ),
-                    if (_currentPasswordFocusNode.hasFocus)
-                      PasswordStrengthChecklist(
-                        password: _currentPasswordController.text,
-                        title: 'Current password pattern',
+                      if (_confirmPasswordFocusNode.hasFocus) ...[
+                        const SizedBox(height: 12),
+                        PasswordStrengthChecklist(
+                          password: _confirmPasswordController.text,
+                          title: 'Confirm password pattern',
+                        ),
+                      ],
+                      const SizedBox(height: 20),
+                      AppButton(
+                        label: _isSubmitting ? 'Please wait...' : buttonLabel,
+                        onPressed: _isSubmitting ? null : _submitChangePassword,
+                        width: double.infinity,
+                        height: info.value(
+                          mobile: 50,
+                          tablet: 52,
+                          desktop: 54,
+                        ),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        textColor: Theme.of(context).colorScheme.onPrimary,
+                        borderRadius: 8,
+                        fontWeight: FontWeight.bold,
                       ),
-                    const SizedBox(height: 8),
-                  ],
-                  TextFormField(
-                    controller: _newPasswordController,
-                    focusNode: _newPasswordFocusNode,
-                    obscureText: _obscureNew,
-                    onChanged: (_) => setState(() {}),
-                    validator: (value) => PasswordPolicy.validateStrong(value),
-                    decoration: _fieldDecoration(
-                      context: context,
-                      hint: 'New Password',
-                      icon: Icons.lock,
-                      obscureText: _obscureNew,
-                      onToggle: () {
-                        setState(() => _obscureNew = !_obscureNew);
-                      },
-                    ),
+                    ],
                   ),
-                  if (_newPasswordFocusNode.hasFocus)
-                    PasswordStrengthChecklist(
-                      password: _newPasswordController.text,
-                    ),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    focusNode: _confirmPasswordFocusNode,
-                    obscureText: _obscureConfirm,
-                    onChanged: (_) => setState(() {}),
-                    validator: (value) {
-                      final strongCheck = PasswordPolicy.validateStrong(value);
-                      if (strongCheck != null) return strongCheck;
-                      if (value != _newPasswordController.text) {
-                        return 'Confirm password does not match';
-                      }
-                      return null;
-                    },
-                    decoration: _fieldDecoration(
-                      context: context,
-                      hint: 'Confirm Password',
-                      icon: Icons.lock_reset,
-                      obscureText: _obscureConfirm,
-                      onToggle: () {
-                        setState(() => _obscureConfirm = !_obscureConfirm);
-                      },
-                    ),
-                  ),
-                  if (_confirmPasswordFocusNode.hasFocus)
-                    PasswordStrengthChecklist(
-                      password: _confirmPasswordController.text,
-                      title: 'Confirm password pattern',
-                    ),
-                  const SizedBox(height: 18),
-                  AppButton(
-                    label: _isSubmitting ? 'Please wait...' : buttonLabel,
-                    onPressed: _isSubmitting ? null : _submitChangePassword,
-                    width: double.infinity,
-                    height: 50,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    textColor: Theme.of(context).colorScheme.onPrimary,
-                    borderRadius: 8,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ],
+                ),
               ),
             ),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_api_service.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
+import '../widget/responsive_layout.dart';
 
 class SubscriptionScreen extends StatefulWidget {
   const SubscriptionScreen({super.key});
@@ -217,24 +218,34 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
     final isPremium = _isPremiumTab;
     final features = isPremium ? _premiumFeatures : _basicFeatures;
     final title = isPremium ? 'Premium Plan' : 'Basic Plan (Free)';
-
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: const Text(
-          'Subscription',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            title: const Text(
+              'Subscription',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+            centerTitle: true,
+          ),
+          body: SafeArea(
+            top: false,
+            child: ResponsiveContent(
+              info: info,
+              mobileMaxWidth: 520,
+              tabletMaxWidth: 720,
+              desktopMaxWidth: 900,
+              padding: info.pagePadding(
+                mobileHorizontal: 16,
+                tabletHorizontal: 20,
+                desktopHorizontal: 24,
+                mobileVertical: 16,
+                tabletVertical: 20,
+                desktopVertical: 24,
+              ),
               child: Column(
                 children: [
                   Container(
@@ -281,7 +292,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                 style: TextStyle(
                                   color: AppColors.textTitleFor(context),
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                                  fontSize: info.value(
+                                    mobile: 16,
+                                    tablet: 18,
+                                    desktop: 20,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 10),
@@ -292,7 +307,11 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                                     '- $feature',
                                     style: TextStyle(
                                       color: AppColors.textPrimaryFor(context),
-                                      fontSize: 13,
+                                      fontSize: info.value(
+                                        mobile: 13,
+                                        tablet: 14,
+                                        desktop: 14,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -339,26 +358,49 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
                               color: AppColors.surfaceMuted(context),
                               borderRadius: BorderRadius.circular(14),
                             ),
-                            child: const Column(
-                              children: [
-                                _PriceCard(
-                                  title: 'Monthly',
-                                  price: '\$9.99/month',
-                                  subtitle: 'All features, no ads',
-                                ),
-                                SizedBox(height: 10),
-                                _PriceCard(
-                                  title: 'Quarterly',
-                                  price: '\$24.99 every 3 months',
-                                  subtitle: 'Save 15%',
-                                ),
-                                SizedBox(height: 10),
-                                _PriceCard(
-                                  title: 'Yearly',
-                                  price: '\$89.99/year',
-                                  subtitle: 'Save 25% + 2 bonus months',
-                                ),
-                              ],
+                            child: LayoutBuilder(
+                              builder: (context, priceConstraints) {
+                                final availableWidth = priceConstraints.maxWidth;
+                                final cardsPerRow = availableWidth >= 780
+                                    ? 3
+                                    : availableWidth >= 500
+                                    ? 2
+                                    : 1;
+                                const spacing = 10.0;
+                                final cardWidth =
+                                    (availableWidth - (spacing * (cardsPerRow - 1))) /
+                                    cardsPerRow;
+                                return Wrap(
+                                  spacing: spacing,
+                                  runSpacing: spacing,
+                                  children: [
+                                    SizedBox(
+                                      width: cardWidth,
+                                      child: const _PriceCard(
+                                        title: 'Monthly',
+                                        price: '\$9.99/month',
+                                        subtitle: 'All features, no ads',
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: cardWidth,
+                                      child: const _PriceCard(
+                                        title: 'Quarterly',
+                                        price: '\$24.99 every 3 months',
+                                        subtitle: 'Save 15%',
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: cardWidth,
+                                      child: const _PriceCard(
+                                        title: 'Yearly',
+                                        price: '\$89.99/year',
+                                        subtitle: 'Save 25% + 2 bonus months',
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
                             ),
                           ),
                         ],
@@ -369,8 +411,8 @@ class _SubscriptionScreenState extends State<SubscriptionScreen> {
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

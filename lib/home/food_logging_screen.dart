@@ -13,6 +13,8 @@ import '../widget/animated_reveal.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_pull_to_refresh.dart';
 import '../widget/file_video_preview.dart';
+import '../widget/responsive_layout.dart';
+import '../widget/video_playback_lifecycle.dart';
 
 class FoodLoggingScreen extends StatelessWidget {
   const FoodLoggingScreen({super.key});
@@ -596,14 +598,12 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 520.0
-            : isTablet
-            ? 460.0
-            : 400.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: 400,
+          tablet: 460,
+          desktop: 520,
+        );
         final colorScheme = Theme.of(context).colorScheme;
         final isDark = AppColors.isDark(context);
         final panelColor = isDark
@@ -619,15 +619,20 @@ class _FoodLogFeedState extends State<_FoodLogFeed> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                      padding: EdgeInsets.fromLTRB(
+                        info.value(mobile: 14, tablet: 16, desktop: 18),
+                        10,
+                        info.value(mobile: 14, tablet: 16, desktop: 18),
+                        14,
+                      ),
                       child: Row(
                         children: [
                           InkWell(
                             onTap: () => Navigator.of(context).maybePop(),
                             borderRadius: BorderRadius.circular(18),
                             child: Container(
-                              width: 28,
-                              height: 28,
+                              width: info.value(mobile: 28, tablet: 30, desktop: 32),
+                              height: info.value(mobile: 28, tablet: 30, desktop: 32),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(18),
@@ -1262,9 +1267,13 @@ class _FeedVideoPreviewScreen extends StatefulWidget {
       _FeedVideoPreviewScreenState();
 }
 
-class _FeedVideoPreviewScreenState extends State<_FeedVideoPreviewScreen> {
+class _FeedVideoPreviewScreenState extends State<_FeedVideoPreviewScreen>
+    with VideoPlaybackLifecycleMixin<_FeedVideoPreviewScreen> {
   VideoPlayerController? _controller;
   bool _loading = true;
+
+  @override
+  VideoPlayerController? get lifecycleVideoController => _controller;
 
   @override
   void initState() {
@@ -1312,32 +1321,48 @@ class _FeedVideoPreviewScreenState extends State<_FeedVideoPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-      ),
-      body: Center(
-        child: _loading
-            ? const CircularProgressIndicator()
-            : _controller == null
-            ? const Text(
-                'Unable to open video',
-                style: TextStyle(color: Colors.white),
-              )
-            : GestureDetector(
-                onTap: _togglePlayback,
-                child: FittedBox(
-                  fit: BoxFit.contain,
-                  child: SizedBox(
-                    width: _controller!.value.size.width,
-                    height: _controller!.value.size.height,
-                    child: VideoPlayer(_controller!),
-                  ),
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final playerWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 560,
+          desktop: 680,
+        );
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+          ),
+          body: Center(
+            child: SizedBox(
+              width: playerWidth,
+              child: Center(
+                child: _loading
+                    ? const CircularProgressIndicator()
+                    : _controller == null
+                    ? const Text(
+                        'Unable to open video',
+                        style: TextStyle(color: Colors.white),
+                      )
+                    : GestureDetector(
+                        onTap: _togglePlayback,
+                        child: FittedBox(
+                          fit: BoxFit.contain,
+                          child: SizedBox(
+                            width: _controller!.value.size.width,
+                            height: _controller!.value.size.height,
+                            child: VideoPlayer(_controller!),
+                          ),
+                        ),
+                      ),
               ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

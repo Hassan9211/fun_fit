@@ -2,7 +2,6 @@ import 'package:fun_fit/authentication/change_password_screen.dart';
 import 'package:get/get.dart';
 import 'package:fun_fit/authentication/forgot_password_screen.dart';
 import 'package:fun_fit/authentication/login_screen.dart';
-import 'package:fun_fit/authentication/login_success.dart';
 import 'package:fun_fit/authentication/otp_purpos.dart';
 import 'package:fun_fit/authentication/otp_verification.dart';
 import 'package:fun_fit/home/profile_screen.dart';
@@ -13,7 +12,6 @@ import 'package:fun_fit/onboarding/goal_screen.dart';
 import 'package:fun_fit/onboarding/height_measure.dart';
 import 'package:fun_fit/onboarding/ready_screen.dart';
 import 'package:fun_fit/onboarding/waight_measure.dart';
-import 'package:fun_fit/screens/registration_screen.dart';
 import 'package:fun_fit/screens/signup_screen.dart';
 import 'package:fun_fit/screens/splash_screen.dart';
 import 'package:fun_fit/settings/help_screen.dart';
@@ -26,8 +24,6 @@ class Routes {
   static const String forgotPassword = '/forgot-password';
   static const String changePassword = '/change-password';
   static const String otpForgotPassword = '/otp-forgot-password';
-  static const String registrationSuccess = '/registration-success';
-  static const String passwordResetSuccess = '/password-reset-success';
   static const String ready = '/ready';
   static const String gender = '/gender';
   static const String goal = '/goal';
@@ -53,14 +49,6 @@ class Routes {
     GetPage(
       name: otpForgotPassword,
       page: () => const OtpScreen(purpose: OtpPurpose.forgotPassword),
-    ),
-    GetPage(
-      name: registrationSuccess,
-      page: () => const RegistrationSuccessScreen(),
-    ),
-    GetPage(
-      name: passwordResetSuccess,
-      page: () => const PasswordResetSuccessScreen(),
     ),
     GetPage(name: ready, page: () => const AreYouReadyScreen()),
     GetPage(name: gender, page: () => const GenderSelectionScreen()),

@@ -11,6 +11,7 @@ import '../widget/app_pull_to_refresh.dart';
 import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/responsive_layout.dart';
 import '../widget/theme_controller.dart';
 
 class SettingsScreen extends StatelessWidget {
@@ -107,14 +108,12 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 520.0
-            : isTablet
-            ? 460.0
-            : 400.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: 400,
+          tablet: 460,
+          desktop: 520,
+        );
         final isDark = AppColors.isDark(context);
         final avatarProvider = const AssetImage('assets/images/alina.jpg');
         Future<void> handleRefresh() async {
@@ -155,7 +154,12 @@ class SettingsScreen extends StatelessWidget {
                           onRefresh: handleRefresh,
                           child: ListView(
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                            padding: EdgeInsets.fromLTRB(
+                              info.value(mobile: 16, tablet: 18, desktop: 20),
+                              16,
+                              info.value(mobile: 16, tablet: 18, desktop: 20),
+                              24,
+                            ),
                             children: [
                             AnimatedReveal(
                               delay: const Duration(milliseconds: 50),

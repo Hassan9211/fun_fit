@@ -10,6 +10,7 @@ import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
 import '../widget/password_strength_checklist.dart';
+import '../widget/responsive_layout.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -190,23 +191,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        double paddingH = width * 0.06;
-        double fontSizeTitle = width * 0.07;
-        double fontSizeField = width * 0.045;
-        double spacing = height * 0.02;
-
-        if (width >= 1200) {
-          paddingH = width * 0.2;
-          fontSizeTitle = width * 0.04;
-          fontSizeField = width * 0.025;
-        } else if (width >= 800) {
-          paddingH = width * 0.12;
-          fontSizeTitle = width * 0.055;
-          fontSizeField = width * 0.035;
-        }
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final titleSize = info.value(mobile: 28, tablet: 32, desktop: 36);
+        final fieldFontSize = info.value(mobile: 15, tablet: 16, desktop: 16);
+        final spacing = info.value(mobile: 18, tablet: 22, desktop: 26);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -225,223 +213,241 @@ class _SignUpScreenState extends State<SignUpScreen> {
             elevation: 0,
             scrolledUnderElevation: 0,
           ),
-          body: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(
-              horizontal: paddingH,
-              vertical: spacing,
-            ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  Text(
-                    'Create Your Account',
-                    style: TextStyle(
-                      fontSize: fontSizeTitle,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: spacing),
-
-                  _textFormField(
-                    controller: fullNameController,
-                    hint: 'Full Name',
-                    icon: Icons.person,
-                    fontSize: fontSizeField,
-                    validator: (v) => v == null || v.trim().isEmpty
-                        ? 'Full name required'
-                        : null,
-                  ),
-
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: TextFormField(
-                      readOnly: true,
-                      validator: (_) =>
-                          selectedCountry == null ? 'Select country' : null,
-                      onTap: () {
-                        showCountryPicker(
-                          context: context,
-                          showPhoneCode: true,
-                          onSelect: (c) => setState(() => selectedCountry = c),
-                        );
-                      },
-                      decoration: _loginStyleDecoration(
-                        context,
-                        hint: selectedCountry?.name ?? 'Select Country',
-                        icon: Icons.flag,
-                        prefixIcon: selectedCountry != null
-                            ? Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: CountryFlag.fromCountryCode(
-                                  selectedCountry!.countryCode,
-                                ),
-                              )
-                            : const Icon(Icons.flag),
-                      ),
-                    ),
-                  ),
-
-                  _textFormField(
-                    controller: phoneController,
-                    hint: 'Phone Number',
-                    icon: Icons.phone,
-                    fontSize: fontSizeField,
-                    keyboardType: TextInputType.phone,
-                    prefixText: selectedCountry != null
-                        ? '+${selectedCountry!.phoneCode} '
-                        : null,
-                    validator: (v) =>
-                        v == null || v.trim().isEmpty ? 'Phone required' : null,
-                  ),
-
-                  _textFormField(
-                    controller: emailController,
-                    hint: 'Email',
-                    icon: Icons.email,
-                    fontSize: fontSizeField,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      if (v == null || v.isEmpty) return 'Email required';
-                      if (!RegExp(
-                        r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
-                      ).hasMatch(v))
-                        return 'Invalid email';
-                      return null;
-                    },
-                  ),
-
-                  _textFormField(
-                    controller: passwordController,
-                    focusNode: _passwordFocusNode,
-                    hint: 'Password',
-                    icon: Icons.lock,
-                    fontSize: fontSizeField,
-                    isPassword: true,
-                    obscureText: _obscurePassword,
-                    onChanged: (_) => setState(() {}),
-                    toggleVisibility: () =>
-                        setState(() => _obscurePassword = !_obscurePassword),
-                    validator: (v) => PasswordPolicy.validateStrong(v),
-                  ),
-                  if (_passwordFocusNode.hasFocus)
-                    PasswordStrengthChecklist(
-                      password: passwordController.text,
-                    ),
-
-                  _textFormField(
-                    controller: confirmPasswordController,
-                    focusNode: _confirmPasswordFocusNode,
-                    hint: 'Confirm Password',
-                    icon: Icons.lock_outline,
-                    fontSize: fontSizeField,
-                    isPassword: true,
-                    obscureText: _obscureConfirmPassword,
-                    onChanged: (_) => setState(() {}),
-                    toggleVisibility: () => setState(
-                      () => _obscureConfirmPassword = !_obscureConfirmPassword,
-                    ),
-                    validator: (v) {
-                      final strongCheck = PasswordPolicy.validateStrong(v);
-                      if (strongCheck != null) return strongCheck;
-                      if (v != passwordController.text)
-                        return 'Passwords do not match';
-                      return null;
-                    },
-                  ),
-                  if (_confirmPasswordFocusNode.hasFocus)
-                    PasswordStrengthChecklist(
-                      password: confirmPasswordController.text,
-                      title: 'Confirm password pattern',
-                    ),
-
-                  Row(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 460,
+                tabletMaxWidth: 520,
+                desktopMaxWidth: 580,
+                padding: info.pagePadding(
+                  mobileHorizontal: 16,
+                  tabletHorizontal: 24,
+                  desktopHorizontal: 32,
+                  mobileVertical: 20,
+                  tabletVertical: 28,
+                  desktopVertical: 32,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
                     children: [
-                      Checkbox(
-                        value: agreeTerms,
-                        activeColor: Colors.black,
-                        onChanged: (v) =>
-                            setState(() => agreeTerms = v ?? false),
+                      Text(
+                        'Create Your Account',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                      const Expanded(
-                        child: Text('I agree to the Terms & Conditions'),
+                      SizedBox(height: spacing),
+                      _textFormField(
+                        controller: fullNameController,
+                        hint: 'Full Name',
+                        icon: Icons.person,
+                        fontSize: fieldFontSize,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Full name required'
+                            : null,
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  AppButton(
-                    label: _isSubmitting ? 'Please wait...' : 'Sign Up',
-                    onPressed: _isSubmitting ? null : _submitSignup,
-                    width: double.infinity,
-                    height: 50,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    textColor: Theme.of(context).colorScheme.onPrimary,
-                    borderRadius: 8,
-                    fontSize: fontSizeField,
-                    fontWeight: FontWeight.bold,
-                  ),
-
-                  const SizedBox(height: 25),
-                  Row(
-                    children: const [
-                      Expanded(child: Divider(thickness: 1)),
                       Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 10),
-                        child: Text('OR'),
-                      ),
-                      Expanded(child: Divider(thickness: 1)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _socialButton(
-                        icon: Icons.telegram,
-                        color: AppColors.cFF0EA5E9,
-                        onTap: () {},
-                        context: context,
-                      ),
-                      const SizedBox(width: 20),
-
-                      _socialButton(
-                        icon: Icons.facebook,
-                        color: AppColors.cFF1877F2,
-                        onTap: () {},
-                        context: context,
-                      ),
-                      const SizedBox(width: 20),
-
-                      _socialButton(
-                        icon: Icons.apple,
-                        color: AppColors.textPrimaryFor(context),
-                        onTap: () {},
-                        context: context,
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: spacing * 1.5),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Already have an account? '),
-                      GestureDetector(
-                        onTap: () => Get.toNamed(Routes.login),
-                        child: Text(
-                          'Login',
-                          style: TextStyle(
-                            color: AppColors.textTitleFor(context),
-                            fontWeight: FontWeight.bold,
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: TextFormField(
+                          readOnly: true,
+                          validator: (_) =>
+                              selectedCountry == null ? 'Select country' : null,
+                          onTap: () {
+                            showCountryPicker(
+                              context: context,
+                              showPhoneCode: true,
+                              onSelect: (c) =>
+                                  setState(() => selectedCountry = c),
+                            );
+                          },
+                          decoration: _loginStyleDecoration(
+                            context,
+                            hint: selectedCountry?.name ?? 'Select Country',
+                            icon: Icons.flag,
+                            prefixIcon: selectedCountry != null
+                                ? Padding(
+                                    padding: const EdgeInsets.all(8),
+                                    child: CountryFlag.fromCountryCode(
+                                      selectedCountry!.countryCode,
+                                    ),
+                                  )
+                                : const Icon(Icons.flag),
                           ),
+                        ),
+                      ),
+                      _textFormField(
+                        controller: phoneController,
+                        hint: 'Phone Number',
+                        icon: Icons.phone,
+                        fontSize: fieldFontSize,
+                        keyboardType: TextInputType.phone,
+                        prefixText: selectedCountry != null
+                            ? '+${selectedCountry!.phoneCode} '
+                            : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Phone required'
+                            : null,
+                      ),
+                      _textFormField(
+                        controller: emailController,
+                        hint: 'Email',
+                        icon: Icons.email,
+                        fontSize: fieldFontSize,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Email required';
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w]{2,4}$',
+                          ).hasMatch(v)) {
+                            return 'Invalid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      _textFormField(
+                        controller: passwordController,
+                        focusNode: _passwordFocusNode,
+                        hint: 'Password',
+                        icon: Icons.lock,
+                        fontSize: fieldFontSize,
+                        isPassword: true,
+                        obscureText: _obscurePassword,
+                        onChanged: (_) => setState(() {}),
+                        toggleVisibility: () =>
+                            setState(() => _obscurePassword = !_obscurePassword),
+                        validator: (v) => PasswordPolicy.validateStrong(v),
+                      ),
+                      if (_passwordFocusNode.hasFocus) ...[
+                        const SizedBox(height: 12),
+                        PasswordStrengthChecklist(
+                          password: passwordController.text,
+                        ),
+                      ],
+                      _textFormField(
+                        controller: confirmPasswordController,
+                        focusNode: _confirmPasswordFocusNode,
+                        hint: 'Confirm Password',
+                        icon: Icons.lock_outline,
+                        fontSize: fieldFontSize,
+                        isPassword: true,
+                        obscureText: _obscureConfirmPassword,
+                        onChanged: (_) => setState(() {}),
+                        toggleVisibility: () => setState(
+                          () =>
+                              _obscureConfirmPassword =
+                                  !_obscureConfirmPassword,
+                        ),
+                        validator: (v) {
+                          final strongCheck = PasswordPolicy.validateStrong(v);
+                          if (strongCheck != null) return strongCheck;
+                          if (v != passwordController.text) {
+                            return 'Passwords do not match';
+                          }
+                          return null;
+                        },
+                      ),
+                      if (_confirmPasswordFocusNode.hasFocus) ...[
+                        const SizedBox(height: 12),
+                        PasswordStrengthChecklist(
+                          password: confirmPasswordController.text,
+                          title: 'Confirm password pattern',
+                        ),
+                      ],
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: agreeTerms,
+                            activeColor: Colors.black,
+                            onChanged: (v) =>
+                                setState(() => agreeTerms = v ?? false),
+                          ),
+                          const Expanded(
+                            child: Text('I agree to the Terms & Conditions'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      AppButton(
+                        label: _isSubmitting ? 'Please wait...' : 'Sign Up',
+                        onPressed: _isSubmitting ? null : _submitSignup,
+                        width: double.infinity,
+                        height: info.value(
+                          mobile: 50,
+                          tablet: 52,
+                          desktop: 54,
+                        ),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        textColor: Theme.of(context).colorScheme.onPrimary,
+                        borderRadius: 8,
+                        fontSize: fieldFontSize,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      SizedBox(height: spacing),
+                      Row(
+                        children: const [
+                          Expanded(child: Divider(thickness: 1)),
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 10),
+                            child: Text('OR'),
+                          ),
+                          Expanded(child: Divider(thickness: 1)),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      Center(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 20,
+                          runSpacing: 12,
+                          children: [
+                            _socialButton(
+                              icon: Icons.telegram,
+                              color: AppColors.cFF0EA5E9,
+                              onTap: () {},
+                              context: context,
+                            ),
+                            _socialButton(
+                              icon: Icons.facebook,
+                              color: AppColors.cFF1877F2,
+                              onTap: () {},
+                              context: context,
+                            ),
+                            _socialButton(
+                              icon: Icons.apple,
+                              color: AppColors.textPrimaryFor(context),
+                              onTap: () {},
+                              context: context,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: spacing),
+                      Center(
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          runSpacing: 4,
+                          children: [
+                            const Text('Already have an account? '),
+                            GestureDetector(
+                              onTap: () => Get.toNamed(Routes.login),
+                              child: Text(
+                                'Login',
+                                style: TextStyle(
+                                  color: AppColors.textTitleFor(context),
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

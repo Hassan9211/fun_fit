@@ -7,6 +7,7 @@ import '../services/auth_api_service.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -76,41 +77,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        double paddingH = width * 0.06;
-        double titleSize = width * 0.06;
-        double fieldFontSize = width * 0.045;
-        double buttonHeight = 50;
-
-        EdgeInsets fieldPadding = const EdgeInsets.symmetric(
-          vertical: 16,
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final titleSize = info.value(mobile: 28, tablet: 32, desktop: 36);
+        final fieldFontSize = info.value(mobile: 15, tablet: 16, desktop: 16);
+        final buttonHeight = info.value(mobile: 50, tablet: 52, desktop: 54);
+        final avatarRadius = info.value(mobile: 42, tablet: 50, desktop: 58);
+        final iconSize = avatarRadius * 1.1;
+        final fieldPadding = EdgeInsets.symmetric(
+          vertical: info.value(mobile: 16, tablet: 14, desktop: 14),
           horizontal: 14,
         );
-
-        if (width >= 1200) {
-          paddingH = width * 0.25;
-          titleSize = width * 0.035;
-          fieldFontSize = width * 0.022;
-
-          fieldPadding = const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 14,
-          );
-        } else if (width >= 800) {
-          paddingH = width * 0.15;
-          titleSize = width * 0.045;
-          fieldFontSize = width * 0.03;
-
-          fieldPadding = const EdgeInsets.symmetric(
-            vertical: 14,
-            horizontal: 14,
-          );
-        }
-
-        double avatarRadius = (width * 0.08).clamp(35.0, 60.0);
-        double iconSize = avatarRadius * 1.1;
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -126,45 +102,55 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             centerTitle: true,
           ),
-          body: SingleChildScrollView(
-            padding: EdgeInsets.symmetric(horizontal: paddingH),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  SizedBox(height: height * 0.08),
-                  CircleAvatar(
-                    radius: avatarRadius,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: Icon(
-                      Icons.lock_reset,
-                      size: iconSize,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
-                  ),
-                  SizedBox(height: height * 0.04),
-                  Text(
-                    'Reset Your Password',
-                    style: TextStyle(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textTitleFor(context),
-                    ),
-                  ),
-                  SizedBox(height: height * 0.015),
-                  Text(
-                    helperText,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.textSecondaryFor(context),
-                    ),
-                  ),
-                  SizedBox(height: height * 0.04),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      child: TextFormField(
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 460,
+                tabletMaxWidth: 520,
+                desktopMaxWidth: 560,
+                padding: info.pagePadding(
+                  mobileHorizontal: 16,
+                  tabletHorizontal: 24,
+                  desktopHorizontal: 32,
+                  mobileVertical: 28,
+                  tabletVertical: 40,
+                  desktopVertical: 48,
+                ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: avatarRadius,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        child: Icon(
+                          Icons.lock_reset,
+                          size: iconSize,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      SizedBox(height: info.value(mobile: 24, tablet: 28, desktop: 32)),
+                      Text(
+                        'Reset Your Password',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: titleSize,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textTitleFor(context),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        helperText,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondaryFor(context),
+                        ),
+                      ),
+                      SizedBox(height: info.value(mobile: 24, tablet: 28, desktop: 32)),
+                      TextFormField(
                         controller: emailController,
                         style: TextStyle(fontSize: fieldFontSize),
                         validator: (value) {
@@ -212,13 +198,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                  SizedBox(height: height * 0.04),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 500),
-                      child: AppButton(
+                      SizedBox(height: info.value(mobile: 20, tablet: 24, desktop: 28)),
+                      AppButton(
                         label: _isSubmitting ? 'Please wait...' : 'Continue',
                         onPressed: _isSubmitting ? null : _submit,
                         width: double.infinity,
@@ -229,21 +210,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         fontSize: fieldFontSize,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
-                  ),
-                  SizedBox(height: height * 0.04),
-                  GestureDetector(
-                    onTap: () => Get.offAllNamed(Routes.login),
-                    child: Text(
-                      'Back to Login',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: AppColors.textTitleFor(context),
-                        fontWeight: FontWeight.bold,
+                      SizedBox(height: info.value(mobile: 20, tablet: 24, desktop: 28)),
+                      Center(
+                        child: GestureDetector(
+                          onTap: () => Get.offAllNamed(Routes.login),
+                          child: Text(
+                            'Back to Login',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: AppColors.textTitleFor(context),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),

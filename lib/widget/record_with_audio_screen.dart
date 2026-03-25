@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'app_colors.dart';
+import 'responsive_layout.dart';
 
 class RecordWithAudioScreen extends StatefulWidget {
   final String? challengeName;
@@ -85,6 +86,7 @@ class _RecordWithAudioScreenState extends State<RecordWithAudioScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final info = ResponsiveInfo.fromContext(context);
     final cameraTheme = AwesomeTheme(
       bottomActionsBackgroundColor: AppColors.cD7000000,
       buttonTheme: AwesomeButtonTheme(
@@ -122,54 +124,63 @@ class _RecordWithAudioScreenState extends State<RecordWithAudioScreen> {
           final allowed = snapshot.data == true;
           if (!allowed) {
             return SafeArea(
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(18),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.mic_off, color: Colors.white, size: 42),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Camera and microphone permissions are required.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 420,
+                tabletMaxWidth: 480,
+                desktopMaxWidth: 520,
+                padding: info.pagePadding(
+                  mobileHorizontal: 18,
+                  tabletHorizontal: 24,
+                  desktopHorizontal: 28,
+                  mobileVertical: 20,
+                  tabletVertical: 24,
+                  desktopVertical: 28,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.mic_off, color: Colors.white, size: 42),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Camera and microphone permissions are required.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Please enable permissions in settings and try again.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        OutlinedButton(
+                          onPressed: () async {
+                            await openAppSettings();
+                          },
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Colors.white),
+                          ),
+                          child: const Text('Open settings'),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Please enable permissions in settings and try again.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70),
-                      ),
-                      const SizedBox(height: 14),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.center,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () async {
-                              await openAppSettings();
-                            },
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Colors.white,
-                              side: const BorderSide(color: Colors.white),
-                            ),
-                            child: const Text('Open settings'),
-                          ),
-                          ElevatedButton(
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                            child: const Text('Close'),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ElevatedButton(
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                          child: const Text('Close'),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             );

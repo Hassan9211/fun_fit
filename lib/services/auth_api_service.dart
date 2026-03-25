@@ -22,9 +22,9 @@ class AuthApiResult {
 class AuthApiService {
   static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://192.168.2.104:8000/api',
+    defaultValue: 'http://192.168.2.116:8000/api',
   );
-  static const String _legacyLanBaseUrl = 'http://192.168.2.104:8000/api';
+  static const String _legacyLanBaseUrl = 'http://192.168.2.116:8000/api';
   static const String _signupPath = '/register';
   static const String _loginPath = '/login';
   static const String _requestOtpPath = '/send_otp';
@@ -274,8 +274,7 @@ class AuthApiService {
       'type': purposeAliases.primary,
       'flow': purposeAliases.primary,
       'purpose_alt': purposeAliases.secondary,
-      if (password != null && password.trim().isNotEmpty)
-        'password': password,
+      if (password != null && password.trim().isNotEmpty) 'password': password,
     };
 
     try {
@@ -443,8 +442,7 @@ class AuthApiService {
       if (primaryResult.statusCode == 404 ||
           primaryResult.statusCode == 405 ||
           (primaryResult.statusCode == 500 &&
-              primaryResult.message ==
-                  'Unexpected error. Please try again.')) {
+              primaryResult.message == 'Unexpected error. Please try again.')) {
         final fallbackPaths = <String>[_resetPasswordPath, '/resetPassword'];
         for (final path in fallbackPaths) {
           final fallbackResult = await _postJson(
@@ -511,8 +509,8 @@ class AuthApiService {
         extraHeaders: extraHeaders,
       );
 
-      final fitness = onboardingData['fitnessLevel'] ??
-          onboardingData['fitness_level'];
+      final fitness =
+          onboardingData['fitnessLevel'] ?? onboardingData['fitness_level'];
       if (fitness != null) {
         await _postJson(
           path: _updateFitnessLevelPath,
@@ -674,7 +672,8 @@ class AuthApiService {
     }
 
     try {
-      final fitness = homeData['fitness_level'] ??
+      final fitness =
+          homeData['fitness_level'] ??
           homeData['fitnessLevel'] ??
           homeData['selected_category'] ??
           homeData['selectedCategory'] ??
@@ -761,15 +760,16 @@ class AuthApiService {
                 postData['body'])
             ?.toString()
             .trim();
-    final titleValue =
-        (postData['title'] ?? postData['name'])?.toString().trim();
-    final descriptionValue =
-        (postData['description'] ?? postData['details'])?.toString().trim();
+    final titleValue = (postData['title'] ?? postData['name'])
+        ?.toString()
+        .trim();
+    final descriptionValue = (postData['description'] ?? postData['details'])
+        ?.toString()
+        .trim();
 
     final payload = <String, dynamic>{
       ...postData,
-      if (titleValue == null || titleValue.isEmpty)
-        'title': contentValue ?? '',
+      if (titleValue == null || titleValue.isEmpty) 'title': contentValue ?? '',
       if (descriptionValue == null || descriptionValue.isEmpty)
         'description': contentValue ?? '',
       'post': postData,
@@ -1601,10 +1601,14 @@ class AuthApiService {
         for (final entry in files.entries) {
           final file = File(entry.value);
           if (!file.existsSync()) continue;
-          request.files.add(await http.MultipartFile.fromPath(entry.key, file.path));
+          request.files.add(
+            await http.MultipartFile.fromPath(entry.key, file.path),
+          );
         }
 
-        final streamed = await request.send().timeout(const Duration(seconds: 20));
+        final streamed = await request.send().timeout(
+          const Duration(seconds: 20),
+        );
         final response = await http.Response.fromStream(streamed);
         final decoded = _safeJsonDecode(response.body);
         final ok = response.statusCode >= 200 && response.statusCode < 300;
@@ -1810,15 +1814,13 @@ class AuthApiService {
       return AuthApiResult(
         success: false,
         message:
-            lastMessage ??
-            'Endpoint not found. Tried API URLs: $attempted.',
+            lastMessage ?? 'Endpoint not found. Tried API URLs: $attempted.',
         statusCode: lastStatusCode ?? 404,
         data: lastData,
       );
     }
     return _unexpectedError();
   }
-
 
   Future<AuthApiResult> _getJson({
     required String path,

@@ -18,6 +18,7 @@ import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/app_pull_to_refresh.dart';
 import '../widget/record_with_audio_screen.dart';
+import '../widget/responsive_layout.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -167,7 +168,6 @@ class _HomeScreenState extends State<HomeScreen> {
         .whereType<_ActiveChallenge>()
         .toList(growable: false);
   }
-
 
   Future<void> _pickRandomChallenge() async {
     if (_isPickingChallenge) return;
@@ -578,15 +578,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isDesktop = width >= 1100;
-    final isTablet = width >= 700 && width < 1100;
-    final maxContentWidth = isDesktop
-        ? 520.0
-        : isTablet
-        ? 460.0
-        : 400.0;
-    final isCompact = width < 370;
+    final info = ResponsiveInfo.fromContext(context);
+    final maxContentWidth = info.maxWidth(
+      mobile: 400,
+      tablet: 460,
+      desktop: 520,
+    );
+    final isCompact = info.width < 370;
     final panelColor = AppColors.cFFF5F5F5;
     const panelTextColor = AppColors.cFF222222;
     const panelHintColor = AppColors.cFF7A7A7A;
@@ -704,201 +702,202 @@ class _HomeScreenState extends State<HomeScreen> {
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.fromLTRB(12, 12, 12, 96),
                         children: [
-                        InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: _openFitnessLevelSelector,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 15,
-                            ),
-                            decoration: BoxDecoration(
-                              color: panelCardColor,
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    _selectedCategory ?? 'Select Category',
-                                    style: TextStyle(
-                                      fontSize: isCompact ? 15.5 : 16.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: panelTextColor,
-                                      letterSpacing: -0.1,
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.keyboard_arrow_down_rounded,
-                                  size: 26,
-                                  color: panelTextColor,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Choose Random Challenge',
-                          style: const TextStyle(
-                            color: panelHintColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 28),
-                          child: SizedBox(
-                            height: 42,
-                            child: ElevatedButton(
-                              onPressed: _isPickingChallenge
-                                  ? null
-                                  : _openRandomChallengeScreen,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.black,
-                                foregroundColor: Colors.white,
-                                disabledBackgroundColor: Colors.black45,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(9),
-                                ),
+                          InkWell(
+                            borderRadius: BorderRadius.circular(16),
+                            onTap: _openFitnessLevelSelector,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 15,
                               ),
-                              child: Text(
-                                _isPickingChallenge
-                                    ? 'Selecting...'
-                                    : 'Start Random Challenge',
-                                style: const TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w700,
-                                ),
+                              decoration: BoxDecoration(
+                                color: panelCardColor,
+                                borderRadius: BorderRadius.circular(16),
                               ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Current Challenges',
-                                style: const TextStyle(
-                                  color: AppColors.cFF646464,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: _clearChallenges,
-                              child: const Icon(
-                                Icons.close_rounded,
-                                color: Colors.black,
-                                size: 22,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        if (_currentChallenges.isEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 18,
-                            ),
-                            decoration: BoxDecoration(
-                              color: panelCardColor,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'No active challenge. Start a random one.',
-                              style: const TextStyle(
-                                color: panelHintColor,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ..._currentChallenges.map(_buildChallengeCard),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Recommended Meal',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: panelHintColor,
-                                ),
-                              ),
-                            ),
-                            Text(
-                              'View all',
-                              style: const TextStyle(
-                                color: AppColors.cFF9B9B9B,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Stack(
-                            children: [
-                              AspectRatio(
-                                aspectRatio: 1.63,
-                                child: _RemoteAwareImage(
-                                  path: _recommendedMeal.imagePath,
-                                  fallbackAssetPath:
-                                      'assets/images/nutbutter.jpg',
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              Positioned.fill(
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.bottomCenter,
-                                      end: Alignment.topCenter,
-                                      colors: [
-                                        Colors.black.withValues(alpha: 0.72),
-                                        Colors.transparent,
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              Positioned(
-                                left: 12,
-                                right: 12,
-                                bottom: 10,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      _recommendedMeal.title,
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      _selectedCategory ?? 'Select Category',
                                       style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
+                                        fontSize: isCompact ? 15.5 : 16.5,
                                         fontWeight: FontWeight.w700,
+                                        color: panelTextColor,
+                                        letterSpacing: -0.1,
                                       ),
                                     ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _recommendedMeal.caloriesText,
-                                      style: TextStyle(
-                                        color: AppColors.cFFDADADA,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                                  ),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 26,
+                                    color: panelTextColor,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Choose Random Challenge',
+                            style: const TextStyle(
+                              color: panelHintColor,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 28),
+                            child: SizedBox(
+                              height: 42,
+                              child: ElevatedButton(
+                                onPressed: _isPickingChallenge
+                                    ? null
+                                    : _openRandomChallengeScreen,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.black,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: Colors.black45,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(9),
+                                  ),
+                                ),
+                                child: Text(
+                                  _isPickingChallenge
+                                      ? 'Selecting...'
+                                      : 'Start Random Challenge',
+                                  style: const TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Current Challenges',
+                                  style: const TextStyle(
+                                    color: AppColors.cFF646464,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: _clearChallenges,
+                                child: const Icon(
+                                  Icons.close_rounded,
+                                  color: Colors.black,
+                                  size: 22,
                                 ),
                               ),
                             ],
                           ),
-                        ),
+                          const SizedBox(height: 10),
+                          if (_currentChallenges.isEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 18,
+                              ),
+                              decoration: BoxDecoration(
+                                color: panelCardColor,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                'No active challenge. Start a random one.',
+                                style: const TextStyle(
+                                  color: panelHintColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ..._currentChallenges.map(_buildChallengeCard),
+                          const SizedBox(height: 18),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Recommended Meal',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: panelHintColor,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                'View all',
+                                style: const TextStyle(
+                                  color: AppColors.cFF9B9B9B,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: Stack(
+                              children: [
+                                AspectRatio(
+                                  aspectRatio: 1.63,
+                                  child: _RemoteAwareImage(
+                                    path: _recommendedMeal.imagePath,
+                                    fallbackAssetPath:
+                                        'assets/images/nutbutter.jpg',
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                Positioned.fill(
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.bottomCenter,
+                                        end: Alignment.topCenter,
+                                        colors: [
+                                          Colors.black.withValues(alpha: 0.72),
+                                          Colors.transparent,
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Positioned(
+                                  left: 12,
+                                  right: 12,
+                                  bottom: 10,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _recommendedMeal.title,
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _recommendedMeal.caloriesText,
+                                        style: TextStyle(
+                                          color: AppColors.cFFDADADA,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1013,7 +1012,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     minHeight: 8,
                     value: challenge.progress,
                     backgroundColor: AppColors.cFFE0E0E0,
-                    valueColor: const AlwaysStoppedAnimation(AppColors.cFF22C1CC),
+                    valueColor: const AlwaysStoppedAnimation(
+                      AppColors.cFF22C1CC,
+                    ),
                   ),
                 ),
               ],
@@ -1250,338 +1251,381 @@ class _RandomChallengeScreenState extends State<_RandomChallengeScreen> {
     final canResume = data != null && data.isPaused;
     final isCompleted = data != null && data.isCompleted;
 
-    return Scaffold(
-      backgroundColor: AppColors.cFF080808,
-      extendBody: true,
-      appBar: AppBar(
-        backgroundColor: AppColors.cFF080808,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          color: Colors.white,
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Challenges',
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        bottom: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: panelColor,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 620,
+          desktop: 760,
+        );
+
+        return Scaffold(
+          backgroundColor: AppColors.cFF080808,
+          extendBody: true,
+          appBar: AppBar(
+            backgroundColor: AppColors.cFF080808,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+              color: Colors.white,
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            title: const Text(
+              'Challenges',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+              ),
+            ),
+            centerTitle: true,
           ),
-          child: AppPullToRefresh(
-            onRefresh: () async {
-              _refreshFromParent();
-            },
-            child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 96),
-              children: [
-              const Text(
-                'Choose Random Challenge',
-                style: TextStyle(
-                  color: panelHintColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: SizedBox(
-                  height: 42,
-                  child: ElevatedButton(
-                    onPressed: _isPicking ? null : _handleStartRandom,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: Colors.black45,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(9),
-                      ),
-                    ),
-                    child: const Text(
-                      'Start Random Challenge',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                      ),
+          body: SafeArea(
+            bottom: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: panelColor,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(14),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              const Text(
-                'Current Challenges',
-                style: TextStyle(
-                  color: AppColors.cFF646464,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
-              if (remaining != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 10),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.cFFE2E2E2),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.timer_outlined,
-                        size: 16,
-                        color: AppColors.cFF1EA7A4,
+                  child: AppPullToRefresh(
+                    onRefresh: () async {
+                      _refreshFromParent();
+                    },
+                    child: ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.fromLTRB(
+                        info.value(mobile: 14, tablet: 18, desktop: 20),
+                        16,
+                        info.value(mobile: 14, tablet: 18, desktop: 20),
+                        96,
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Remaining: $remaining',
-                        style: const TextStyle(
-                          color: panelTextColor,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ..._challengeList.map(
-                (challenge) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: InkWell(
-                    onTap: () => _startExistingChallenge(challenge),
-                    borderRadius: BorderRadius.circular(12),
-                    child: _RandomChallengeTile(
-                      challenge: challenge,
-                      isActive: data?.title == challenge.title,
-                    ),
-                  ),
-                ),
-              ),
-              if (_challengeList.isNotEmpty) const SizedBox(height: 8),
-              if (data == null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 16,
-                  ),
-                  decoration: BoxDecoration(
-                    color: panelCardColor,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Text(
-                    'No active challenge. Start a random one.',
-                    style: TextStyle(color: panelHintColor),
-                  ),
-                )
-              else
-                InkWell(
-                  onTap: () => _startExistingChallenge(data),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: panelCardColor,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.cFFE2E2E2),
-                    ),
-                    child: Row(
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
+                        const Text(
+                          'Choose Random Challenge',
+                          style: TextStyle(
+                            color: panelHintColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: info.value(
+                              mobile: 24,
+                              tablet: 80,
+                              desktop: 120,
+                            ),
+                          ),
                           child: SizedBox(
-                            width: 78,
-                            height: 78,
-                            child: _RemoteAwareImage(
-                              path: data.imagePath,
-                              fallbackAssetPath: 'assets/images/pushup.jpg',
-                              fit: BoxFit.cover,
-                              alignment: Alignment.center,
-                              filterQuality: FilterQuality.high,
-                              gaplessPlayback: true,
+                            height: 42,
+                            child: ElevatedButton(
+                              onPressed: _isPicking ? null : _handleStartRandom,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.black,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: Colors.black45,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                              ),
+                              child: const Text(
+                                'Start Random Challenge',
+                                style: TextStyle(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Current Challenges',
+                          style: TextStyle(
+                            color: AppColors.cFF646464,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (remaining != null)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: AppColors.cFFE2E2E2),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.timer_outlined,
+                                  size: 16,
+                                  color: AppColors.cFF1EA7A4,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Remaining: $remaining',
+                                  style: const TextStyle(
+                                    color: panelTextColor,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ..._challengeList.map(
+                          (challenge) => Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: InkWell(
+                              onTap: () => _startExistingChallenge(challenge),
+                              borderRadius: BorderRadius.circular(12),
+                              child: _RandomChallengeTile(
+                                challenge: challenge,
+                                isActive: data?.title == challenge.title,
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_challengeList.isNotEmpty)
+                          const SizedBox(height: 8),
+                        if (data == null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 16,
+                            ),
+                            decoration: BoxDecoration(
+                              color: panelCardColor,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'No active challenge. Start a random one.',
+                              style: TextStyle(color: panelHintColor),
+                            ),
+                          )
+                        else
+                          InkWell(
+                            onTap: () => _startExistingChallenge(data),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: panelCardColor,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.cFFE2E2E2),
+                              ),
+                              child: Row(
                                 children: [
-                                  Expanded(
-                                    child: Text(
-                                      data.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: panelTextColor,
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: SizedBox(
+                                      width: 78,
+                                      height: 78,
+                                      child: _RemoteAwareImage(
+                                        path: data.imagePath,
+                                        fallbackAssetPath:
+                                            'assets/images/pushup.jpg',
+                                        fit: BoxFit.cover,
+                                        alignment: Alignment.center,
+                                        filterQuality: FilterQuality.high,
+                                        gaplessPlayback: true,
                                       ),
                                     ),
                                   ),
-                                  Text(
-                                    data.duration,
-                                    style: const TextStyle(
-                                      color: AppColors.cFF8A8A8A,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                data.title,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: panelTextColor,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              data.duration,
+                                              style: const TextStyle(
+                                                color: AppColors.cFF8A8A8A,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          data.subtitle,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            color: AppColors.cFF8E8E8E,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.18,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
+                                          child: LinearProgressIndicator(
+                                            minHeight: 8,
+                                            value: data.progress,
+                                            backgroundColor:
+                                                AppColors.cFFE0E0E0,
+                                            valueColor:
+                                                const AlwaysStoppedAnimation(
+                                                  AppColors.cFF22C1CC,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                data.subtitle,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.cFF8E8E8E,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  height: 1.18,
-                                ),
+                            ),
+                          ),
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: data == null || isCompleted
+                                ? null
+                                : _handleTogglePause,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.black26,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(height: 10),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(999),
-                                child: LinearProgressIndicator(
-                                  minHeight: 8,
-                                  value: data.progress,
-                                  backgroundColor: AppColors.cFFE0E0E0,
-                                  valueColor: const AlwaysStoppedAnimation(
-                                    AppColors.cFF22C1CC,
-                                  ),
-                                ),
+                            ),
+                            child: Text(
+                              isCompleted
+                                  ? 'Completed'
+                                  : (canStop
+                                        ? 'Stop'
+                                        : (canResume ? 'Resume' : 'Stop')),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        const Text(
+                          'Challenges Discription',
+                          style: TextStyle(
+                            color: panelHintColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
                               ),
                             ],
+                          ),
+                          child: Text(
+                            data == null
+                                ? 'Select a random challenge to see details here.'
+                                : 'Perform ${data.title} with proper form. '
+                                      'Keep your body straight, lower until your chest '
+                                      'nearly touches the ground, then push back up. '
+                                      'Upload a video for verification.',
+                            style: const TextStyle(
+                              color: AppColors.cFF4A4A4A,
+                              fontSize: 12.5,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton.icon(
+                            onPressed: () => _recordChallenge(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            icon: const Icon(Icons.videocam_outlined, size: 18),
+                            label: const Text(
+                              'Record Challenge',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 44,
+                          child: ElevatedButton(
+                            onPressed: widget.onDiscard == null
+                                ? null
+                                : () => _showDiscardDialog(context),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.black,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: Colors.black26,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            child: const Text(
+                              'Discard',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: data == null || isCompleted
-                      ? null
-                      : _handleTogglePause,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black26,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Text(
-                    isCompleted
-                        ? 'Completed'
-                        : (canStop ? 'Stop' : (canResume ? 'Resume' : 'Stop')),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
               ),
-              const SizedBox(height: 18),
-              const Text(
-                'Challenges Discription',
-                style: TextStyle(
-                  color: panelHintColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Text(
-                  data == null
-                      ? 'Select a random challenge to see details here.'
-                      : 'Perform ${data.title} with proper form. '
-                            'Keep your body straight, lower until your chest '
-                            'nearly touches the ground, then push back up. '
-                            'Upload a video for verification.',
-                  style: const TextStyle(
-                    color: AppColors.cFF4A4A4A,
-                    fontSize: 12.5,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton.icon(
-                  onPressed: () => _recordChallenge(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  icon: const Icon(Icons.videocam_outlined, size: 18),
-                  label: const Text(
-                    'Record Challenge',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 44,
-                child: ElevatedButton(
-                  onPressed: widget.onDiscard == null
-                      ? null
-                      : () => _showDiscardDialog(context),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor: Colors.black26,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Discard',
-                    style: TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                ),
-              ),
-              ],
             ),
           ),
-        ),
-      ),
-      bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
+          bottomNavigationBar: const HomeBottomNav(selected: 'Challenges'),
+        );
+      },
     );
   }
 }

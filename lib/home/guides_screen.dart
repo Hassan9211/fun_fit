@@ -12,6 +12,8 @@ import '../widget/app_pull_to_refresh.dart';
 import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
+import '../widget/responsive_layout.dart';
+import '../widget/video_playback_lifecycle.dart';
 
 enum _GuidesMainTab { forYou, explore, chat }
 
@@ -333,13 +335,13 @@ class _GuidesScreenState extends State<GuidesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
+    final info = ResponsiveInfo.fromContext(context);
     final isDark = AppColors.isDark(context);
-    final contentWidth = width >= 1000
-        ? 520.0
-        : width >= 700
-        ? 460.0
-        : 400.0;
+    final contentWidth = info.maxWidth(
+      mobile: 400,
+      tablet: 460,
+      desktop: 520,
+    );
     final avatarProvider = ProfileAvatarResolver.resolve(
       _profileImagePath,
       fallback: const AssetImage('assets/images/alina.jpg'),
@@ -1231,7 +1233,8 @@ class _GuidesVideoPlayerScreen extends StatefulWidget {
       _GuidesVideoPlayerScreenState();
 }
 
-class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
+class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen>
+    with VideoPlaybackLifecycleMixin<_GuidesVideoPlayerScreen> {
   VideoPlayerController? _controller;
   late int _currentIndex;
   bool _isLoading = true;
@@ -1239,6 +1242,9 @@ class _GuidesVideoPlayerScreenState extends State<_GuidesVideoPlayerScreen> {
   int _loadToken = 0;
 
   _GuideVideoItem get _currentItem => widget.playlist[_currentIndex];
+
+  @override
+  VideoPlayerController? get lifecycleVideoController => _controller;
 
   @override
   void initState() {
@@ -2174,122 +2180,153 @@ class _GuidesChatRoomScreenState extends State<_GuidesChatRoomScreen> {
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
-    return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.cFF101010
-          : AppColors.cFFF1F1F1,
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        backgroundColor: isDark ? AppColors.cFF141414 : Colors.white,
-        foregroundColor: AppColors.textPrimaryFor(context),
-        titleSpacing: 0,
-        title: Text(
-          '${widget.post.name} Room',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const InviteFriendScreen()),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 620,
+          desktop: 760,
+        );
+
+        return Scaffold(
+          backgroundColor: isDark
+              ? AppColors.cFF101010
+              : AppColors.cFFF1F1F1,
+          resizeToAvoidBottomInset: false,
+          appBar: AppBar(
+            backgroundColor: isDark ? AppColors.cFF141414 : Colors.white,
+            foregroundColor: AppColors.textPrimaryFor(context),
+            titleSpacing: 0,
+            title: Text(
+              '${widget.post.name} Room',
+              style: TextStyle(
+                fontSize: info.value(mobile: 12, tablet: 13, desktop: 14),
+                fontWeight: FontWeight.w700,
+              ),
             ),
-            style: TextButton.styleFrom(
-              backgroundColor: isDark
-                  ? AppColors.cFF242424
-                  : AppColors.cFFF3F3F3,
-              foregroundColor: AppColors.textPrimaryFor(context),
-              minimumSize: const Size(54, 28),
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
-            child: const Text(
-              'Invite',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const InviteFriendScreen()),
+                ),
+                style: TextButton.styleFrom(
+                  backgroundColor: isDark
+                      ? AppColors.cFF242424
+                      : AppColors.cFFF3F3F3,
+                  foregroundColor: AppColors.textPrimaryFor(context),
+                  minimumSize: const Size(54, 28),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                ),
+                child: const Text(
+                  'Invite',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 8),
-          const Text(
-            'Today',
-            style: TextStyle(
-              fontSize: 10,
-              color: AppColors.cFF7A7A7A,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) =>
-                  _ChatBubble(msg: _messages[index]),
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    height: 38,
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.cFF1D1D1D
-                          : AppColors.cFFEFEFEF,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.borderLightFor(context),
-                      ),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: Column(
+                children: [
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Today',
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: AppColors.cFF7A7A7A,
+                      fontWeight: FontWeight.w600,
                     ),
-                    child: TextField(
-                      controller: _messageController,
-                      decoration: InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Write your massage',
-                        hintStyle: TextStyle(
-                          color: AppColors.textMutedFor(context),
-                          fontSize: 11,
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: ListView.builder(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: info.value(
+                          mobile: 10,
+                          tablet: 14,
+                          desktop: 18,
                         ),
+                        vertical: 4,
                       ),
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        color: AppColors.textPrimaryFor(context),
-                      ),
-                      onSubmitted: (_) => _send(),
+                      itemCount: _messages.length,
+                      itemBuilder: (context, index) =>
+                          _ChatBubble(msg: _messages[index]),
                     ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                SizedBox(
-                  width: 38,
-                  height: 38,
-                  child: ElevatedButton(
-                    onPressed: _send,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isDark
-                          ? AppColors.cFFF3F4F6
-                          : Colors.black,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      info.value(mobile: 10, tablet: 14, desktop: 18),
+                      8,
+                      info.value(mobile: 10, tablet: 14, desktop: 18),
+                      10,
                     ),
-                    child: Icon(
-                      Icons.send_rounded,
-                      size: 18,
-                      color: isDark ? Colors.black : Colors.white,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 42,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              color: isDark
+                                  ? AppColors.cFF1D1D1D
+                                  : AppColors.cFFEFEFEF,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: AppColors.borderLightFor(context),
+                              ),
+                            ),
+                            child: TextField(
+                              controller: _messageController,
+                              decoration: InputDecoration(
+                                border: InputBorder.none,
+                                hintText: 'Write your massage',
+                                hintStyle: TextStyle(
+                                  color: AppColors.textMutedFor(context),
+                                  fontSize: 11,
+                                ),
+                              ),
+                              style: TextStyle(
+                                fontSize: 11.5,
+                                color: AppColors.textPrimaryFor(context),
+                              ),
+                              onSubmitted: (_) => _send(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        SizedBox(
+                          width: 42,
+                          height: 42,
+                          child: ElevatedButton(
+                            onPressed: _send,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: isDark
+                                  ? AppColors.cFFF3F4F6
+                                  : Colors.black,
+                              padding: EdgeInsets.zero,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.send_rounded,
+                              size: 18,
+                              color: isDark ? Colors.black : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -2302,12 +2339,19 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
+    final info = ResponsiveInfo.fromContext(context);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Align(
         alignment: msg.mine ? Alignment.centerRight : Alignment.centerLeft,
         child: Container(
-          constraints: const BoxConstraints(maxWidth: 235),
+          constraints: BoxConstraints(
+            maxWidth: info.value(
+              mobile: 235,
+              tablet: 320,
+              desktop: 380,
+            ),
+          ),
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
           decoration: BoxDecoration(
             color: msg.mine
@@ -2415,28 +2459,42 @@ class _GuideInviteNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        title: const Text(
-          'Notification',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 620,
+          desktop: 760,
+        );
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            centerTitle: true,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            title: const Text(
+              'Notification',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ),
-          child: Column(
-            children: [
+          body: SafeArea(
+            top: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: contentMaxWidth),
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(26),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(14, 14, 10, 0),
                 child: Row(
@@ -2562,10 +2620,14 @@ class _GuideInviteNotificationsScreenState
                         },
                       ),
               ),
-            ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -2737,29 +2799,50 @@ class InviteFriendScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = AppColors.isDark(context);
-    return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.cFF101010
-          : AppColors.cFFF2F2F2,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        centerTitle: true,
-        title: const Text(
-          'Invite a Friend',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
-        children: const [
-          _SearchBox(),
-          SizedBox(height: 10),
-          _InviteTile(name: 'Marsha Fisher'),
-          _InviteTile(name: 'Marsha Fisher'),
-          _InviteTile(name: 'Marsha Fisher'),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 480,
+          desktop: 540,
+        );
+
+        return Scaffold(
+          backgroundColor: isDark
+              ? AppColors.cFF101010
+              : AppColors.cFFF2F2F2,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            centerTitle: true,
+            title: const Text(
+              'Invite a Friend',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+          ),
+          body: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: contentMaxWidth),
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  info.value(mobile: 12, tablet: 16, desktop: 18),
+                  12,
+                  info.value(mobile: 12, tablet: 16, desktop: 18),
+                  24,
+                ),
+                children: const [
+                  _SearchBox(),
+                  SizedBox(height: 10),
+                  _InviteTile(name: 'Marsha Fisher'),
+                  _InviteTile(name: 'Marsha Fisher'),
+                  _InviteTile(name: 'Marsha Fisher'),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

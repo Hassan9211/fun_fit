@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
+
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class AreYouReadyScreen extends StatelessWidget {
   const AreYouReadyScreen({super.key});
@@ -19,64 +21,56 @@ class AreYouReadyScreen extends StatelessWidget {
     final onboardingData = _readArgs();
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        double titleSize = width * 0.08;
-        double buttonFont = width * 0.045;
-        double buttonHeight = 52;
-        double paddingH = width * 0.08;
-
-        if (width >= 1200) {
-          titleSize = width * 0.045;
-          buttonFont = width * 0.025;
-          paddingH = width * 0.3;
-        } else if (width >= 800) {
-          titleSize = width * 0.055;
-          buttonFont = width * 0.035;
-          paddingH = width * 0.2;
-        }
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final titleSize = info.value(mobile: 32, tablet: 38, desktop: 44);
+        final buttonFont = info.value(mobile: 15, tablet: 16, desktop: 17);
+        final buttonHeight = info.value(mobile: 52, tablet: 54, desktop: 56);
 
         return Scaffold(
           backgroundColor: Colors.white,
-          body: Container(
-            height: height,
-            width: width,
-
-            /// 🎨 Gradient Background
-            color: Colors.white,
-
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: paddingH),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  /// Title
-                  Text(
-                    'Are you ready?',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: titleSize,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
+          body: SafeArea(
+            child: Center(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 420,
+                tabletMaxWidth: 480,
+                desktopMaxWidth: 520,
+                padding: info.pagePadding(
+                  mobileHorizontal: 20,
+                  tabletHorizontal: 28,
+                  desktopHorizontal: 36,
+                  mobileVertical: 24,
+                  tabletVertical: 32,
+                  desktopVertical: 40,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Are you ready?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
                     ),
-                  ),
-
-                  SizedBox(height: height * 0.06),
-
-                  /// Button
-                  AppButton(
-                    label: "I'm Ready",
-                    onPressed: () =>
-                        Get.toNamed(Routes.gender, arguments: onboardingData),
-                    width: double.infinity,
-                    height: buttonHeight,
-                    backgroundColor: Colors.black,
-                    borderRadius: 8,
-                    fontSize: buttonFont,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ],
+                    SizedBox(
+                      height: info.value(mobile: 28, tablet: 32, desktop: 36),
+                    ),
+                    AppButton(
+                      label: "I'm Ready",
+                      onPressed: () =>
+                          Get.toNamed(Routes.gender, arguments: onboardingData),
+                      width: double.infinity,
+                      height: buttonHeight,
+                      backgroundColor: Colors.black,
+                      borderRadius: 8,
+                      fontSize: buttonFont,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -84,6 +78,4 @@ class AreYouReadyScreen extends StatelessWidget {
       },
     );
   }
-
-  /// 🎬 Custom animation can be reintroduced later using GetX transitions if needed.
 }

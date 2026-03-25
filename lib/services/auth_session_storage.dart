@@ -3,9 +3,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthSessionStorage {
   static const String emailKey = 'auth_email';
+  static const String lastUserEmailKey = 'last_auth_email';
   static const String tokenKey = 'auth_token';
   static const String otpTokenKey = 'otp_token';
   static const String loggedInKey = 'is_logged_in';
+  static const String rememberedEmailKey = 'remembered_email';
   static const List<String> _userCacheKeys = [
     'profile_media_items',
     'challenge_reels_items',
@@ -40,6 +42,26 @@ class AuthSessionStorage {
     await prefs.setString(otpTokenKey, token.trim());
   }
 
+  static Future<void> saveRememberedEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    final normalized = email.trim();
+    if (normalized.isEmpty) {
+      await prefs.remove(rememberedEmailKey);
+      return;
+    }
+    await prefs.setString(rememberedEmailKey, normalized);
+  }
+
+  static Future<String> readRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    return (prefs.getString(rememberedEmailKey) ?? '').trim();
+  }
+
+  static Future<void> clearRememberedEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(rememberedEmailKey);
+  }
+
   static Future<void> clearOtpToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(otpTokenKey);
@@ -48,16 +70,20 @@ class AuthSessionStorage {
   static Future<void> markLoggedIn({
     required String email,
     Map<String, dynamic>? responseData,
+    bool persistSession = true,
   }) async {
     final prefs = await SharedPreferences.getInstance();
-    final previousEmail = (prefs.getString(emailKey) ?? '').trim();
     final nextEmail = email.trim();
+    final previousEmail =
+        (prefs.getString(lastUserEmailKey) ?? prefs.getString(emailKey) ?? '')
+            .trim();
     if (previousEmail.isNotEmpty &&
         previousEmail.toLowerCase() != nextEmail.toLowerCase()) {
       await clearUserCache();
     }
     await prefs.setString(emailKey, nextEmail);
-    await prefs.setBool(loggedInKey, true);
+    await prefs.setString(lastUserEmailKey, nextEmail);
+    await prefs.setBool(loggedInKey, persistSession);
 
     final token = extractToken(responseData);
     if (token != null) {
@@ -78,9 +104,7 @@ class AuthSessionStorage {
         if (nestedToken != null) return nestedToken;
       } else if (nested is Map) {
         final nestedToken = _extractTokenFromMap(
-          nested.map(
-            (k, v) => MapEntry(k.toString(), v),
-          ),
+          nested.map((k, v) => MapEntry(k.toString(), v)),
         );
         if (nestedToken != null) return nestedToken;
       }
@@ -132,7 +156,6 @@ class AuthSessionStorage {
 
   static Future<void> clear() async {
     final prefs = await SharedPreferences.getInstance();
-    await clearUserCache();
     await prefs.remove(emailKey);
     await prefs.remove(otpTokenKey);
     await prefs.remove(loggedInKey);

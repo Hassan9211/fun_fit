@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../services/auth_api_service.dart';
 import '../widget/app_colors.dart';
+import '../widget/responsive_layout.dart';
 
 class HelpScreen extends StatefulWidget {
   const HelpScreen({super.key});
@@ -54,63 +55,81 @@ class _HelpScreenState extends State<HelpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        title: const Text(
-          'Help',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-        ),
-        centerTitle: true,
-      ),
-      body: SafeArea(
-        top: false,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceMuted(context),
-            borderRadius: BorderRadius.circular(18),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        return Scaffold(
+          backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+          appBar: AppBar(
+            backgroundColor: AppColors.primary,
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+            ),
+            title: const Text(
+              'Help',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+            centerTitle: true,
           ),
-          child: Column(
-            children: [
-              TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'search for help',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: const Icon(Icons.tune),
-                  filled: true,
-                  fillColor: Theme.of(context).colorScheme.surface,
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
+          body: SafeArea(
+            top: false,
+            child: ResponsiveContent(
+              info: info,
+              mobileMaxWidth: 520,
+              tabletMaxWidth: 640,
+              desktopMaxWidth: 760,
+              padding: info.pagePadding(
+                mobileHorizontal: 16,
+                tabletHorizontal: 20,
+                desktopHorizontal: 24,
+                mobileVertical: 14,
+                tabletVertical: 18,
+                desktopVertical: 22,
+              ),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted(context),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'search for help',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: const Icon(Icons.tune),
+                        filled: true,
+                        fillColor: Theme.of(context).colorScheme.surface,
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Expanded(
+                      child: ListView(
+                        children: _items
+                            .expand((item) => <Widget>[
+                                  _HelpItem(
+                                    question: item.question,
+                                    answer: item.answer,
+                                  ),
+                                  const SizedBox(height: 10),
+                                ])
+                            .toList(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 14),
-              Expanded(
-                child: ListView(
-                  children: _items
-                      .expand((item) => <Widget>[
-                            _HelpItem(
-                              question: item.question,
-                              answer: item.answer,
-                            ),
-                            const SizedBox(height: 10),
-                          ])
-                      .toList(),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

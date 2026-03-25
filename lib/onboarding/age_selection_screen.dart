@@ -5,6 +5,7 @@ import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class AgeSelectionScreen extends StatefulWidget {
   const AgeSelectionScreen({super.key});
@@ -53,25 +54,13 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 420.0
-            : isTablet
-            ? 380.0
-            : width;
-
-        final titleSize = isDesktop
-            ? 38.0
-            : isTablet
-            ? 34.0
-            : 36.0;
-        final buttonFont = isDesktop
-            ? 16.0
-            : isTablet
-            ? 15.0
-            : 14.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.isMobile
+            ? info.width
+            : info.maxWidth(mobile: info.width, tablet: 400, desktop: 460);
+        final titleSize = info.value(mobile: 32, tablet: 34, desktop: 38);
+        final buttonFont = info.value(mobile: 14, tablet: 15, desktop: 16);
+        final backButtonSize = info.value(mobile: 30, tablet: 32, desktop: 34);
 
         return Scaffold(
           backgroundColor: Colors.white,
@@ -86,8 +75,8 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          width: 30,
-                          height: 30,
+                          width: backButtonSize,
+                          height: backButtonSize,
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.06),
                             shape: BoxShape.circle,
@@ -119,14 +108,14 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                           ),
                           const SizedBox(height: 32),
                           SizedBox(
-                            height: 190,
-                            width: 180,
+                            height: info.value(mobile: 190, tablet: 200, desktop: 210),
+                            width: info.value(mobile: 180, tablet: 190, desktop: 210),
                             child: Stack(
                               alignment: Alignment.center,
                               children: [
                                 Container(
-                                  width: 140,
-                                  height: 42,
+                                  width: info.value(mobile: 140, tablet: 150, desktop: 164),
+                                  height: info.value(mobile: 42, tablet: 44, desktop: 46),
                                   decoration: BoxDecoration(
                                     color: AppColors.cFFF3F4F6,
                                     borderRadius: BorderRadius.circular(8),
@@ -149,7 +138,17 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                                         child: Text(
                                           '$year',
                                           style: TextStyle(
-                                            fontSize: selected ? 30 : 26,
+                                            fontSize: selected
+                                                ? info.value(
+                                                    mobile: 30,
+                                                    tablet: 32,
+                                                    desktop: 34,
+                                                  )
+                                                : info.value(
+                                                    mobile: 26,
+                                                    tablet: 28,
+                                                    desktop: 30,
+                                                  ),
                                             fontWeight: selected
                                                 ? FontWeight.w800
                                                 : FontWeight.w600,
@@ -178,7 +177,12 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 84),
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        0,
+                        24,
+                        info.value(mobile: 28, tablet: 34, desktop: 40),
+                      ),
                       child: AppButton(
                         label: 'Next',
                         onPressed: () {
@@ -188,7 +192,7 @@ class _AgeSelectionScreenState extends State<AgeSelectionScreen> {
                           Get.toNamed(Routes.height, arguments: onboardingData);
                         },
                         width: double.infinity,
-                        height: 48,
+                        height: info.value(mobile: 48, tablet: 50, desktop: 52),
                         backgroundColor: Colors.black,
                         borderRadius: 8,
                         fontSize: buttonFont,

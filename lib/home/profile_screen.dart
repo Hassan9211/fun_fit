@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -11,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
 
 import '../services/auth_api_service.dart';
+import '../services/media_source_resolver.dart';
 import '../services/auth_session_storage.dart';
 import '../services/profile_avatar_resolver.dart';
 import '../services/profile_sync_service.dart';
@@ -20,6 +22,8 @@ import '../widget/file_video_preview.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/record_with_audio_screen.dart';
 import '../widget/app_pull_to_refresh.dart';
+import '../widget/responsive_layout.dart';
+import '../widget/video_playback_lifecycle.dart';
 
 enum _ProfileVisibilityTab { publicItems, privateItems, savedItems }
 
@@ -250,30 +254,169 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required List<_ProfileMediaItem> remote,
     required List<_ProfileMediaItem> local,
   }) {
-    final localByPath = <String, _ProfileMediaItem>{
-      for (final item in local) item.path: item,
-    };
     final merged = <_ProfileMediaItem>[];
     final seen = <String>{};
 
     for (final remoteItem in remote) {
-      final localItem = localByPath[remoteItem.path];
+      _ProfileMediaItem? localItem;
+      for (final item in local) {
+        if (_sameMediaPath(item.path, remoteItem.path)) {
+          localItem = item;
+          break;
+        }
+      }
+
       if (localItem != null &&
           localItem.visibility == _ProfileMediaVisibility.private) {
         merged.add(localItem);
       } else {
         merged.add(remoteItem);
       }
-      seen.add(remoteItem.path);
+      seen.add(_normalizeMediaPath(remoteItem.path));
     }
 
     for (final localItem in local) {
-      if (!seen.contains(localItem.path)) {
+      final normalized = _normalizeMediaPath(localItem.path);
+      if (normalized.isEmpty || !seen.contains(normalized)) {
         merged.add(localItem);
       }
     }
 
     return merged;
+  }
+
+  List<_ProfileMediaItem> _mergeDistinctMedia(
+    Iterable<_ProfileMediaItem> primary,
+    Iterable<_ProfileMediaItem> secondary,
+  ) {
+    final merged = <_ProfileMediaItem>[];
+    for (final item in <_ProfileMediaItem>[...primary, ...secondary]) {
+      final alreadyAdded = merged.any(
+        (existing) => _sameMediaPath(existing.path, item.path),
+      );
+      if (!alreadyAdded) {
+        merged.add(item);
+      }
+    }
+    return merged;
+  }
+
+  Future<List<_ProfileMediaItem>> _fetchMyReelsFromApi(String token) async {
+    if (token.trim().isEmpty) return const <_ProfileMediaItem>[];
+
+    final result = await _authApi.fetchMyReels(bearerToken: token);
+    if (!result.success || result.data == null) {
+      return const <_ProfileMediaItem>[];
+    }
+
+    final containers = _ProfileApiPayload.collectCandidateMaps(result.data!);
+    final parsed = _ProfileApiPayload._extractMedia(containers);
+    if (parsed != null && parsed.isNotEmpty) {
+      return parsed
+          .map(
+            (item) => item.copyWith(
+              source: item.source.isEmpty ? 'reel' : item.source,
+            ),
+          )
+          .toList(growable: false);
+    }
+
+    final direct = _ProfileApiPayload._mediaFromApiMap(result.data!);
+    if (direct == null) return const <_ProfileMediaItem>[];
+    return <_ProfileMediaItem>[
+      direct.copyWith(source: direct.source.isEmpty ? 'reel' : direct.source),
+    ];
+  }
+
+  Widget _buildMissingMediaCard({double iconSize = 26}) {
+    return ColoredBox(
+      color: AppColors.cFF111111,
+      child: Center(
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: Colors.white70,
+          size: iconSize,
+        ),
+      ),
+    );
+  }
+
+  _ProfileMediaItem? _uploadedMediaFromResponse(Map<String, dynamic>? response) {
+    if (response == null) return null;
+
+    final containers = _ProfileApiPayload.collectCandidateMaps(response);
+    final listItems = _ProfileApiPayload._extractMedia(containers);
+    if (listItems != null && listItems.isNotEmpty) {
+      return listItems.first;
+    }
+
+    return _ProfileApiPayload._mediaFromApiMap(response);
+  }
+
+  String? _uploadedProfileImageFromResponse(Map<String, dynamic>? response) {
+    if (response == null) return null;
+
+    final containers = _ProfileApiPayload.collectCandidateMaps(response);
+    final imagePath = _ProfileApiPayload.firstNonEmptyString(
+      containers,
+      const <String>[
+        'profile_image',
+        'profileImage',
+        'avatar',
+        'avatar_url',
+        'avatarUrl',
+        'image',
+        'image_url',
+        'imageUrl',
+        'photo',
+      ],
+    );
+    if (imagePath == null || imagePath.trim().isEmpty) return null;
+
+    final resolved = MediaSourceResolver.resolve(imagePath);
+    return resolved.trim().isEmpty ? null : resolved;
+  }
+
+  _ProfileMediaItem _mergeUploadedMediaItem(
+    _ProfileMediaItem original,
+    _ProfileMediaItem uploaded,
+  ) {
+    final uploaderName = uploaded.uploaderName.trim();
+    final uploaderUsername = uploaded.uploaderUsername.trim();
+
+    return uploaded.copyWith(
+      type: original.type,
+      isSaved: uploaded.isSaved || original.isSaved,
+      isLiked: uploaded.isLiked || original.isLiked,
+      isDisliked: uploaded.isDisliked || original.isDisliked,
+      uploaderName: uploaderName.isEmpty || uploaderName == 'User'
+          ? original.uploaderName
+          : uploaderName,
+      uploaderUsername:
+          uploaderUsername.isEmpty || uploaderUsername == '@user'
+          ? original.uploaderUsername
+          : uploaderUsername,
+      caption: uploaded.caption.trim().isEmpty ? original.caption : uploaded.caption,
+      visibility: original.visibility,
+      source: uploaded.source.isEmpty ? original.source : uploaded.source,
+    );
+  }
+
+  Future<void> _replaceMediaAfterUpload(
+    _ProfileMediaItem original,
+    _ProfileMediaItem uploaded,
+  ) async {
+    final index = _media.indexWhere(
+      (entry) => _sameMediaPath(entry.path, original.path),
+    );
+    if (index == -1) return;
+
+    final merged = _mergeUploadedMediaItem(original, uploaded);
+    if (!mounted) return;
+    setState(() {
+      _media[index] = merged;
+    });
+    await _saveProfileLocally();
   }
 
   Future<void> _saveProfileLocally() async {
@@ -307,12 +450,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       email: email.isEmpty ? null : email,
       bearerToken: token.isEmpty ? null : token,
     );
-    if (!mounted || !result.success) return;
+    if (!mounted) return;
 
-    final payload = _ProfileApiPayload.fromResponse(result.data);
-    if (!payload.hasAnyValue) return;
+    final payload = result.success
+        ? _ProfileApiPayload.fromResponse(result.data)
+        : const _ProfileApiPayload();
+    final remoteReels = await _fetchMyReelsFromApi(token);
+    if (!payload.hasAnyValue && remoteReels.isEmpty) return;
 
     final localMediaSnapshot = List<_ProfileMediaItem>.from(_media);
+    final remoteMedia = _mergeDistinctMedia(
+      payload.media ?? const <_ProfileMediaItem>[],
+      remoteReels,
+    );
 
     setState(() {
       if (payload.name != null && payload.name!.trim().isNotEmpty) {
@@ -334,9 +484,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (payload.followers != null) {
         _followers = payload.followers!;
       }
-      if (payload.media != null && payload.media!.isNotEmpty) {
+      if (remoteMedia.isNotEmpty) {
         _media = _mergeProfileMedia(
-          remote: payload.media!
+          remote: remoteMedia
               .where((item) => !_isDeletedPath(item.path))
               .toList(growable: true),
           local: localMediaSnapshot,
@@ -544,26 +694,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await showDialog<void>(
       context: context,
       barrierColor: Colors.transparent,
-      builder: (context) => Dialog(
-        insetPadding: const EdgeInsets.all(14),
-        child: Stack(
-          children: [
-            InteractiveViewer(
-              minScale: 0.8,
-              maxScale: 4,
-              child: Image(image: provider, fit: BoxFit.contain),
-            ),
-            Positioned(
-              right: 8,
-              top: 8,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
+      builder: (dialogContext) {
+        final info = ResponsiveInfo.fromContext(dialogContext);
+        final avatarSize = info.value(
+          mobile: 220,
+          tablet: 280,
+          desktop: 340,
+        );
+        return Material(
+          type: MaterialType.transparency,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              GestureDetector(
+                onTap: () => Navigator.of(dialogContext).pop(),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.35),
+                  ),
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
+              Center(
+                child: Container(
+                  width: avatarSize,
+                  height: avatarSize,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.9),
+                      width: 3,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 26,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                    image: DecorationImage(
+                      image: provider,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: info.value(mobile: 46, tablet: 52, desktop: 58),
+                right: info.value(mobile: 18, tablet: 24, desktop: 28),
+                child: Material(
+                  color: Colors.black.withValues(alpha: 0.28),
+                  shape: const CircleBorder(),
+                  child: IconButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    icon: const Icon(Icons.close, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -762,7 +953,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final token = await AuthSessionStorage.readToken();
     if (token.isEmpty) return;
     if (item.type == 'video') {
-      await _authApi.createReel(
+      final result = await _authApi.createReel(
         videoPath: item.path,
         caption: item.caption.trim().isEmpty ? null : item.caption,
         privacy: item.visibility == _ProfileMediaVisibility.private
@@ -770,11 +961,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : 'public',
         bearerToken: token,
       );
+      if (!result.success) return;
+
+      final uploaded = _uploadedMediaFromResponse(result.data);
+      if (uploaded != null) {
+        await _replaceMediaAfterUpload(item, uploaded.copyWith(source: 'reel'));
+      }
     } else {
-      await _authApi.updateProfileImage(
+      final result = await _authApi.updateProfileImage(
         imagePath: item.path,
         bearerToken: token,
       );
+      if (!result.success) return;
+
+      final uploadedPath = _uploadedProfileImageFromResponse(result.data);
+      if (uploadedPath != null && mounted) {
+        setState(() => _profileImagePath = uploadedPath);
+        await _saveProfileLocally();
+      }
     }
   }
 
@@ -830,13 +1034,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _openMedia(_ProfileMediaItem item) async {
-    final file = File(item.path);
-    if (!file.existsSync()) {
-      _showStatusMessage('Media file not found on device');
-      return;
-    }
-
     if (item.type == 'image') {
+      final provider = MediaSourceResolver.resolveImageProvider(item.path);
+      if (provider == null) {
+        _showStatusMessage('Media could not be loaded');
+        return;
+      }
+
       await showDialog<void>(
         context: context,
         barrierColor: Colors.transparent,
@@ -847,7 +1051,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               InteractiveViewer(
                 minScale: 0.8,
                 maxScale: 4,
-                child: Image.file(file, fit: BoxFit.contain),
+                child: Image(
+                  image: provider,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, _, _) =>
+                      _buildMissingMediaCard(iconSize: 42),
+                ),
               ),
               Positioned(
                 left: 12,
@@ -873,7 +1082,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(builder: (_) => _VideoPreviewScreen(item: item)),
     );
     if (updated == null || !mounted) return;
-    final index = _media.indexWhere((e) => e.path == item.path);
+    final index = _media.indexWhere((e) => _sameMediaPath(e.path, item.path));
     if (index == -1) return;
     setState(() => _media[index] = updated);
     await _saveMedia();
@@ -1242,16 +1451,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  item.type == 'image'
-                      ? Image.file(File(item.path), fit: BoxFit.cover)
-                      : FileVideoPreview(
-                          path: item.path,
+                  if (item.type == 'image')
+                    Builder(
+                      builder: (context) {
+                        final provider =
+                            MediaSourceResolver.resolveImageProvider(item.path);
+                        if (provider == null) {
+                          return _buildMissingMediaCard();
+                        }
+                        return Image(
+                          image: provider,
                           fit: BoxFit.cover,
-                          playIconSize: 26,
-                          muted: muted,
-                          showPlayOverlay: showPlayOverlay,
-                          enablePlayback: false,
-                        ),
+                          errorBuilder: (_, _, _) => _buildMissingMediaCard(),
+                        );
+                      },
+                    )
+                  else
+                    FileVideoPreview(
+                      path: item.path,
+                      fit: BoxFit.cover,
+                      playIconSize: 26,
+                      muted: muted,
+                      showPlayOverlay: showPlayOverlay,
+                      enablePlayback: false,
+                    ),
                   Positioned(
                     top: 4,
                     right: 4,
@@ -1287,11 +1510,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final normalizedPath = _normalizeMediaPath(item.path);
     setState(() {
       _media.removeWhere((e) => _sameMediaPath(e.path, item.path));
-      _savedReels.remove(item.path);
-      _likedReels.remove(item.path);
-      _reelLikeCounts.remove(item.path);
-      _reelShareCounts.remove(item.path);
-      _reelComments.remove(item.path);
+      _savedReels.removeWhere((entry) => _sameMediaPath(entry, item.path));
+      _likedReels.removeWhere((entry) => _sameMediaPath(entry, item.path));
+      _reelLikeCounts.removeWhere(
+        (key, _) => _sameMediaPath(key, item.path),
+      );
+      _reelShareCounts.removeWhere(
+        (key, _) => _sameMediaPath(key, item.path),
+      );
+      _reelComments.removeWhere(
+        (key, _) => _sameMediaPath(key, item.path),
+      );
       _deletedMediaPaths.add(item.path);
       if (normalizedPath.isNotEmpty) {
         _deletedMediaPaths.add(normalizedPath);
@@ -1325,10 +1554,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     }
 
-    final file = File(item.path);
-    if (file.existsSync()) {
+    if (MediaSourceResolver.existsLocally(item.path)) {
       try {
-        await file.delete();
+        await File(MediaSourceResolver.localFilePath(item.path)).delete();
       } catch (_) {}
     }
   }
@@ -1455,20 +1683,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ? const Center(child: CircularProgressIndicator())
           : LayoutBuilder(
               builder: (context, constraints) {
-                final width = constraints.maxWidth;
-                final isDesktop = width >= 1100;
-                final isTablet = width >= 700 && width < 1100;
+                final info = ResponsiveInfo.fromConstraints(constraints);
+                final isDesktop = info.isDesktop;
+                final isTablet = info.isTablet;
                 final contentMaxWidth = isDesktop
-                    ? 900.0
-                    : (isTablet ? 760.0 : double.infinity);
+                    ? info.maxWidth(mobile: info.width, tablet: 760, desktop: 900)
+                    : (isTablet
+                        ? info.maxWidth(
+                            mobile: info.width,
+                            tablet: 760,
+                            desktop: 900,
+                          )
+                        : double.infinity);
                 final horizontalPadding = isDesktop
-                    ? width * 0.14
+                    ? info.width * 0.14
                     : (isTablet ? 28.0 : 8.0);
-                final avatarRadius = isDesktop
-                    ? 56.0
-                    : (isTablet ? 50.0 : 42.0);
-                final nameSize = isDesktop ? 22.0 : (isTablet ? 19.0 : 16.0);
-                final statSpacing = isDesktop ? 48.0 : (isTablet ? 36.0 : 28.0);
+                final avatarRadius = info.value(
+                  mobile: 42,
+                  tablet: 50,
+                  desktop: 56,
+                );
+                final nameSize = info.value(
+                  mobile: 16,
+                  tablet: 19,
+                  desktop: 22,
+                );
+                final statSpacing = info.value(
+                  mobile: 28,
+                  tablet: 36,
+                  desktop: 48,
+                );
                 final gridCount = isDesktop ? 5 : (isTablet ? 4 : 3);
                 return Align(
                   alignment: Alignment.topCenter,
@@ -1931,6 +2175,11 @@ class _ProfileApiPayload {
       'mediaItems',
       'profile_media',
       'profileMedia',
+      'reels',
+      'my_reels',
+      'myReels',
+      'shorts',
+      'videos',
       'posts',
       'items',
     ]);
@@ -1965,31 +2214,34 @@ class _ProfileApiPayload {
       'imageUrl',
       'video_url',
       'videoUrl',
+      'video',
+      'thumbnail_url',
+      'thumbnailUrl',
     ]);
     if (path == null || path.isEmpty) return null;
 
-    // Profile grid currently renders local file media only.
-    if (!File(path).existsSync()) return null;
+    final resolvedPath = MediaSourceResolver.resolve(path);
+    if (resolvedPath.isEmpty) return null;
 
-      final type =
-          firstNonEmptyString(json, const <String>[
-            'type',
-            'media_type',
-            'mediaType',
-          ]) ??
-          _guessMediaType(path);
-      final caption = firstNonEmptyString(json, const <String>[
-        'caption',
-        'description',
-        'title',
-        'challenge_name',
-        'challengeName',
-        'text',
-      ]);
+    final type =
+        firstNonEmptyString(json, const <String>[
+          'type',
+          'media_type',
+          'mediaType',
+        ]) ??
+        _guessMediaType(resolvedPath);
+    final caption = firstNonEmptyString(json, const <String>[
+      'caption',
+      'description',
+      'title',
+      'challenge_name',
+      'challengeName',
+      'text',
+    ]);
 
-      return _ProfileMediaItem(
-        path: path,
-        type: type == 'video' ? 'video' : 'image',
+    return _ProfileMediaItem(
+      path: resolvedPath,
+      type: type == 'video' ? 'video' : 'image',
       likes:
           asInt(
             firstRawValue(json, const <String>[
@@ -2023,14 +2275,14 @@ class _ProfileApiPayload {
       isLiked: _asBool(
         firstRawValue(json, const <String>['is_liked', 'isLiked', 'liked']),
       ),
-        isDisliked: _asBool(
-          firstRawValue(json, const <String>[
-            'is_disliked',
-            'isDisliked',
-            'disliked',
-          ]),
-        ),
-        uploaderName:
+      isDisliked: _asBool(
+        firstRawValue(json, const <String>[
+          'is_disliked',
+          'isDisliked',
+          'disliked',
+        ]),
+      ),
+      uploaderName:
           firstNonEmptyString(json, const <String>[
             'uploader_name',
             'uploaderName',
@@ -2038,28 +2290,29 @@ class _ProfileApiPayload {
             'name',
           ]) ??
           'User',
-        uploaderUsername:
-            firstNonEmptyString(json, const <String>[
-              'uploader_username',
-              'uploaderUsername',
-              'username',
-              'handle',
-            ]) ??
-            '@user',
-        caption: caption ?? '',
-        visibility: _ProfileMediaVisibility.normalize(
+      uploaderUsername:
           firstNonEmptyString(json, const <String>[
-                'visibility',
-                'privacy',
-                'scope',
-              ]) ??
-              _ProfileMediaVisibility.public,
+            'uploader_username',
+            'uploaderUsername',
+            'username',
+            'handle',
+          ]) ??
+          '@user',
+      caption: caption ?? '',
+      visibility: _ProfileMediaVisibility.normalize(
+        firstNonEmptyString(json, const <String>[
+              'visibility',
+              'privacy',
+              'scope',
+            ]) ??
+            _ProfileMediaVisibility.public,
       ),
     );
   }
 
   static String _guessMediaType(String path) {
-    final lower = path.toLowerCase();
+    final uri = Uri.tryParse(path);
+    final lower = (uri?.path ?? path).toLowerCase();
     const videoExtensions = <String>[
       '.mp4',
       '.mov',
@@ -2379,218 +2632,285 @@ class _ReelsScreenState extends State<_ReelsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        elevation: 0,
-        title: const Text(
-          'Reels',
-          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
-        ),
-        centerTitle: true,
-      ),
-      body: widget.reels.isEmpty
-          ? const Center(
-              child: Text(
-                'No reels yet.',
-                style: TextStyle(color: Colors.white70),
-              ),
-            )
-          : PageView.builder(
-              scrollDirection: Axis.vertical,
-              controller: _controller,
-              physics: const ClampingScrollPhysics(),
-              onPageChanged: (index) => setState(() => _activeIndex = index),
-              itemCount: widget.reels.length,
-              itemBuilder: (context, index) {
-                final item = widget.reels[index];
-                final key = item.path;
-                final followKey = item.uploaderUsername.isEmpty
-                    ? item.uploaderName
-                    : item.uploaderUsername;
-                final likeCount = widget.likeCountFor(key, item.likes);
-                final commentCount = widget.commentCountFor(key);
-                final shareCount = widget.shareCountFor(key);
-                final isFollow = widget.isFollowed(followKey);
-                final liked = widget.isLiked(key);
-                final saved = widget.isSaved(key);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final playerWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 520,
+          desktop: 560,
+        );
+        final horizontalPadding = info.value(
+          mobile: 14,
+          tablet: 18,
+          desktop: 22,
+        );
 
-                final isActive = index == _activeIndex;
-                return RepaintBoundary(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      GestureDetector(
-                        onDoubleTap: () {
-                          widget.onToggleLike(item);
-                          setState(() => _showHeart = true);
-                          Future<void>.delayed(
-                            const Duration(milliseconds: 420),
-                          ).then((_) {
-                            if (mounted) setState(() => _showHeart = false);
-                          });
-                        },
-                        child: FileVideoPreview(
-                          path: item.path,
-                          fit: BoxFit.cover,
-                          autoplay: isActive,
-                          showPlayOverlay: false,
-                          playIconSize: 42,
-                          muted: false,
-                          enablePlayback: isActive,
-                        ),
-                      ),
-                      if (_showHeart)
-                        Center(
-                          child: Icon(
-                            Icons.favorite,
-                            color: Colors.white.withValues(alpha: 0.9),
-                            size: 86,
-                          ),
-                        ),
-                      Positioned(
-                        left: 14,
-                        right: 14,
-                        bottom: 18,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(
-                                        item.uploaderName.isEmpty
-                                            ? 'User'
-                                            : item.uploaderName,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      OutlinedButton(
-                                        onPressed: () {
-                                          widget.onToggleFollow(followKey);
-                                          setState(() {});
-                                        },
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: Colors.white,
-                                          side: const BorderSide(
-                                            color: Colors.white,
+        return Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black,
+            elevation: 0,
+            title: const Text(
+              'Reels',
+              style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+            ),
+            centerTitle: true,
+          ),
+          body: widget.reels.isEmpty
+              ? const Center(
+                  child: Text(
+                    'No reels yet.',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                )
+              : Center(
+                  child: SizedBox(
+                    width: playerWidth,
+                    child: PageView.builder(
+                      scrollDirection: Axis.vertical,
+                      controller: _controller,
+                      physics: const ClampingScrollPhysics(),
+                      onPageChanged: (index) =>
+                          setState(() => _activeIndex = index),
+                      itemCount: widget.reels.length,
+                      itemBuilder: (context, index) {
+                        final item = widget.reels[index];
+                        final key = item.path;
+                        final followKey = item.uploaderUsername.isEmpty
+                            ? item.uploaderName
+                            : item.uploaderUsername;
+                        final likeCount = widget.likeCountFor(key, item.likes);
+                        final commentCount = widget.commentCountFor(key);
+                        final shareCount = widget.shareCountFor(key);
+                        final isFollow = widget.isFollowed(followKey);
+                        final liked = widget.isLiked(key);
+                        final saved = widget.isSaved(key);
+                        final isActive = index == _activeIndex;
+
+                        return RepaintBoundary(
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              GestureDetector(
+                                onDoubleTap: () {
+                                  widget.onToggleLike(item);
+                                  setState(() => _showHeart = true);
+                                  Future<void>.delayed(
+                                    const Duration(milliseconds: 420),
+                                  ).then((_) {
+                                    if (mounted) {
+                                      setState(() => _showHeart = false);
+                                    }
+                                  });
+                                },
+                                child: FileVideoPreview(
+                                  path: item.path,
+                                  fit: BoxFit.cover,
+                                  autoplay: isActive,
+                                  showPlayOverlay: false,
+                                  playIconSize: 42,
+                                  muted: false,
+                                  enablePlayback: isActive,
+                                ),
+                              ),
+                              if (_showHeart)
+                                Center(
+                                  child: Icon(
+                                    Icons.favorite,
+                                    color: Colors.white.withValues(alpha: 0.9),
+                                    size: info.value(
+                                      mobile: 86,
+                                      tablet: 96,
+                                      desktop: 104,
+                                    ),
+                                  ),
+                                ),
+                              Positioned(
+                                left: horizontalPadding,
+                                right: horizontalPadding,
+                                bottom: info.value(
+                                  mobile: 18,
+                                  tablet: 22,
+                                  desktop: 26,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: Text(
+                                                  item.uploaderName.isEmpty
+                                                      ? 'User'
+                                                      : item.uploaderName,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: info.value(
+                                                      mobile: 15,
+                                                      tablet: 16,
+                                                      desktop: 17,
+                                                    ),
+                                                    fontWeight: FontWeight.w800,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              OutlinedButton(
+                                                onPressed: () {
+                                                  widget.onToggleFollow(
+                                                    followKey,
+                                                  );
+                                                  setState(() {});
+                                                },
+                                                style:
+                                                    OutlinedButton.styleFrom(
+                                                  foregroundColor: Colors.white,
+                                                  side: const BorderSide(
+                                                    color: Colors.white,
+                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                      999,
+                                                    ),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  isFollow
+                                                      ? 'Following'
+                                                      : 'Follow',
+                                                  style: const TextStyle(
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
                                           ),
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 10,
-                                            vertical: 6,
-                                          ),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              999,
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            item.uploaderUsername.isEmpty
+                                                ? '@user'
+                                                : '@${item.uploaderUsername}',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: info.value(
+                                                mobile: 12,
+                                                tablet: 12.5,
+                                                desktop: 13,
+                                              ),
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
-                                        ),
-                                        child: Text(
-                                          isFollow ? 'Following' : 'Follow',
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                    Text(
-                                      item.uploaderUsername.isEmpty
-                                          ? '@user'
-                                          : '@${item.uploaderUsername}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                          if (item.caption.trim().isNotEmpty) ...[
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              item.caption.trim(),
+                                              maxLines: 3,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: info.value(
+                                                  mobile: 12,
+                                                  tablet: 12.5,
+                                                  desktop: 13,
+                                                ),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
-                                    if (item.caption.trim().isNotEmpty) ...[
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        item.caption.trim(),
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                        ),
+                                    SizedBox(
+                                      width: info.value(
+                                        mobile: 66,
+                                        tablet: 70,
+                                        desktop: 74,
                                       ),
-                                    ],
+                                      child: Column(
+                                        children: [
+                                          _ReelActionButton(
+                                            icon: liked
+                                                ? Icons.favorite
+                                                : Icons.favorite_border,
+                                            label: '$likeCount',
+                                            onTap: () {
+                                              widget.onToggleLike(item);
+                                              setState(() {});
+                                            },
+                                          ),
+                                          const SizedBox(height: 12),
+                                          _ReelActionButton(
+                                            icon: Icons.comment,
+                                            label: '$commentCount',
+                                            onTap: () =>
+                                                _openCommentSheet(item),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          _ReelActionButton(
+                                            icon: saved
+                                                ? Icons.bookmark
+                                                : Icons.bookmark_border,
+                                            label: 'Save',
+                                            onTap: () {
+                                              widget.onToggleSave(item);
+                                              setState(() {});
+                                              ScaffoldMessenger.of(
+                                                context,
+                                              ).showSnackBar(
+                                                SnackBar(
+                                                  content: Text(
+                                                    saved
+                                                        ? 'Removed from favorites'
+                                                        : 'Saved to favorites',
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 12),
+                                          _ReelActionButton(
+                                            icon: Icons.share,
+                                            label: '$shareCount',
+                                            onTap: () async {
+                                              widget.onAddShare(item);
+                                              setState(() {});
+                                              await Share.share(
+                                                item.path,
+                                                subject: 'Watch this reel',
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ),
-                            Column(
-                              children: [
-                                _ReelActionButton(
-                                  icon: liked
-                                      ? Icons.favorite
-                                      : Icons.favorite_border,
-                                  label: '$likeCount',
-                                  onTap: () {
-                                    widget.onToggleLike(item);
-                                    setState(() {});
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                _ReelActionButton(
-                                  icon: Icons.comment,
-                                  label: '$commentCount',
-                                  onTap: () => _openCommentSheet(item),
-                                ),
-                                const SizedBox(height: 12),
-                                _ReelActionButton(
-                                  icon: saved
-                                      ? Icons.bookmark
-                                      : Icons.bookmark_border,
-                                  label: 'Save',
-                                  onTap: () {
-                                    widget.onToggleSave(item);
-                                    setState(() {});
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          saved
-                                              ? 'Removed from favorites'
-                                              : 'Saved to favorites',
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                _ReelActionButton(
-                                  icon: Icons.share,
-                                  label: '$shareCount',
-                                  onTap: () async {
-                                    widget.onAddShare(item);
-                                    setState(() {});
-                                    await Share.share(
-                                      item.path,
-                                      subject: 'Watch this reel',
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                );
-              },
-            ),
+                ),
+        );
+      },
     );
   }
 }
@@ -2719,10 +3039,14 @@ class _CapturedMediaReviewScreen extends StatefulWidget {
 }
 
 class _CapturedMediaReviewScreenState
-    extends State<_CapturedMediaReviewScreen> {
+    extends State<_CapturedMediaReviewScreen>
+    with VideoPlaybackLifecycleMixin<_CapturedMediaReviewScreen> {
   VideoPlayerController? _controller;
   late _ProfileMediaItem _item;
   bool _loadingVideo = false;
+
+  @override
+  VideoPlayerController? get lifecycleVideoController => _controller;
 
   @override
   void initState() {
@@ -2980,10 +3304,15 @@ class _VideoPreviewScreen extends StatefulWidget {
   State<_VideoPreviewScreen> createState() => _VideoPreviewScreenState();
 }
 
-class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
+class _VideoPreviewScreenState extends State<_VideoPreviewScreen>
+    with VideoPlaybackLifecycleMixin<_VideoPreviewScreen> {
   VideoPlayerController? _controller;
   bool _loading = true;
+  bool _failed = false;
   late _ProfileMediaItem _item;
+
+  @override
+  VideoPlayerController? get lifecycleVideoController => _controller;
 
   @override
   void initState() {
@@ -2993,23 +3322,59 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
   }
 
   Future<void> _init() async {
-    final controller = VideoPlayerController.file(
-      File(_item.path),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
-    await controller.initialize();
-    controller.setLooping(true);
-    if (!mounted) {
-      await controller.dispose();
+    final source = MediaSourceResolver.resolve(_item.path);
+    if (source.isEmpty) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
       return;
     }
-    setState(() {
-      _controller = controller;
-      _loading = false;
-    });
-    await controller.setVolume(1);
-    await controller.play();
-    await controller.setVolume(1);
+
+    late final VideoPlayerController controller;
+    if (MediaSourceResolver.isNetworkLike(source)) {
+      controller = VideoPlayerController.networkUrl(
+        Uri.parse(source),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+      );
+    } else {
+      if (!MediaSourceResolver.existsLocally(source)) {
+        if (!mounted) return;
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+        return;
+      }
+      controller = VideoPlayerController.file(
+        File(MediaSourceResolver.localFilePath(source)),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+      );
+    }
+
+    try {
+      await controller.initialize();
+      await controller.setLooping(true);
+      if (!mounted) {
+        await controller.dispose();
+        return;
+      }
+      setState(() {
+        _controller = controller;
+        _loading = false;
+        _failed = false;
+      });
+      await controller.setVolume(1);
+      await controller.play();
+    } catch (_) {
+      await controller.dispose();
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _failed = true;
+      });
+    }
   }
 
   @override
@@ -3086,19 +3451,24 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
   }
 
   Future<void> _share() async {
-    final file = File(_item.path);
-    if (!file.existsSync()) {
+    final source = MediaSourceResolver.resolve(_item.path);
+    if (MediaSourceResolver.isNetworkLike(source)) {
+      await Share.share(
+        source,
+        subject: 'Fun Fit Media',
+      );
+    } else if (MediaSourceResolver.existsLocally(source)) {
+      await Share.shareXFiles(
+        [XFile(MediaSourceResolver.localFilePath(source))],
+        text: 'Check out this workout post from Fun Fit',
+        subject: 'Fun Fit Media',
+      );
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('File not found for sharing')),
+        const SnackBar(content: Text('Media not available for sharing')),
       );
       return;
     }
-
-    await Share.shareXFiles(
-      [XFile(_item.path)],
-      text: 'Check out this workout post from Fun Fit',
-      subject: 'Fun Fit Media',
-    );
 
     if (!mounted) return;
     setState(() => _item = _item.copyWith(shares: _item.shares + 1));
@@ -3126,113 +3496,159 @@ class _VideoPreviewScreenState extends State<_VideoPreviewScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: GestureDetector(
-                onDoubleTap: _doubleTapLike,
-                onTap: _togglePlayPause,
-                child: _loading
-                    ? const Center(child: CircularProgressIndicator())
-                    : FittedBox(
-                        fit: BoxFit.contain,
-                        child: SizedBox(
-                          width: _controller!.value.size.width,
-                          height: _controller!.value.size.height,
-                          child: VideoPlayer(_controller!),
-                        ),
-                      ),
-              ),
-            ),
-            Positioned(
-              left: 12,
-              top: 12,
-              child: IconButton(
-                onPressed: () => Navigator.of(context).pop(_item),
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-              ),
-            ),
-            Positioned(
-              right: 12,
-              bottom: 100,
-              child: Column(
-                children: [
-                  _actionIcon(
-                    icon: _item.isLiked
-                        ? Icons.thumb_up_alt
-                        : Icons.thumb_up_alt_outlined,
-                    label: _item.likes.toString(),
-                    onTap: _toggleLike,
-                  ),
-                  const SizedBox(height: 14),
-                  _actionIcon(
-                    icon: _item.isDisliked
-                        ? Icons.thumb_down_alt
-                        : Icons.thumb_down_alt_outlined,
-                    label: _item.dislikes.toString(),
-                    onTap: _toggleDislike,
-                  ),
-                  const SizedBox(height: 14),
-                  _actionIcon(
-                    icon: _item.isSaved
-                        ? Icons.bookmark
-                        : Icons.bookmark_border,
-                    label: 'Save',
-                    onTap: _toggleSave,
-                  ),
-                  const SizedBox(height: 14),
-                  _actionIcon(
-                    icon: Icons.share,
-                    label: _item.shares.toString(),
-                    onTap: _share,
-                  ),
-                ],
-              ),
-            ),
-            Positioned(
-              left: 14,
-              right: 90,
-              bottom: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final playerWidth = info.maxWidth(
+          mobile: info.width,
+          tablet: 520,
+          desktop: 560,
+        );
+
+        return Scaffold(
+          backgroundColor: Colors.black,
+          body: SafeArea(
+            child: Center(
+              child: SizedBox(
+                width: playerWidth,
+                child: Stack(
                   children: [
-                    _VisibilityBadge(visibility: _item.visibility),
-                    const SizedBox(height: 8),
-                    Text(
-                      _item.uploaderName,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                    Positioned.fill(
+                      child: GestureDetector(
+                        onDoubleTap: _doubleTapLike,
+                        onTap: _togglePlayPause,
+                        child: _loading
+                            ? const Center(child: CircularProgressIndicator())
+                            : _failed || _controller == null
+                            ? const Center(
+                                child: Text(
+                                  'Unable to load video',
+                                  style: TextStyle(color: Colors.white70),
+                                ),
+                              )
+                            : FittedBox(
+                                fit: BoxFit.contain,
+                                child: SizedBox(
+                                  width: _controller!.value.size.width,
+                                  height: _controller!.value.size.height,
+                                  child: VideoPlayer(_controller!),
+                                ),
+                              ),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _item.uploaderUsername,
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
-                    ),
-                    if (_item.caption.trim().isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        _item.caption.trim(),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                    Positioned(
+                      left: info.value(mobile: 12, tablet: 16, desktop: 18),
+                      top: info.value(mobile: 12, tablet: 16, desktop: 18),
+                      child: IconButton(
+                        onPressed: () => Navigator.of(context).pop(_item),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
                       ),
-                    ],
+                    ),
+                    Positioned(
+                      right: info.value(mobile: 12, tablet: 16, desktop: 18),
+                      bottom: info.value(
+                        mobile: 100,
+                        tablet: 112,
+                        desktop: 120,
+                      ),
+                      child: Column(
+                        children: [
+                          _actionIcon(
+                            icon: _item.isLiked
+                                ? Icons.thumb_up_alt
+                                : Icons.thumb_up_alt_outlined,
+                            label: _item.likes.toString(),
+                            onTap: _toggleLike,
+                          ),
+                          const SizedBox(height: 14),
+                          _actionIcon(
+                            icon: _item.isDisliked
+                                ? Icons.thumb_down_alt
+                                : Icons.thumb_down_alt_outlined,
+                            label: _item.dislikes.toString(),
+                            onTap: _toggleDislike,
+                          ),
+                          const SizedBox(height: 14),
+                          _actionIcon(
+                            icon: _item.isSaved
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            label: 'Save',
+                            onTap: _toggleSave,
+                          ),
+                          const SizedBox(height: 14),
+                          _actionIcon(
+                            icon: Icons.share,
+                            label: _item.shares.toString(),
+                            onTap: _share,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Positioned(
+                      left: info.value(mobile: 14, tablet: 18, desktop: 20),
+                      right: info.value(mobile: 90, tablet: 96, desktop: 104),
+                      bottom: info.value(mobile: 20, tablet: 24, desktop: 28),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _VisibilityBadge(visibility: _item.visibility),
+                          const SizedBox(height: 8),
+                          Text(
+                            _item.uploaderName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: info.value(
+                                mobile: 15,
+                                tablet: 16,
+                                desktop: 17,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _item.uploaderUsername,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: info.value(
+                                mobile: 13,
+                                tablet: 13.5,
+                                desktop: 14,
+                              ),
+                            ),
+                          ),
+                          if (_item.caption.trim().isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              _item.caption.trim(),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: info.value(
+                                  mobile: 12,
+                                  tablet: 12.5,
+                                  desktop: 13,
+                                ),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ),
-          ],
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

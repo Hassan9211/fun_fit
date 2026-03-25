@@ -12,6 +12,7 @@ import '../widget/app_section_header.dart';
 import '../widget/getx.dart';
 import '../widget/home_bottom_nav.dart';
 import '../widget/app_pull_to_refresh.dart';
+import '../widget/responsive_layout.dart';
 
 class LeaderboardScreen extends StatefulWidget {
   const LeaderboardScreen({super.key});
@@ -268,14 +269,12 @@ class _LeaderboardScreenState extends State<LeaderboardScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final contentMaxWidth = isDesktop
-            ? 520.0
-            : isTablet
-            ? 460.0
-            : 420.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final contentMaxWidth = info.maxWidth(
+          mobile: 420,
+          tablet: 460,
+          desktop: 520,
+        );
         final panelColor = AppColors.isDark(context)
             ? AppColors.cFF171717
             : AppColors.cFFF2F2F2;

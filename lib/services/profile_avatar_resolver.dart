@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+import 'media_source_resolver.dart';
+
 class ProfileAvatarResolver {
   ProfileAvatarResolver._();
 
@@ -17,12 +19,15 @@ class ProfileAvatarResolver {
     final value = path?.trim() ?? '';
     if (value.isEmpty) return null;
 
-    if (_isNetworkLike(value) || kIsWeb) {
-      return NetworkImage(value);
+    final resolved = MediaSourceResolver.resolve(value);
+    if (resolved.isEmpty) return null;
+
+    if (_isNetworkLike(resolved) || kIsWeb) {
+      return NetworkImage(resolved);
     }
 
-    if (File(value).existsSync()) {
-      return FileImage(File(value));
+    if (MediaSourceResolver.existsLocally(resolved)) {
+      return FileImage(File(MediaSourceResolver.localFilePath(resolved)));
     }
 
     return null;

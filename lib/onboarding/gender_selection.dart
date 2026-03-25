@@ -5,6 +5,7 @@ import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class GenderSelectionScreen extends StatefulWidget {
   const GenderSelectionScreen({super.key});
@@ -28,95 +29,91 @@ class _GenderSelectionScreenState extends State<GenderSelectionScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        double titleSize = width * 0.075;
-        double optionFont = width * 0.045;
-        double buttonFont = width * 0.045;
-        double paddingH = width * 0.08;
-        double buttonHeight = 52;
-
-        if (width >= 1200) {
-          titleSize = width * 0.04;
-          optionFont = width * 0.025;
-          buttonFont = width * 0.025;
-          paddingH = width * 0.3;
-        } else if (width >= 800) {
-          titleSize = width * 0.05;
-          optionFont = width * 0.035;
-          buttonFont = width * 0.035;
-          paddingH = width * 0.2;
-        }
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final titleSize = info.value(mobile: 30, tablet: 34, desktop: 38);
+        final optionFont = info.value(mobile: 16, tablet: 17, desktop: 18);
+        final buttonFont = info.value(mobile: 15, tablet: 16, desktop: 17);
+        final buttonHeight = info.value(mobile: 52, tablet: 54, desktop: 56);
 
         return Scaffold(
           backgroundColor: Colors.white,
-          body: Padding(
-            padding: EdgeInsets.symmetric(horizontal: paddingH),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                /// Title
-                Text(
-                  'What is your gender?',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: titleSize,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+          body: SafeArea(
+            child: Center(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 420,
+                tabletMaxWidth: 480,
+                desktopMaxWidth: 520,
+                padding: info.pagePadding(
+                  mobileHorizontal: 20,
+                  tabletHorizontal: 28,
+                  desktopHorizontal: 36,
+                  mobileVertical: 24,
+                  tabletVertical: 32,
+                  desktopVertical: 40,
                 ),
-
-                SizedBox(height: height * 0.06),
-
-                /// Male
-                _genderOption(
-                  label: 'Male',
-                  icon: Icons.male,
-                  isSelected: selectedGender == 'male',
-                  fontSize: optionFont,
-                  onTap: () {
-                    setState(() {
-                      selectedGender = 'male';
-                    });
-                  },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'What is your gender?',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                    ),
+                    SizedBox(
+                      height: info.value(mobile: 28, tablet: 32, desktop: 36),
+                    ),
+                    _genderOption(
+                      label: 'Male',
+                      icon: Icons.male,
+                      isSelected: selectedGender == 'male',
+                      fontSize: optionFont,
+                      onTap: () {
+                        setState(() {
+                          selectedGender = 'male';
+                        });
+                      },
+                    ),
+                    SizedBox(
+                      height: info.value(mobile: 12, tablet: 14, desktop: 16),
+                    ),
+                    _genderOption(
+                      label: 'Female',
+                      icon: Icons.female,
+                      isSelected: selectedGender == 'female',
+                      fontSize: optionFont,
+                      onTap: () {
+                        setState(() {
+                          selectedGender = 'female';
+                        });
+                      },
+                    ),
+                    SizedBox(
+                      height: info.value(mobile: 28, tablet: 32, desktop: 36),
+                    ),
+                    AppButton(
+                      label: 'Next',
+                      onPressed: selectedGender == null
+                          ? null
+                          : () {
+                              final onboardingData = _readOnboardingData();
+                              onboardingData['gender'] = selectedGender;
+                              Get.toNamed(Routes.goal, arguments: onboardingData);
+                            },
+                      width: double.infinity,
+                      height: buttonHeight,
+                      backgroundColor: Colors.black,
+                      borderRadius: 8,
+                      fontSize: buttonFont,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ],
                 ),
-
-                SizedBox(height: height * 0.025),
-
-                /// Female
-                _genderOption(
-                  label: 'Female',
-                  icon: Icons.female,
-                  isSelected: selectedGender == 'female',
-                  fontSize: optionFont,
-                  onTap: () {
-                    setState(() {
-                      selectedGender = 'female';
-                    });
-                  },
-                ),
-
-                SizedBox(height: height * 0.06),
-
-                /// Next Button
-                AppButton(
-                  label: 'Next',
-                  onPressed: selectedGender == null
-                      ? null
-                      : () {
-                          final onboardingData = _readOnboardingData();
-                          onboardingData['gender'] = selectedGender;
-                          Get.toNamed(Routes.goal, arguments: onboardingData);
-                        },
-                  width: double.infinity,
-                  height: buttonHeight,
-                  backgroundColor: Colors.black,
-                  borderRadius: 8,
-                  fontSize: buttonFont,
-                  fontWeight: FontWeight.bold,
-                ),
-              ],
+              ),
             ),
           ),
         );

@@ -7,6 +7,7 @@ import '../services/auth_api_service.dart';
 import '../services/auth_session_storage.dart';
 import '../widget/app_colors.dart';
 import '../widget/app_button.dart';
+import '../widget/responsive_layout.dart';
 
 class OtpScreen extends StatefulWidget {
   final OtpPurpose purpose;
@@ -119,24 +120,10 @@ class _OtpScreenState extends State<OtpScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final isDesktop = width >= 1100;
-        final isTablet = width >= 700 && width < 1100;
-        final hPadding = isDesktop
-            ? width * 0.25
-            : isTablet
-            ? width * 0.16
-            : 24.0;
-        final otpBoxWidth = isDesktop
-            ? 64.0
-            : isTablet
-            ? 60.0
-            : 55.0;
-        final titleSize = isDesktop
-            ? 32.0
-            : isTablet
-            ? 28.0
-            : 26.0;
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final otpBoxWidth = info.value(mobile: 55, tablet: 60, desktop: 64);
+        final titleSize = info.value(mobile: 26, tablet: 28, desktop: 32);
+        final otpSpacing = info.value(mobile: 10, tablet: 12, desktop: 14);
 
         return Scaffold(
           backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -151,25 +138,29 @@ class _OtpScreenState extends State<OtpScreen> {
             scrolledUnderElevation: 0,
             centerTitle: true,
           ),
-          body: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: hPadding),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              child: ResponsiveContent(
+                info: info,
+                mobileMaxWidth: 420,
+                tabletMaxWidth: 500,
+                desktopMaxWidth: 560,
+                padding: info.pagePadding(
+                  mobileHorizontal: 16,
+                  tabletHorizontal: 24,
+                  desktopHorizontal: 32,
+                  mobileVertical: 28,
+                  tabletVertical: 40,
+                  desktopVertical: 48,
+                ),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: titleSize,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        softWrap: false,
-                        textAlign: TextAlign.center,
+                    Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: titleSize,
+                        fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -180,9 +171,11 @@ class _OtpScreenState extends State<OtpScreen> {
                         color: AppColors.textSecondaryFor(context),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    SizedBox(height: info.value(mobile: 28, tablet: 32, desktop: 36)),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: otpSpacing,
+                      runSpacing: otpSpacing,
                       children: List.generate(4, (index) {
                         return SizedBox(
                           width: otpBoxWidth,
@@ -229,12 +222,16 @@ class _OtpScreenState extends State<OtpScreen> {
                         );
                       }),
                     ),
-                    const SizedBox(height: 40),
+                    SizedBox(height: info.value(mobile: 28, tablet: 32, desktop: 36)),
                     AppButton(
                       label: _isVerifying ? 'Please wait...' : 'Continue',
                       onPressed: _isVerifying ? null : _verifyOtp,
                       width: double.infinity,
-                      height: 50,
+                      height: info.value(
+                        mobile: 50,
+                        tablet: 52,
+                        desktop: 54,
+                      ),
                       backgroundColor: Theme.of(context).colorScheme.primary,
                       textColor: Theme.of(context).colorScheme.onPrimary,
                       borderRadius: 8,

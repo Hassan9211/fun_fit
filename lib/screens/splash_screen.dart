@@ -5,6 +5,8 @@ import 'package:fun_fit/widget/getx.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../widget/responsive_layout.dart';
+
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -76,22 +78,10 @@ class _SplashScreenState extends State<SplashScreen>
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final height = constraints.maxHeight;
-
-        double logoSize = width * 0.15;
-        double textSize = width * 0.08;
-        double loaderSize = width * 0.05;
-
-        if (width >= 1200) {
-          logoSize = width * 0.08;
-          textSize = width * 0.05;
-          loaderSize = width * 0.03;
-        } else if (width >= 800) {
-          logoSize = width * 0.12;
-          textSize = width * 0.06;
-          loaderSize = width * 0.04;
-        }
+        final info = ResponsiveInfo.fromConstraints(constraints);
+        final logoSize = info.value(mobile: 82, tablet: 96, desktop: 110);
+        final textSize = info.value(mobile: 36, tablet: 46, desktop: 54);
+        final loaderSize = info.value(mobile: 24, tablet: 28, desktop: 32);
 
         return Scaffold(
           backgroundColor: Colors.black,
@@ -111,7 +101,13 @@ class _SplashScreenState extends State<SplashScreen>
                             size: logoSize,
                             color: Colors.white,
                           ),
-                          SizedBox(height: height * 0.02),
+                          SizedBox(
+                            height: info.value(
+                              mobile: 12,
+                              tablet: 16,
+                              desktop: 18,
+                            ),
+                          ),
                           Text(
                             'ModivFit',
                             style: TextStyle(
@@ -128,7 +124,9 @@ class _SplashScreenState extends State<SplashScreen>
                 ),
               ),
               Padding(
-                padding: EdgeInsets.only(bottom: height * 0.05),
+                padding: EdgeInsets.only(
+                  bottom: info.value(mobile: 28, tablet: 36, desktop: 42),
+                ),
                 child: SizedBox(
                   width: loaderSize,
                   height: loaderSize,
